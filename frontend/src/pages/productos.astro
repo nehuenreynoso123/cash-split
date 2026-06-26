@@ -1,0 +1,12 @@
+---
+import AppLayout from '../layouts/AppLayout.astro';
+import ProductPageClient from '../components/products/ProductPageClient';
+---
+
+<AppLayout
+  currentPage="productos"
+  pageTitle="Productos"
+  pageSubtitle="Gestión de Inventario"
+>
+  <ProductPageClient client:load />
+</AppLayout>

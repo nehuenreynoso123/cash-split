@@ -1,0 +1,8 @@
+---
+import AppLayout from '../layouts/AppLayout.astro';
+import DeudoresClient from '../components/deudores/DeudoresClient';
+---
+
+<AppLayout currentPage="deudores" pageTitle="Deudores">
+  <DeudoresClient client:load />
+</AppLayout>

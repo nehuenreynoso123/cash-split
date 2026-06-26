@@ -1,0 +1,11 @@
+---
+import AppLayout from '../layouts/AppLayout.astro';
+import DashboardClient from '../components/dashboard/DashboardClient';
+---
+
+<AppLayout
+  currentPage="dashboard"
+  pageTitle="Resumen de Capital"
+>
+  <DashboardClient client:load />
+</AppLayout>

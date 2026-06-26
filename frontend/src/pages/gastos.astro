@@ -1,0 +1,8 @@
+---
+import AppLayout from '../layouts/AppLayout.astro';
+import GastosClient from '../components/gastos/GastosClient';
+---
+
+<AppLayout currentPage="gastos" pageTitle="Gastos">
+  <GastosClient client:load />
+</AppLayout>

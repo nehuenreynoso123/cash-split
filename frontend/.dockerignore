@@ -1,0 +1,29 @@
+# =============================================================================
+#  dockerignore — mantener el build context liviano
+# =============================================================================
+
+node_modules/
+dist/
+.git/
+.astro/
+.cache/
+
+# Editor / IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Envs
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*

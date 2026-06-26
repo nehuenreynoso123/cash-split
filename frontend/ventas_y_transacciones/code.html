@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+
+<html class="light" lang="es"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Ventas - cash_split</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-secondary": "#ffffff",
+                    "tertiary-fixed-dim": "#ddc39d",
+                    "primary-fixed": "#d8e3fb",
+                    "on-error-container": "#93000a",
+                    "on-secondary-container": "#fefcff",
+                    "tertiary-container": "#35260c",
+                    "secondary": "#0058be",
+                    "outline": "#75777d",
+                    "inverse-surface": "#213145",
+                    "on-tertiary-container": "#a38c6a",
+                    "inverse-on-surface": "#eaf1ff",
+                    "on-primary-fixed-variant": "#3c475a",
+                    "surface-variant": "#d3e4fe",
+                    "on-primary-fixed": "#111c2d",
+                    "background": "#f8f9ff",
+                    "on-primary": "#ffffff",
+                    "on-tertiary": "#ffffff",
+                    "error": "#ba1a1a",
+                    "surface": "#f8f9ff",
+                    "on-secondary-fixed-variant": "#004395",
+                    "inverse-primary": "#bcc7de",
+                    "surface-container-highest": "#d3e4fe",
+                    "error-container": "#ffdad6",
+                    "on-surface": "#0b1c30",
+                    "on-surface-variant": "#45474c",
+                    "on-secondary-fixed": "#001a42",
+                    "outline-variant": "#c5c6cd",
+                    "surface-container-lowest": "#ffffff",
+                    "surface-container": "#e5eeff",
+                    "on-error": "#ffffff",
+                    "secondary-container": "#2170e4",
+                    "tertiary": "#1e1200",
+                    "surface-bright": "#f8f9ff",
+                    "on-primary-container": "#8590a6",
+                    "surface-tint": "#545f73",
+                    "surface-container-low": "#eff4ff",
+                    "surface-dim": "#cbdbf5",
+                    "secondary-fixed-dim": "#adc6ff",
+                    "on-background": "#0b1c30",
+                    "primary": "#091426",
+                    "primary-container": "#1e293b",
+                    "on-tertiary-fixed": "#271902",
+                    "surface-container-high": "#dce9ff",
+                    "on-tertiary-fixed-variant": "#564427",
+                    "primary-fixed-dim": "#bcc7de",
+                    "secondary-fixed": "#d8e2ff",
+                    "tertiary-fixed": "#fadfb8"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.125rem",
+                    "lg": "0.25rem",
+                    "xl": "0.5rem",
+                    "full": "0.75rem"
+            },
+            "spacing": {
+                    "container_padding": "32px",
+                    "stack_md": "16px",
+                    "gutter": "24px",
+                    "sidebar_width": "260px",
+                    "header_height": "64px",
+                    "stack_sm": "8px",
+                    "stack_lg": "24px"
+            },
+            "fontFamily": {
+                    "display-lg": ["Inter", "sans-serif"],
+                    "label-caps": ["Inter", "sans-serif"],
+                    "body-sm": ["Inter", "sans-serif"],
+                    "headline-md": ["Inter", "sans-serif"],
+                    "data-mono": ["JetBrains Mono", "monospace"],
+                    "body-base": ["Inter", "sans-serif"]
+            },
+            "fontSize": {
+                    "display-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "label-caps": ["11px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                    "body-sm": ["12px", {"lineHeight": "16px", "fontWeight": "400"}],
+                    "headline-md": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
+                    "data-mono": ["14px", {"lineHeight": "20px", "letterSpacing": "-0.01em", "fontWeight": "500"}],
+                    "body-base": ["14px", {"lineHeight": "20px", "fontWeight": "400"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body { background-color: #f8fafc; }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .active-nav-item { transform: scale(0.98); }
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(8px);
+        }
+        input::-webkit-outer-spin-button,
+        input::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+    </style>
+</head>
+<body class="font-body-base text-on-surface antialiased">
+<!-- SideNavBar Shell -->
+<aside class="fixed left-0 top-0 h-full w-[260px] bg-primary flex flex-col h-full py-8 px-4 z-50">
+<div class="mb-10 px-4">
+<h1 class="font-display-lg text-display-lg font-bold text-on-primary">cash_split</h1>
+<p class="font-body-sm text-body-sm text-on-primary-container opacity-80 uppercase tracking-widest mt-1">Capital Management</p>
+</div>
+<nav class="flex-1 space-y-2">
+<a class="flex items-center gap-3 text-on-primary-container hover:bg-primary-container transition-colors p-3 rounded-xl" href="#">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+<span class="font-body-base text-body-base">Dashboard</span>
+</a>
+<a class="flex items-center gap-3 text-on-primary-container hover:bg-primary-container transition-colors p-3 rounded-xl" href="#">
+<span class="material-symbols-outlined" data-icon="inventory_2">inventory_2</span>
+<span class="font-body-base text-body-base">Productos</span>
+</a>
+<!-- Active State for Ventas -->
+<a class="flex items-center gap-3 bg-secondary-container text-on-secondary-container rounded-xl p-3 active-nav-item shadow-lg shadow-secondary/20" href="#">
+<span class="material-symbols-outlined" data-icon="payments">payments</span>
+<span class="font-body-base text-body-base font-semibold">Ventas</span>
+</a>
+<a class="flex items-center gap-3 text-on-primary-container hover:bg-primary-container transition-colors p-3 rounded-xl" href="#">
+<span class="material-symbols-outlined" data-icon="trending_up">trending_up</span>
+<span class="font-body-base text-body-base">Inversión</span>
+</a>
+<a class="flex items-center gap-3 text-on-primary-container hover:bg-primary-container transition-colors p-3 rounded-xl" href="#">
+<span class="material-symbols-outlined" data-icon="receipt_long">receipt_long</span>
+<span class="font-body-base text-body-base">Gastos</span>
+</a>
+<a class="flex items-center gap-3 text-on-primary-container hover:bg-primary-container transition-colors p-3 rounded-xl" href="#">
+<span class="material-symbols-outlined" data-icon="inventory">inventory</span>
+<span class="font-body-base text-body-base">Stock</span>
+</a>
+<a class="flex items-center gap-3 text-on-primary-container hover:bg-primary-container transition-colors p-3 rounded-xl" href="#">
+<span class="material-symbols-outlined" data-icon="group_remove">group_remove</span>
+<span class="font-body-base text-body-base">Deudores</span>
+</a>
+</nav>
+<div class="mt-auto border-t border-primary-container pt-6">
+<a class="flex items-center gap-3 text-on-primary-container hover:bg-primary-container transition-colors p-3 rounded-xl" href="#">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+<span class="font-body-base text-body-base">Ajustes</span>
+</a>
+</div>
+</aside>
+<!-- Main Content Wrapper -->
+<main class="ml-[260px] min-h-screen">
+<!-- TopNavBar Shell -->
+<header class="h-16 flex justify-between items-center px-8 border-b border-outline-variant bg-surface sticky top-0 z-40">
+<div class="flex items-center gap-4">
+<h2 class="font-headline-md text-headline-md text-primary">Ventas</h2>
+<div class="h-4 w-px bg-outline-variant mx-2"></div>
+<div class="text-on-surface-variant font-body-base">Registro y Control</div>
+</div>
+<div class="flex items-center gap-6">
+<div class="relative group">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant group-focus-within:text-secondary transition-colors" data-icon="search">search</span>
+<input class="pl-10 pr-4 py-2 bg-surface-container-low border border-outline-variant rounded-xl focus:ring-2 focus:ring-secondary focus:border-transparent outline-none w-64 transition-all" placeholder="Buscar venta o factura..." type="text"/>
+</div>
+<div class="flex items-center gap-3 pl-6 border-l border-outline-variant">
+<img alt="Entrepreneur Profile Avatar" class="w-8 h-8 rounded-full object-cover" data-alt="A professional business portrait of a confident entrepreneur in a modern office environment. Soft natural lighting from large windows illuminates their face, creating a welcoming yet authoritative corporate headshot. High-end photography style with shallow depth of field, highlighting the individual against a blurred minimalist studio background." src="https://lh3.googleusercontent.com/aida-public/AB6AXuD2aDYWaMuAGVOPEu42QZD7PHkG_sqqAnOP5vYccdLiMZTGu7S5FBMUHW4zv8H1q3eVawbGjwODH8PRZuxwCwRpPkRV-46v3S4KI9_FRlhLct4yRR9wsHgeHFs_U2zcwKEWJ3Aqw2VaDzOQmWelh_WMEvivdZDGgct4uTPywc_yLOoeOaWoNjXdcSD_w4gmw_C9gHn5-xPrFrIqrwIIjbYsNpvzjeRdhmBeuyTT3m3tM2Et-AEynjm8fyosiqrBJL2J22IskXyC20E"/>
+<button class="text-on-surface-variant font-body-base hover:text-secondary transition-colors">Cerrar sesión</button>
+</div>
+</div>
+</header>
+<!-- Page Canvas -->
+<div class="p-8 max-w-7xl mx-auto space-y-gutter">
+<!-- Quick Stats Bento Grid -->
+<div class="grid grid-cols-1 md:grid-cols-4 gap-gutter">
+<div class="bg-white border border-outline-variant p-6 rounded-xl flex flex-col gap-2">
+<span class="text-on-surface-variant font-label-caps uppercase tracking-wider">Ventas Hoy</span>
+<div class="flex items-baseline justify-between">
+<span class="font-data-mono text-display-lg text-primary">$1,240.00</span>
+<span class="text-secondary flex items-center font-body-sm">+12% <span class="material-symbols-outlined text-[16px]" data-icon="trending_up">trending_up</span></span>
+</div>
+</div>
+<div class="bg-white border border-outline-variant p-6 rounded-xl flex flex-col gap-2">
+<span class="text-on-surface-variant font-label-caps uppercase tracking-wider">Tickets Emitidos</span>
+<div class="flex items-baseline justify-between">
+<span class="font-data-mono text-display-lg text-primary">28</span>
+<span class="text-on-surface-variant flex items-center font-body-sm">Media: $44</span>
+</div>
+</div>
+<div class="bg-white border border-outline-variant p-6 rounded-xl flex flex-col gap-2">
+<span class="text-on-surface-variant font-label-caps uppercase tracking-wider">Margen Promedio</span>
+<div class="flex items-baseline justify-between">
+<span class="font-data-mono text-display-lg text-primary">24.5%</span>
+<span class="text-error flex items-center font-body-sm">-2% <span class="material-symbols-outlined text-[16px]" data-icon="trending_down">trending_down</span></span>
+</div>
+</div>
+<div class="bg-secondary text-on-secondary p-6 rounded-xl flex flex-col gap-2 shadow-lg shadow-secondary/10">
+<span class="opacity-80 font-label-caps uppercase tracking-wider">Balance Liquidez</span>
+<div class="flex items-baseline justify-between">
+<span class="font-data-mono text-display-lg">$4,520.12</span>
+<span class="material-symbols-outlined opacity-60" data-icon="account_balance_wallet">account_balance_wallet</span>
+</div>
+</div>
+</div>
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-gutter items-start">
+<!-- Nueva Venta Section (Left Column) -->
+<section class="lg:col-span-5 bg-white border border-outline-variant rounded-xl overflow-hidden shadow-sm">
+<div class="p-6 border-b border-outline-variant bg-surface-container-low flex justify-between items-center">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-secondary" data-icon="add_shopping_cart">add_shopping_cart</span>
+<h3 class="font-headline-md text-headline-md text-primary">Nueva Venta</h3>
+</div>
+<span class="text-on-surface-variant font-body-sm">ID: #VNT-9402</span>
+</div>
+<form class="p-8 space-y-6" id="saleForm">
+<div class="space-y-2">
+<label class="font-label-caps text-on-surface-variant uppercase">Seleccionar Producto</label>
+<div class="relative">
+<select class="w-full h-12 bg-white border border-outline-variant rounded-xl px-4 appearance-none focus:ring-2 focus:ring-secondary transition-all cursor-pointer" id="productSelect">
+<option disabled="" selected="" value="">Elegir producto...</option>
+<option data-price="120.00" data-stock="45" value="120">Laptop Pro M2 (Stock: 45)</option>
+<option data-price="15.50" data-stock="12" value="15">Mouse Ergonómico (Stock: 12)</option>
+<option data-price="250.00" data-stock="4" value="250">Monitor 4K UHD (Stock: 4)</option>
+<option data-price="45.00" data-stock="120" value="45">Teclado Mecánico (Stock: 120)</option>
+</select>
+<span class="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-on-surface-variant" data-icon="expand_more">expand_more</span>
+</div>
+</div>
+<div class="grid grid-cols-2 gap-4">
+<div class="space-y-2">
+<label class="font-label-caps text-on-surface-variant uppercase">Cantidad</label>
+<div class="relative group">
+<input class="w-full h-12 border border-outline-variant rounded-xl px-4 focus:ring-2 focus:ring-secondary outline-none transition-all" id="qtyInput" min="1" placeholder="0" type="number"/>
+<span class="absolute right-4 top-1/2 -translate-y-1/2 text-on-surface-variant font-body-sm group-focus-within:text-secondary">Uds</span>
+</div>
+</div>
+<div class="space-y-2">
+<label class="font-label-caps text-on-surface-variant uppercase">Precio Unitario</label>
+<div class="w-full h-12 bg-surface-container-low border border-outline-variant rounded-xl flex items-center px-4">
+<span class="text-on-surface-variant mr-1">$</span>
+<span class="font-data-mono text-primary" id="priceDisplay">0.00</span>
+</div>
+</div>
+</div>
+<div class="p-6 bg-surface-container rounded-xl flex justify-between items-center mt-4">
+<span class="font-headline-md text-headline-md text-primary">Total Venta</span>
+<span class="font-data-mono text-display-lg text-secondary" id="totalDisplay">$0.00</span>
+</div>
+<button class="w-full h-14 bg-[#10b981] hover:bg-[#059669] text-white font-bold rounded-xl flex items-center justify-center gap-3 transition-all active:scale-95 shadow-lg shadow-emerald-200" type="submit">
+<span class="material-symbols-outlined" data-icon="check_circle">check_circle</span>
+                            Registrar Venta
+                        </button>
+</form>
+</section>
+<!-- History Section (Right Column) -->
+<section class="lg:col-span-7 bg-white border border-outline-variant rounded-xl overflow-hidden shadow-sm self-stretch">
+<div class="p-6 border-b border-outline-variant bg-surface-container-low flex justify-between items-center">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-secondary" data-icon="history">history</span>
+<h3 class="font-headline-md text-headline-md text-primary">Historial de Ventas</h3>
+</div>
+<button class="flex items-center gap-2 text-secondary font-body-base hover:underline transition-all">
+                            Exportar <span class="material-symbols-outlined text-[18px]" data-icon="file_download">file_download</span>
+</button>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-bright border-b border-outline-variant">
+<th class="px-6 py-4 font-label-caps text-on-surface-variant uppercase tracking-wider">Fecha</th>
+<th class="px-6 py-4 font-label-caps text-on-surface-variant uppercase tracking-wider">Producto</th>
+<th class="px-6 py-4 font-label-caps text-on-surface-variant uppercase tracking-wider text-right">Cant.</th>
+<th class="px-6 py-4 font-label-caps text-on-surface-variant uppercase tracking-wider text-right">Total</th>
+<th class="px-6 py-4 font-label-caps text-on-surface-variant uppercase tracking-wider text-center">Estado</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant/30">
+<tr class="hover:bg-surface-container-lowest transition-colors group">
+<td class="px-6 py-4">
+<div class="flex flex-col">
+<span class="text-primary font-medium">14 Oct, 2023</span>
+<span class="text-on-surface-variant text-body-sm">14:32 PM</span>
+</div>
+</td>
+<td class="px-6 py-4 text-primary font-body-base">Laptop Pro M2</td>
+<td class="px-6 py-4 text-right font-data-mono">1</td>
+<td class="px-6 py-4 text-right font-data-mono text-primary font-semibold">$1,200.00</td>
+<td class="px-6 py-4 text-center">
+<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">
+                                            Pagado
+                                        </span>
+</td>
+</tr>
+<tr class="hover:bg-surface-container-lowest transition-colors group">
+<td class="px-6 py-4">
+<div class="flex flex-col">
+<span class="text-primary font-medium">14 Oct, 2023</span>
+<span class="text-on-surface-variant text-body-sm">12:15 PM</span>
+</div>
+</td>
+<td class="px-6 py-4 text-primary font-body-base">Mouse Ergonómico</td>
+<td class="px-6 py-4 text-right font-data-mono">2</td>
+<td class="px-6 py-4 text-right font-data-mono text-primary font-semibold">$31.00</td>
+<td class="px-6 py-4 text-center">
+<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">
+                                            Pagado
+                                        </span>
+</td>
+</tr>
+<tr class="hover:bg-surface-container-lowest transition-colors group">
+<td class="px-6 py-4">
+<div class="flex flex-col">
+<span class="text-primary font-medium">13 Oct, 2023</span>
+<span class="text-on-surface-variant text-body-sm">17:45 PM</span>
+</div>
+</td>
+<td class="px-6 py-4 text-primary font-body-base">Monitor 4K UHD</td>
+<td class="px-6 py-4 text-right font-data-mono">1</td>
+<td class="px-6 py-4 text-right font-data-mono text-primary font-semibold">$250.00</td>
+<td class="px-6 py-4 text-center">
+<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
+                                            Pendiente
+                                        </span>
+</td>
+</tr>
+<tr class="hover:bg-surface-container-lowest transition-colors group">
+<td class="px-6 py-4">
+<div class="flex flex-col">
+<span class="text-primary font-medium">13 Oct, 2023</span>
+<span class="text-on-surface-variant text-body-sm">09:12 AM</span>
+</div>
+</td>
+<td class="px-6 py-4 text-primary font-body-base">Teclado Mecánico</td>
+<td class="px-6 py-4 text-right font-data-mono">1</td>
+<td class="px-6 py-4 text-right font-data-mono text-primary font-semibold">$45.00</td>
+<td class="px-6 py-4 text-center">
+<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">
+                                            Pagado
+                                        </span>
+</td>
+</tr>
+<tr class="hover:bg-surface-container-lowest transition-colors group">
+<td class="px-6 py-4">
+<div class="flex flex-col">
+<span class="text-primary font-medium">12 Oct, 2023</span>
+<span class="text-on-surface-variant text-body-sm">15:00 PM</span>
+</div>
+</td>
+<td class="px-6 py-4 text-primary font-body-base">Mouse Ergonómico</td>
+<td class="px-6 py-4 text-right font-data-mono">1</td>
+<td class="px-6 py-4 text-right font-data-mono text-primary font-semibold">$15.50</td>
+<td class="px-6 py-4 text-center">
+<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">
+                                            Pagado
+                                        </span>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="p-6 bg-surface-container-low border-t border-outline-variant flex justify-between items-center">
+<span class="text-on-surface-variant text-body-sm">Mostrando 5 de 128 ventas</span>
+<div class="flex gap-2">
+<button class="w-8 h-8 flex items-center justify-center rounded-lg border border-outline-variant bg-white text-on-surface-variant hover:text-secondary transition-all"><span class="material-symbols-outlined text-[18px]" data-icon="chevron_left">chevron_left</span></button>
+<button class="w-8 h-8 flex items-center justify-center rounded-lg border border-outline-variant bg-secondary text-on-secondary shadow-sm shadow-secondary/20">1</button>
+<button class="w-8 h-8 flex items-center justify-center rounded-lg border border-outline-variant bg-white text-on-surface-variant hover:text-secondary transition-all">2</button>
+<button class="w-8 h-8 flex items-center justify-center rounded-lg border border-outline-variant bg-white text-on-surface-variant hover:text-secondary transition-all">3</button>
+<button class="w-8 h-8 flex items-center justify-center rounded-lg border border-outline-variant bg-white text-on-surface-variant hover:text-secondary transition-all"><span class="material-symbols-outlined text-[18px]" data-icon="chevron_right">chevron_right</span></button>
+</div>
+</div>
+</section>
+</div>
+</div>
+</main>
+<script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const productSelect = document.getElementById('productSelect');
+            const qtyInput = document.getElementById('qtyInput');
+            const priceDisplay = document.getElementById('priceDisplay');
+            const totalDisplay = document.getElementById('totalDisplay');
+            const saleForm = document.getElementById('saleForm');
+
+            function calculateTotal() {
+                const selectedOption = productSelect.options[productSelect.selectedIndex];
+                if (!selectedOption || !selectedOption.value) return;
+
+                const price = parseFloat(selectedOption.getAttribute('data-price'));
+                const stock = parseInt(selectedOption.getAttribute('data-stock'));
+                const qty = parseInt(qtyInput.value) || 0;
+
+                // Simple validation
+                if (qty > stock) {
+                    qtyInput.classList.add('border-error', 'bg-error-container/20');
+                    qtyInput.setCustomValidity(`Máximo disponible: ${stock}`);
+                } else {
+                    qtyInput.classList.remove('border-error', 'bg-error-container/20');
+                    qtyInput.setCustomValidity('');
+                }
+
+                priceDisplay.textContent = price.toFixed(2);
+                totalDisplay.textContent = `$${(price * qty).toFixed(2)}`;
+            }
+
+            productSelect.addEventListener('change', calculateTotal);
+            qtyInput.addEventListener('input', calculateTotal);
+
+            saleForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                if (qtyInput.checkValidity() && productSelect.value) {
+                    // Success interaction
+                    const btn = e.target.querySelector('button');
+                    const originalText = btn.innerHTML;
+                    btn.innerHTML = '<span class="material-symbols-outlined animate-spin" data-icon="sync">sync</span> Procesando...';
+                    btn.disabled = true;
+                    
+                    setTimeout(() => {
+                        btn.innerHTML = '<span class="material-symbols-outlined" data-icon="done_all">done_all</span> ¡Venta Registrada!';
+                        btn.classList.replace('bg-[#10b981]', 'bg-primary');
+                        
+                        setTimeout(() => {
+                            btn.innerHTML = originalText;
+                            btn.classList.replace('bg-primary', 'bg-[#10b981]');
+                            btn.disabled = false;
+                            saleForm.reset();
+                            priceDisplay.textContent = '0.00';
+                            totalDisplay.textContent = '$0.00';
+                        }, 2000);
+                    }, 1000);
+                }
+            });
+        });
+    </script>
+</body></html>

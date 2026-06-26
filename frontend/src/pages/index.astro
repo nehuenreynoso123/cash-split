@@ -1,0 +1,24 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import LoginForm from '../components/login/LoginForm';
+---
+
+<BaseLayout title="Iniciar Sesión - cash_split">
+  <body class="bg-background text-on-background min-h-screen flex items-center justify-center p-4 relative">
+    <LoginForm client:load />
+
+    <!-- Background decorative pattern -->
+    <div class="fixed top-0 right-0 -z-10 w-1/3 h-full opacity-10 overflow-hidden pointer-events-none">
+      <div class="grid grid-cols-4 gap-2 h-full rotate-12 translate-x-12">
+        <div class="bg-secondary-container h-32 rounded-lg"></div>
+        <div class="bg-primary-container h-48 rounded-lg mt-12"></div>
+        <div class="bg-secondary-container h-24 rounded-lg"></div>
+        <div class="bg-primary h-64 rounded-lg mt-8"></div>
+        <div class="bg-secondary h-40 rounded-lg"></div>
+        <div class="bg-on-primary-container h-32 rounded-lg"></div>
+        <div class="bg-tertiary-fixed-dim h-56 rounded-lg -mt-12"></div>
+        <div class="bg-secondary-container h-20 rounded-lg"></div>
+      </div>
+    </div>
+  </body>
+</BaseLayout>

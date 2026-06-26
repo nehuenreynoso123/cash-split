@@ -1,0 +1,8 @@
+---
+import AppLayout from '../layouts/AppLayout.astro';
+import CalculadoraClient from '../components/calculadora/CalculadoraClient';
+---
+
+<AppLayout currentPage="calculadora" pageTitle="Calculadora">
+  <CalculadoraClient client:load />
+</AppLayout>

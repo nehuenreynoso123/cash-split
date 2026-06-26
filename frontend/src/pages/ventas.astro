@@ -1,0 +1,46 @@
+---
+import AppLayout from '../layouts/AppLayout.astro';
+import SaleForm from '../components/sales/SaleForm';
+import SaleHistory from '../components/sales/SaleHistory';
+import GananciaTotalCard from '../components/sales/GananciaTotalCard';
+---
+
+<AppLayout
+  currentPage="ventas"
+  pageTitle="Ventas"
+  pageSubtitle="Registro y Control"
+>
+  <div class="max-w-7xl mx-auto space-y-gutter">
+    <!-- Quick Stats -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-gutter">
+      <GananciaTotalCard client:load />
+      <div class="bg-surface-container-lowest border border-outline-variant p-6 rounded-xl flex flex-col gap-2">
+        <span class="text-on-surface-variant font-label-caps uppercase tracking-wider">Tickets Emitidos</span>
+        <div class="flex items-baseline justify-between">
+          <span class="font-data-mono text-display-lg text-primary">28</span>
+          <span class="text-on-surface-variant flex items-center font-body-sm">Media: $44</span>
+        </div>
+      </div>
+      <div class="bg-surface-container-lowest border border-outline-variant p-6 rounded-xl flex flex-col gap-2">
+        <span class="text-on-surface-variant font-label-caps uppercase tracking-wider">Margen Promedio</span>
+        <div class="flex items-baseline justify-between">
+          <span class="font-data-mono text-display-lg text-primary">24.5%</span>
+          <span class="text-error flex items-center font-body-sm">-2% <span class="material-symbols-outlined text-[16px]">trending_down</span></span>
+        </div>
+      </div>
+      <div class="bg-secondary text-on-secondary p-6 rounded-xl flex flex-col gap-2 shadow-lg shadow-secondary/10">
+        <span class="opacity-80 font-label-caps uppercase tracking-wider">Balance Liquidez</span>
+        <div class="flex items-baseline justify-between">
+          <span class="font-data-mono text-display-lg">$4,520.12</span>
+          <span class="material-symbols-outlined opacity-60">account_balance_wallet</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main grid: Form + History -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-gutter items-start">
+      <SaleForm client:load onSaleComplete={() => {}} />
+      <SaleHistory client:load />
+    </div>
+  </div>
+</AppLayout>

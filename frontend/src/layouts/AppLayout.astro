@@ -1,0 +1,26 @@
+---
+import BaseLayout from './BaseLayout.astro';
+import Sidebar from '../components/ui/Sidebar';
+import Header from '../components/ui/Header';
+
+export interface Props {
+  title?: string;
+  currentPage: string;
+  pageTitle: string;
+  pageSubtitle?: string;
+}
+
+const { title, currentPage, pageTitle, pageSubtitle } = Astro.props;
+---
+
+<BaseLayout title={title}>
+  <div class="flex min-h-screen">
+    <Sidebar client:load currentPage={currentPage} />
+    <main class="flex-1 flex flex-col min-h-screen" style="margin-left: var(--sidebar-width, 260px); transition: margin-left 300ms">
+      <Header client:load pageTitle={pageTitle} pageSubtitle={pageSubtitle} />
+      <div class="p-container_padding flex-1">
+        <slot />
+      </div>
+    </main>
+  </div>
+</BaseLayout>
