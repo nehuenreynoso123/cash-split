@@ -1,5 +1,4 @@
 import express from 'express'
-import serverless from 'serverless-http'
 import '../store/database.js'
 import routes from '../api_cash_split/routes.js'
 import morgan from 'morgan'
@@ -15,4 +14,4 @@ app.use(express.urlencoded({ extended: true }))
 routes(app)
 app.use(errors)
 
-export const handler = serverless(app)
+export default app
