@@ -1,4 +1,4 @@
-import sql from "../../../store/database";
+import sql from "../../../store/database.js";
 
 export async function list() {
   const list = await sql`SELECT id, nombre, descripcion, monto, fecha FROM caja_reposicion_stock ORDER BY fecha DESC, id DESC`;

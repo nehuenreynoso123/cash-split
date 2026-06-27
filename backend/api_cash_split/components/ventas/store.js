@@ -1,4 +1,4 @@
-import sql from "../../../store/database";
+import sql from "../../../store/database.js";
 
 export async function add({ nombre, precio, product_id, cantidad }) {
   return await sql.begin(async (sql) => {

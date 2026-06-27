@@ -1,9 +1,9 @@
 import express from "express";
-import "../store/database";
-import routes from "./routes";
+import "../store/database.js";
+import routes from "./routes.js";
 import morgan from "morgan";
 import cors from "cors";
-import { errors } from "./network/error";
+import { errors } from "./network/error.js";
 
 const app = express();
 

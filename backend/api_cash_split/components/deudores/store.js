@@ -1,4 +1,4 @@
-import sql from "../../../store/database";
+import sql from "../../../store/database.js";
 
 export async function list() {
   const deudores = await sql`SELECT id, nombre, descripcion, monto, fecha FROM deudores ORDER BY fecha DESC, id DESC`;

@@ -1,4 +1,4 @@
-import sql from "../../../store/database";
+import sql from "../../../store/database.js";
 
 export async function add({ descripcion, monto }) {
   await sql`INSERT INTO gastos (descripcion,monto,fecha) VALUES (${descripcion},${monto},NOW())`;

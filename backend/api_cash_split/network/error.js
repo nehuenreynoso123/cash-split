@@ -1,4 +1,4 @@
-import response from "./response";
+import response from "./response.js";
 
 export const errors = (err, req, resp, next) => {
   const message = err.message || "Error internal";

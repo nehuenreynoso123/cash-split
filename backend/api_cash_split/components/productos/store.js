@@ -1,4 +1,4 @@
-import sql from "../../../store/database";
+import sql from "../../../store/database.js";
 
 export async function list({ activo } = {}) {
   const list =

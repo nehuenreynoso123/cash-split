@@ -1,4 +1,4 @@
-import sql from "../../../store/database";
+import sql from "../../../store/database.js";
 
 export async function listTotalCajas() {
   const result = await sql`SELECT 

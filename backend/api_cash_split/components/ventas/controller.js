@@ -1,4 +1,4 @@
-import { add, list, remove, update } from "./store";
+import { add, list, remove, update } from "./store.js";
 
 const addVenta = async (body) => {
   const { nombre, precio, product_id, cantidad } = body;

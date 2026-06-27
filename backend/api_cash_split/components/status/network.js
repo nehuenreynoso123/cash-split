@@ -1,6 +1,6 @@
-import controller from "./controller";
+import controller from "./controller.js";
 import express from "express";
-import response from "../../network/response";
+import response from "../../network/response.js";
 
 const router = express.Router();
 

@@ -1,4 +1,4 @@
-import sql from "../../../store/database";
+import sql from "../../../store/database.js";
 
 export async function findByEmail(email) {
   const [user] = await sql`SELECT * FROM usuarios WHERE email = ${email}`;

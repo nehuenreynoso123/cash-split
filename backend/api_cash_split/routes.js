@@ -1,12 +1,12 @@
-import statusNetwork from "./components/status/network";
-import inversionNetwork from "./components/cajaInversion/network";
-import gastosNetwork from "./components/cajaGastosOperativos/network";
-import deudoresNetwork from "./components/deudores/network";
-import reposicionStockNetwork from "./components/cajaReposicionStock/network";
-import ventasNetwork from "./components/ventas/network";
-import productosNetwork from "./components/productos/network";
-import totalCajasNetwork from "./components/dashboard/network";
-import authNetwork from "./components/auth/network";
+import statusNetwork from "./components/status/network.js";
+import inversionNetwork from "./components/cajaInversion/network.js";
+import gastosNetwork from "./components/cajaGastosOperativos/network.js";
+import deudoresNetwork from "./components/deudores/network.js";
+import reposicionStockNetwork from "./components/cajaReposicionStock/network.js";
+import ventasNetwork from "./components/ventas/network.js";
+import productosNetwork from "./components/productos/network.js";
+import totalCajasNetwork from "./components/dashboard/network.js";
+import authNetwork from "./components/auth/network.js";
 
 export default (server) => {
   server.use("/api", statusNetwork);

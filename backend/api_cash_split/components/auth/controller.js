@@ -1,6 +1,6 @@
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import { findByEmail, create } from "./store";
+import { findByEmail, create } from "./store.js";
 
 const JWT_SECRET = process.env.JWT_SECRET || "cash_split_dev_secret";
 const JWT_EXPIRES_IN = "7d";
