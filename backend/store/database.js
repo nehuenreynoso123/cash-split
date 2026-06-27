@@ -13,17 +13,4 @@ const sql = connectionString
       password: config.db.PASSWORD,
     });
 
-// En lugar de await directo, creamos una función de prueba
-async function checkConnection() {
-  try {
-    await sql`SELECT 1`;
-    console.log("✅ Conexión a PostgreSQL exitosa");
-  } catch (error) {
-    console.error("❌ Error de conexión:", error.message);
-  }
-}
-
-// La ejecutamos
-checkConnection();
-
 export default sql;
