@@ -6,6 +6,8 @@ interface Metrics {
   totalGastos: number;
   liquidezDisponible: number;
   saludCartera: number;
+  gananciaTotal: number;
+  unidadesVendidas: number;
 }
 
 interface Props {
@@ -14,7 +16,7 @@ interface Props {
 
 export default function SummaryMetrics({ metrics }: Props) {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-4 gap-gutter">
+    <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-gutter">
       <MetricCard
         title="Total Inversión"
         value={formatCurrency(metrics.totalInversion)}
@@ -27,6 +29,18 @@ export default function SummaryMetrics({ metrics }: Props) {
         icon="receipt_long"
         iconColor="text-error"
         trend={{ label: '+4.2% incremento', direction: 'down', color: 'text-red-600' }}
+      />
+      <MetricCard
+        title="Ganancia Total"
+        value={formatCurrency(metrics.gananciaTotal)}
+        icon="savings"
+        iconColor="text-green-600"
+        trend={{ label: 'Caja Ganancia', direction: 'up', color: 'text-green-600' }}
+      />
+      <MetricCard
+        title="Unidades Vendidas"
+        value={metrics.unidadesVendidas.toLocaleString()}
+        icon="inventory_2"
       />
       <MetricCard
         title="Liquidez Disponible"

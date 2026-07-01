@@ -29,8 +29,9 @@ export default function DashboardClient() {
   const liquidezDisponible = totalInversion - totalGastos;
   const gananciaTotal = data.reduce((s, r) => s + Number(r.ganancia_real_total), 0);
   const saludCartera = totalInversion > 0 ? Math.round((gananciaTotal / totalInversion) * 100) : 0;
+  const unidadesVendidas = data.reduce((s, r) => s + Number(r.unidades_vendidas), 0);
 
-  const metrics = { totalInversion, totalGastos, liquidezDisponible, saludCartera };
+  const metrics = { totalInversion, totalGastos, liquidezDisponible, saludCartera, gananciaTotal, unidadesVendidas };
 
   const rendimiento = data.length > 0 ? Math.round(data.reduce((s, r) => s + Number(r.ganancia_real_total), 0) / data.length) : 0;
   const controlGastos = totalInversion > 0 ? Math.round((1 - totalGastos / totalInversion) * 100) : 0;
@@ -42,7 +43,7 @@ export default function DashboardClient() {
 
       <CapitalTable rows={data} />
 
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-gutter">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-gutter">
         <LiquidityChart />
         <PortfolioHealth
           rendimiento={Math.min(rendimiento, 100)}
