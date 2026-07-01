@@ -24,7 +24,7 @@ export default function DashboardClient() {
     );
   }
 
-  const totalInversion = data.reduce((s, r) => s + Number(r.ingresos_totales), 0);
+  const totalInversion = data.reduce((s, r) => s + Number(r.costo_invertido_stock), 0);
   const totalGastos = data.reduce((s, r) => s + Number(r.costo_reposicion_total), 0);
   const liquidezDisponible = totalInversion - totalGastos;
   const gananciaTotal = data.reduce((s, r) => s + Number(r.ganancia_real_total), 0);

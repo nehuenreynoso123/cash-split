@@ -9,11 +9,12 @@ export default function CapitalTable({ rows }: Props) {
   const totals = rows.reduce(
     (acc, r) => ({
       unidades_vendidas: acc.unidades_vendidas + Number(r.unidades_vendidas),
+      costo_invertido_stock: acc.costo_invertido_stock + Number(r.costo_invertido_stock),
       ingresos_totales: acc.ingresos_totales + Number(r.ingresos_totales),
       costo_reposicion_total: acc.costo_reposicion_total + Number(r.costo_reposicion_total),
       ganancia_real_total: acc.ganancia_real_total + Number(r.ganancia_real_total),
     }),
-    { unidades_vendidas: 0, ingresos_totales: 0, costo_reposicion_total: 0, ganancia_real_total: 0 }
+    { unidades_vendidas: 0, costo_invertido_stock: 0, ingresos_totales: 0, costo_reposicion_total: 0, ganancia_real_total: 0 }
   );
 
   return (
@@ -43,7 +44,7 @@ export default function CapitalTable({ rows }: Props) {
         <table className="w-full text-left border-collapse">
           <thead className="bg-surface-container-low">
             <tr>
-              {['Producto', 'Unidades Vendidas', 'Ingresos Totales', 'Costo Reposición', 'Ganancia Real'].map(
+              {['Producto', 'Unidades Vendidas', 'Costo Invertido', 'Ingresos Totales', 'Costo Reposición', 'Ganancia Real'].map(
                 (h) => (
                   <th
                     key={h}
@@ -60,7 +61,7 @@ export default function CapitalTable({ rows }: Props) {
           <tbody className="divide-y divide-outline-variant">
             {rows.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-6 py-12 text-center text-on-surface-variant">
+                <td colSpan={6} className="px-6 py-12 text-center text-on-surface-variant">
                   No hay datos de cajas disponibles.
                 </td>
               </tr>
@@ -77,6 +78,9 @@ export default function CapitalTable({ rows }: Props) {
                   </td>
                   <td className="px-6 py-4 text-right font-data-mono">
                     {Number(row.unidades_vendidas).toLocaleString()}
+                  </td>
+                  <td className="px-6 py-4 text-right font-data-mono text-primary font-bold">
+                    {formatCurrency(Number(row.costo_invertido_stock))}
                   </td>
                   <td className="px-6 py-4 text-right font-data-mono">
                     {formatCurrency(Number(row.ingresos_totales))}
@@ -96,6 +100,9 @@ export default function CapitalTable({ rows }: Props) {
               <td className="px-6 py-4 font-bold text-primary">Total</td>
               <td className="px-6 py-4 text-right font-bold font-data-mono">
                 {totals.unidades_vendidas.toLocaleString()}
+              </td>
+              <td className="px-6 py-4 text-right font-bold font-data-mono text-primary">
+                {formatCurrency(totals.costo_invertido_stock)}
               </td>
               <td className="px-6 py-4 text-right font-bold font-data-mono">
                 {formatCurrency(totals.ingresos_totales)}

@@ -4,6 +4,7 @@ export async function listTotalCajas() {
   const result = await sql`SELECT 
     p.id AS producto_id,
     p.nombre AS producto,
+    (p.precio::numeric * p.stock) AS costo_invertido_stock,
     COALESCE(SUM(v.cantidad), 0) AS unidades_vendidas,
     COALESCE(SUM(v.precio::numeric), 0) AS ingresos_totales,
     COALESCE(SUM(p.precio::numeric * v.cantidad), 0) AS costo_reposicion_total,

@@ -7,23 +7,13 @@ interface ApiResponse<T> {
   body: T;
 }
 
-// ── Token management ───────────────────────────────────────────
-function getToken(): string | null {
-  if (typeof window === 'undefined') return null;
-  return localStorage.getItem('cs_token');
-}
-
-export function setToken(token: string): void {
-  localStorage.setItem('cs_token', token);
-}
-
-export function clearToken(): void {
-  localStorage.removeItem('cs_token');
-  localStorage.removeItem('cs_user');
-}
-
+// ── Session management ─────────────────────────────────────────
 export function isAuthenticated(): boolean {
-  return !!getToken();
+  return !!getStoredUser();
+}
+
+export function clearUser(): void {
+  localStorage.removeItem('cs_user');
 }
 
 export function getStoredUser(): User | null {
@@ -38,14 +28,10 @@ export function getStoredUser(): User | null {
 
 // ── Generic request helper ─────────────────────────────────────
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-
-  const token = getToken();
-  if (token) headers['Authorization'] = `Bearer ${token}`;
-
   const res = await fetch(`${API_BASE}${path}`, {
     method,
-    headers,
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
 
@@ -67,20 +53,17 @@ export interface User {
 }
 
 export interface AuthResult {
-  token: string;
   user: User;
 }
 
 export async function signin(email: string, password: string): Promise<AuthResult> {
   const result = await request<AuthResult>('POST', '/signin', { email, password });
-  setToken(result.token);
   localStorage.setItem('cs_user', JSON.stringify(result.user));
   return result;
 }
 
 export async function signup(nombre: string, email: string, password: string): Promise<AuthResult> {
   const result = await request<AuthResult>('POST', '/signup', { nombre, email, password });
-  setToken(result.token);
   localStorage.setItem('cs_user', JSON.stringify(result.user));
   return result;
 }
@@ -138,6 +121,7 @@ export async function deleteVenta(id: number): Promise<void> {
 export interface TotalCaja {
   producto_id: number;
   producto: string;
+  costo_invertido_stock: number;
   unidades_vendidas: number;
   ingresos_totales: number;
   costo_reposicion_total: number;
@@ -146,7 +130,13 @@ export interface TotalCaja {
 
 export async function getTotalCajas(): Promise<TotalCaja[]> {
   const data = await request<TotalCaja[]>('GET', '/total-cajas');
-  return data.map((t) => ({ ...t, ingresos_totales: Number(t.ingresos_totales), costo_reposicion_total: Number(t.costo_reposicion_total), ganancia_real_total: Number(t.ganancia_real_total) }));
+  return data.map((t) => ({
+    ...t,
+    costo_invertido_stock: Number(t.costo_invertido_stock),
+    ingresos_totales: Number(t.ingresos_totales),
+    costo_reposicion_total: Number(t.costo_reposicion_total),
+    ganancia_real_total: Number(t.ganancia_real_total),
+  }));
 }
 
 // ── Inversión ──────────────────────────────────────────────────
