@@ -1,12 +1,25 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import ProductTable from './ProductTable';
 import ProductModal from './ProductModal';
+import MetricCard from '../ui/MetricCard';
+import { formatCurrency } from '../../lib/data';
+import { listProductos, type Producto } from '../../lib/api';
 import type { Product } from '../../lib/data';
 
 export default function ProductPageClient() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editProduct, setEditProduct] = useState<Product | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [totalInvertido, setTotalInvertido] = useState(0);
+
+  useEffect(() => {
+    listProductos()
+      .then((list) => {
+        const total = list.reduce((s, p) => s + Number(p.precio) * Number(p.stock), 0);
+        setTotalInvertido(total);
+      })
+      .catch(() => {});
+  }, [refreshKey]);
 
   const handleNewProduct = () => {
     setEditProduct(null);
@@ -33,13 +46,20 @@ export default function ProductPageClient() {
             Controlá tus activos y márgenes de ganancia en tiempo real.
           </p>
         </div>
-        <button
-          className="bg-secondary text-on-secondary px-6 py-2.5 rounded-lg font-semibold flex items-center gap-2 hover:bg-secondary-container transition-all shadow-sm active:scale-95"
-          onClick={handleNewProduct}
-        >
-          <span className="material-symbols-outlined">add_circle</span>
-          Nuevo Producto
-        </button>
+        <div className="flex items-center gap-4">
+          <MetricCard
+            title="Total Invertido"
+            value={formatCurrency(totalInvertido)}
+            icon="account_balance"
+          />
+          <button
+            className="bg-secondary text-on-secondary px-6 py-2.5 rounded-lg font-semibold flex items-center gap-2 hover:bg-secondary-container transition-all shadow-sm active:scale-95"
+            onClick={handleNewProduct}
+          >
+            <span className="material-symbols-outlined">add_circle</span>
+            Nuevo Producto
+          </button>
+        </div>
       </div>
 
       <ProductTable
