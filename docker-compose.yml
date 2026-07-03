@@ -49,7 +49,8 @@ services:
       DB_NAME: cash_db
       DB_USER: user
       DB_PASSWORD: password
-      DATABASE_URL: postgresql://neondb_owner:npg_2ZGbTDf1Oouq@ep-ancient-glade-atwxqzu2-pooler.c-9.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require
+      # NOTA: DATABASE_URL se carga desde backend/.env via dotenv.
+      # No hardcodear acá — si se necesita override, usar .env o secrets de CI/CD.
       # CORS: el frontend desde el browser se ve en localhost:4321
       CORS_ORIGIN: http://localhost:4321
       # JWT secret (es .env, lo pasamos explícito para compose)
