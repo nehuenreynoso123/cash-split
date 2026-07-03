@@ -1,27 +1,19 @@
 import jwt from "jsonwebtoken";
+import config from "../../config.js";
 
-const JWT_SECRET = process.env.JWT_SECRET || "cash_split_dev_secret";
+const SECRET = config.jwt.SECRET;
 
 export function verifyToken(req, resp, next) {
-  const authHeader = req.headers.authorization;
+  const token = req.cookies?.cs_token;
 
-  if (!authHeader) {
+  if (!token) {
     const err = new Error("Token no proporcionado");
     err.statusCode = 401;
     return next(err);
   }
 
-  const parts = authHeader.split(" ");
-  if (parts.length !== 2 || parts[0] !== "Bearer") {
-    const err = new Error("Formato de token inválido. Use: Bearer <token>");
-    err.statusCode = 401;
-    return next(err);
-  }
-
-  const token = parts[1];
-
   try {
-    const decoded = jwt.verify(token, JWT_SECRET);
+    const decoded = jwt.verify(token, SECRET);
     req.user = decoded;
     next();
   } catch (_err) {

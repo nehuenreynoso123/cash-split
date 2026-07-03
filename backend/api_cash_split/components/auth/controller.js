@@ -1,8 +1,9 @@
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { findByEmail, create } from "./store.js";
+import config from "../../../config.js";
 
-const JWT_SECRET = process.env.JWT_SECRET || "cash_split_dev_secret";
+const SECRET = config.jwt.SECRET;
 const JWT_EXPIRES_IN = "7d";
 
 export async function signup({ nombre, email, password }) {
@@ -22,7 +23,7 @@ export async function signup({ nombre, email, password }) {
   const hashedPassword = await bcrypt.hash(password, 10);
   const user = await create({ nombre, email, password: hashedPassword });
 
-  const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, {
+  const token = jwt.sign({ id: user.id, email: user.email }, SECRET, {
     expiresIn: JWT_EXPIRES_IN,
   });
 
@@ -50,7 +51,7 @@ export async function signin({ email, password }) {
     throw err;
   }
 
-  const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, {
+  const token = jwt.sign({ id: user.id, email: user.email }, SECRET, {
     expiresIn: JWT_EXPIRES_IN,
   });
 

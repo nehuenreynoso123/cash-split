@@ -1,0 +1,83 @@
+# =============================================================================
+#  cash-split — Local Development Stack
+#  Levanta PostgreSQL + API (Express) + Frontend (Astro/nginx)
+#
+#  Uso:
+#    docker compose up -d              # arrancar todo
+#    docker compose up -d --build      # rebuildear y arrancar
+#    docker compose logs -f            # ver logs
+#    docker compose down -v            # parar + borrar volúmenes (DB data)
+# =============================================================================
+
+services:
+  # ===========================================================================
+  #  PostgreSQL — base de datos
+  # ===========================================================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: cash-split-db
+    restart: unless-stopped
+    ports:
+      - "5432:5432"                          # exponer para herramientas locales
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: cash_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data   # persistencia entre reinicios
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d cash_db"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # ===========================================================================
+  #  Backend — Express API (port 3000)
+  # ===========================================================================
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: cash-split-api
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      # Docker networking: la DB se llama "postgres" (el service name)
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_NAME: cash_db
+      DB_USER: user
+      DB_PASSWORD: password
+      DATABASE_URL: postgresql://neondb_owner:npg_2ZGbTDf1Oouq@ep-ancient-glade-atwxqzu2-pooler.c-9.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require
+      # CORS: el frontend desde el browser se ve en localhost:4321
+      CORS_ORIGIN: http://localhost:4321
+      # JWT secret (es .env, lo pasamos explícito para compose)
+      JWT_SECRET: cash_split_dev_secret
+      # Puerto de la API
+      API_PORT: "3000"
+      NODE_ENV: development
+    volumes:
+      # Montar código fuente para hot-reload con tsx watch
+      - ./backend:/app
+      # No montar node_modules desde el host (usa el del container)
+      - /app/node_modules
+
+  # ===========================================================================
+  #  Frontend — Astro static site servido por nginx (port 4321)
+  # ===========================================================================
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: cash-split-web
+    restart: unless-stopped
+    ports:
+      - "4321:80"                          # nginx corre en :80 dentro del container
+    depends_on:
+      - backend
+    # El frontend es estático (build de Astro), no necesita volúmenes
+    # Para desarrollo local, mejor correr `pnpm run dev` fuera de Docker.
+
+volumes:
+  postgres_data:                            # volumen nombrado para la DB

@@ -25,7 +25,7 @@ WORKDIR /app
 # Node 22 ya incluye Corepack; solo hay que activarlo.
 # Esto evita instalar pnpm globalmente con npm o curl.
 # ---------------------------------------------------------------------------
-RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN corepack enable && corepack prepare pnpm@9 --activate
 
 # ---------------------------------------------------------------------------
 # (Opcional) Variables de entorno para el build de Astro.

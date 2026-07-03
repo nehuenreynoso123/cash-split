@@ -15,6 +15,13 @@ export default {
     PASSWORD: process.env.DB_PASSWORD ?? "password",
   },
   jwt: {
-    SECRET: process.env.JWT_SECRET ?? "cash_split_dev_secret",
+    SECRET: process.env.JWT_SECRET,
+  },
+  cors: {
+    ORIGIN: process.env.CORS_ORIGIN ?? "http://localhost:4321",
+  },
+  env: process.env.NODE_ENV ?? "development",
+  database: {
+    URL: process.env.DATABASE_URL,
   },
 };
