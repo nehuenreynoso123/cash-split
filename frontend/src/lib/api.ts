@@ -128,8 +128,11 @@ export interface TotalCaja {
   ganancia_real_total: number;
 }
 
-export async function getTotalCajas(): Promise<TotalCaja[]> {
-  const data = await request<TotalCaja[]>('GET', '/total-cajas');
+export async function getTotalCajas(params?: { desde?: string; hasta?: string }): Promise<TotalCaja[]> {
+  const query = params
+    ? '?' + new URLSearchParams(Object.fromEntries(Object.entries(params).filter(([_, v]) => v))).toString()
+    : '';
+  const data = await request<TotalCaja[]>('GET', `/total-cajas${query}`);
   return data.map((t) => ({
     ...t,
     costo_invertido_stock: Number(t.costo_invertido_stock),
@@ -139,22 +142,30 @@ export async function getTotalCajas(): Promise<TotalCaja[]> {
   }));
 }
 
-// ── Inversión ──────────────────────────────────────────────────
-export interface Inversion {
+// ── Liquidez ───────────────────────────────────────────────────
+export interface Liquidez {
   id: number;
-  nombre: string;
   descripcion: string;
   monto: number;
+  tipo: string;
   fecha: string;
 }
 
-export async function listInversiones(): Promise<Inversion[]> {
-  const data = await request<Inversion[]>('GET', '/inversion');
-  return data.map((i) => ({ ...i, monto: Number(i.monto) }));
+export async function listLiquidez(): Promise<Liquidez[]> {
+  const data = await request<Liquidez[]>('GET', '/liquidez');
+  return data.map((l) => ({ ...l, monto: Number(l.monto) }));
 }
 
-export async function createInversion(data: { nombre: string; descripcion: string; monto: number }): Promise<void> {
-  return request<void>('POST', '/inversion', data);
+export async function createLiquidez(data: { descripcion: string; monto: number; tipo: string }): Promise<void> {
+  return request<void>('POST', '/liquidez', data);
+}
+
+export async function updateLiquidez(data: { id: number; descripcion: string; monto: number; tipo: string }): Promise<void> {
+  return request<void>('PUT', '/liquidez', data);
+}
+
+export async function deleteLiquidez(id: number): Promise<void> {
+  return request<void>('DELETE', `/liquidez/${id}`);
 }
 
 // ── Gastos ─────────────────────────────────────────────────────
@@ -192,20 +203,4 @@ export async function createDeudor(data: { nombre: string; descripcion: string; 
   return request<void>('POST', '/deudores', data);
 }
 
-// ── Reposición Stock ──────────────────────────────────────────
-export interface ReposicionStock {
-  id: number;
-  nombre: string;
-  descripcion: string;
-  monto: number;
-  fecha: string;
-}
 
-export async function listReposiciones(): Promise<ReposicionStock[]> {
-  const data = await request<ReposicionStock[]>('GET', '/reposicion-stock');
-  return data.map((r) => ({ ...r, monto: Number(r.monto) }));
-}
-
-export async function createReposicion(data: { nombre: string; descripcion: string; monto: number }): Promise<void> {
-  return request<void>('POST', '/reposicion-stock', data);
-}

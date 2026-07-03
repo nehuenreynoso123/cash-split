@@ -24,22 +24,12 @@ export async function add({ nombre, precio, product_id, cantidad }) {
             WHERE id = ${product_id}
         `;
 
-    // 3. Sumar a Caja Reposición
-    await sql`
-            UPDATE caja_reposicion_stock SET monto = monto + ${precio} 
-        `;
-
-    // 4. restart a Caja inversion
-    await sql`
-            UPDATE caja_inversion SET monto = monto - ${precio}
-        `;
-
     return venta;
   });
 }
 
 export async function list() {
-  const list = await sql`SELECT * FROM ventas`;
+  const list = await sql`SELECT id, nombre, precio, producto_id, cantidad, ganancia, created_at AS fecha FROM ventas ORDER BY created_at DESC, id DESC`;
   return list;
 }
 

@@ -5,35 +5,35 @@ import { verifyToken } from "../../middleware/index.js";
 
 const router = express.Router();
 
-router.post("/inversion", [verifyToken], addInversion);
-router.delete("/inversion/:id", [verifyToken], delInversion);
-router.put("/inversion", [verifyToken], editInversion);
-router.get("/inversion", [verifyToken], getCajaInversion);
+router.post("/liquidez", [verifyToken], addLiquidez);
+router.get("/liquidez", [verifyToken], listLiquidez);
+router.put("/liquidez", [verifyToken], editLiquidez);
+router.delete("/liquidez/:id", [verifyToken], removeLiquidez);
 
-function addInversion(req, resp, next) {
+function addLiquidez(req, resp, next) {
   controller
-    .addCajaInversion(req.body)
+    .addLiquidez(req.body)
     .then((data) => response.success(req, resp, data, 201))
     .catch(next);
 }
 
-function delInversion(req, resp, next) {
+function listLiquidez(req, resp, next) {
   controller
-    .removeCajaInversion(req.params.id)
+    .getLiquidez()
     .then((data) => response.success(req, resp, data, 200))
     .catch(next);
 }
 
-function editInversion(req, resp, next) {
+function editLiquidez(req, resp, next) {
   controller
-    .editCajaInversion(req.body)
+    .editLiquidez(req.body)
     .then((data) => response.success(req, resp, data, 200))
     .catch(next);
 }
 
-function getCajaInversion(req, resp, next) {
+function removeLiquidez(req, resp, next) {
   controller
-    .listCajaInversion()
+    .removeLiquidez(req.params.id)
     .then((data) => response.success(req, resp, data, 200))
     .catch(next);
 }

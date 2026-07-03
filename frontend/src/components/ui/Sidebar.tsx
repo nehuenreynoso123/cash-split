@@ -15,10 +15,9 @@ const navItems: NavItem[] = [
   { id: 'dashboard', label: 'Dashboard', icon: 'dashboard', href: '/dashboard/' },
   { id: 'productos', label: 'Productos', icon: 'inventory_2', href: '/productos/' },
   { id: 'ventas', label: 'Ventas', icon: 'payments', href: '/ventas/' },
-  { id: 'inversion', label: 'Inversión', icon: 'trending_up', href: '/inversion' },
+  { id: 'liquidez', label: 'Liquidez', icon: 'account_balance_wallet', href: '/liquidez' },
   { id: 'gastos', label: 'Gastos', icon: 'receipt_long', href: '/gastos' },
   { id: 'deudores', label: 'Deudores', icon: 'group_remove', href: '/deudores' },
-  { id: 'reposicion', label: 'Reposición Stock', icon: 'inventory', href: '/reposicion-stock' },
   { id: 'calculadora', label: 'Calculadora', icon: 'calculate', href: '/calculadora' },
 ];
 

@@ -1,19 +1,19 @@
 import { useState, type FormEvent } from 'react';
 import Modal from '../ui/Modal';
-import type { Inversion } from '../../lib/api';
-import { createInversion } from '../../lib/api';
+import type { Liquidez } from '../../lib/api';
+import { createLiquidez, updateLiquidez } from '../../lib/api';
 
 interface Props {
   open: boolean;
   onClose: () => void;
-  editItem: Inversion | null;
+  editItem: Liquidez | null;
   onSaved: () => void;
 }
 
-export default function InversionModal({ open, onClose, editItem, onSaved }: Props) {
-  const [nombre, setNombre] = useState(editItem?.nombre ?? '');
+export default function LiquidezModal({ open, onClose, editItem, onSaved }: Props) {
   const [descripcion, setDescripcion] = useState(editItem?.descripcion ?? '');
   const [monto, setMonto] = useState(editItem?.monto?.toString() ?? '');
+  const [tipo, setTipo] = useState(editItem?.tipo ?? 'ingreso');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -22,7 +22,11 @@ export default function InversionModal({ open, onClose, editItem, onSaved }: Pro
     setError('');
     setSaving(true);
     try {
-      await createInversion({ nombre, descripcion, monto: parseFloat(monto) });
+      if (editItem) {
+        await updateLiquidez({ id: editItem.id, descripcion, monto: parseFloat(monto), tipo });
+      } else {
+        await createLiquidez({ descripcion, monto: parseFloat(monto), tipo });
+      }
       onSaved();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al guardar');
@@ -32,16 +36,19 @@ export default function InversionModal({ open, onClose, editItem, onSaved }: Pro
   };
 
   return (
-    <Modal open={open} onClose={onClose} title="Nueva Inversión">
+    <Modal open={open} onClose={onClose} title={editItem ? 'Editar Movimiento' : 'Nuevo Movimiento'}>
       <form onSubmit={handleSubmit} className="p-8 space-y-6">
         {error && <div className="bg-error-container text-on-error-container text-body-sm rounded-lg px-4 py-2">{error}</div>}
         <div>
-          <label className="block font-label-caps text-label-caps text-on-surface-variant uppercase mb-2">Nombre</label>
-          <input className="w-full px-4 py-2.5 border border-outline-variant rounded-lg focus:ring-2 focus:ring-secondary/20 focus:border-secondary outline-none" placeholder="Ej: Aporte inicial" value={nombre} onChange={(e) => setNombre(e.target.value)} required />
+          <label className="block font-label-caps text-label-caps text-on-surface-variant uppercase mb-2">Descripción</label>
+          <input className="w-full px-4 py-2.5 border border-outline-variant rounded-lg focus:ring-2 focus:ring-secondary/20 focus:border-secondary outline-none" placeholder="Ej: Aporte extra de capital" value={descripcion} onChange={(e) => setDescripcion(e.target.value)} required />
         </div>
         <div>
-          <label className="block font-label-caps text-label-caps text-on-surface-variant uppercase mb-2">Descripción</label>
-          <input className="w-full px-4 py-2.5 border border-outline-variant rounded-lg focus:ring-2 focus:ring-secondary/20 focus:border-secondary outline-none" placeholder="Ej: Capital para nuevos equipos" value={descripcion} onChange={(e) => setDescripcion(e.target.value)} required />
+          <label className="block font-label-caps text-label-caps text-on-surface-variant uppercase mb-2">Tipo</label>
+          <select className="w-full px-4 py-2.5 border border-outline-variant rounded-lg focus:ring-2 focus:ring-secondary/20 focus:border-secondary outline-none bg-surface-container-lowest" value={tipo} onChange={(e) => setTipo(e.target.value)} required>
+            <option value="ingreso">Ingreso — aumenta liquidez</option>
+            <option value="egreso">Egreso — reduce liquidez</option>
+          </select>
         </div>
         <div>
           <label className="block font-label-caps text-label-caps text-on-surface-variant uppercase mb-2">Monto</label>

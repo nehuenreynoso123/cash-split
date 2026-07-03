@@ -8,8 +8,9 @@ const router = express.Router();
 router.get("/total-cajas", [verifyToken], getTotalCajas);
 
 function getTotalCajas(req, resp, next) {
+  const { desde, hasta } = req.query;
   controller
-    .getTotalCajas()
+    .getTotalCajas({ desde, hasta })
     .then((data) => response.success(req, resp, data, 200))
     .catch(next);
 }
