@@ -1,6 +1,6 @@
 import sql from "../../../store/database.js";
 
-export async function add({ nombre, precio, product_id, cantidad }) {
+export async function add({ nombre, precio, product_id, cantidad, fecha_cobro }) {
   return await sql.begin(async (sql) => {
     // 0. Obtener el costo del producto
     const [producto] = await sql`
@@ -12,8 +12,8 @@ export async function add({ nombre, precio, product_id, cantidad }) {
 
     // 1. Registrar la venta
     const [venta] = await sql`
-            INSERT INTO ventas (nombre,precio,producto_id, cantidad, ganancia)
-            VALUES (${nombre},${precio},${product_id}, ${cantidad}, ${ganancia})
+            INSERT INTO ventas (nombre, precio, producto_id, cantidad, ganancia, fecha_cobro)
+            VALUES (${nombre}, ${precio}, ${product_id}, ${cantidad}, ${ganancia}, ${fecha_cobro || null})
             RETURNING id
         `;
 
@@ -29,7 +29,7 @@ export async function add({ nombre, precio, product_id, cantidad }) {
 }
 
 export async function list() {
-  const list = await sql`SELECT id, nombre, precio, producto_id, cantidad, ganancia, created_at AS fecha FROM ventas ORDER BY created_at DESC, id DESC`;
+  const list = await sql`SELECT id, nombre, precio, producto_id, cantidad, ganancia, fecha_cobro, created_at AS fecha FROM ventas ORDER BY created_at DESC, id DESC`;
   return list;
 }
 

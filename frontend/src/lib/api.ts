@@ -102,6 +102,7 @@ export interface Venta {
   cantidad: number;
   fecha: string;
   ganancia?: number;
+  fecha_cobro?: string | null;
 }
 
 export async function listVentas(): Promise<Venta[]> {
@@ -109,7 +110,7 @@ export async function listVentas(): Promise<Venta[]> {
   return data.map((v) => ({ ...v, precio: Number(v.precio) }));
 }
 
-export async function createVenta(data: { nombre: string; precio: number; product_id: number; cantidad: number }): Promise<void> {
+export async function createVenta(data: { nombre: string; precio: number; product_id: number; cantidad: number; fecha_cobro?: string | null }): Promise<void> {
   return request<void>('POST', '/venta', data);
 }
 

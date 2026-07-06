@@ -1,8 +1,8 @@
 import { add, list, remove, update } from "./store.js";
 
 const addVenta = async (body) => {
-  const { nombre, precio, product_id, cantidad } = body;
-  await add({ nombre, precio, product_id, cantidad });
+  const { nombre, precio, product_id, cantidad, fecha_cobro } = body;
+  await add({ nombre, precio, product_id, cantidad, fecha_cobro });
 };
 
 const editVenta = async (body) => {

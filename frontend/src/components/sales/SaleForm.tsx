@@ -13,6 +13,7 @@ export default function SaleForm({ onSaleComplete }: SaleFormProps) {
   const [productId, setProductId] = useState('');
   const [unitPriceInput, setUnitPriceInput] = useState('');
   const [quantity, setQuantity] = useState(1);
+  const [fechaCobro, setFechaCobro] = useState(new Date().toISOString().split('T')[0]);
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
   const [loadingProducts, setLoadingProducts] = useState(true);
@@ -42,6 +43,7 @@ export default function SaleForm({ onSaleComplete }: SaleFormProps) {
         precio: total,
         product_id: selected.id,
         cantidad: quantity,
+        fecha_cobro: fechaCobro || null,
       });
 
       setDone(true);
@@ -52,6 +54,7 @@ export default function SaleForm({ onSaleComplete }: SaleFormProps) {
         setProductId('');
         setUnitPriceInput('');
         setQuantity(1);
+        setFechaCobro(new Date().toISOString().split('T')[0]);
       }, 2000);
     } catch {
       // error silencioso por ahora
@@ -110,6 +113,16 @@ export default function SaleForm({ onSaleComplete }: SaleFormProps) {
               expand_more
             </span>
           </div>
+        </div>
+
+        <div className="space-y-2">
+          <label className="font-label-caps text-on-surface-variant uppercase">Fecha de Cobro</label>
+          <input
+            type="date"
+            value={fechaCobro}
+            onChange={(e) => setFechaCobro(e.target.value)}
+            className="w-full h-12 border border-outline-variant rounded-xl px-4 focus:ring-2 focus:ring-secondary outline-none transition-all"
+          />
         </div>
 
         <div className="grid grid-cols-2 gap-4">

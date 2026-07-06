@@ -38,7 +38,7 @@ export default function SaleHistory() {
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="bg-surface-bright border-b border-outline-variant">
-              {['Fecha', 'Producto', 'Cant.', 'Total', 'Ganancia', 'Estado'].map((h) => (
+              {['Fecha', 'Cobro', 'Producto', 'Cant.', 'Total', 'Ganancia', 'Estado'].map((h) => (
                 <th
                   key={h}
                   className={`px-6 py-4 font-label-caps text-on-surface-variant uppercase tracking-wider ${
@@ -53,25 +53,36 @@ export default function SaleHistory() {
           <tbody className="divide-y divide-outline-variant/30">
             {loading ? (
               <tr>
-                <td colSpan={6} className="px-6 py-12 text-center text-on-surface-variant">
+                <td colSpan={7} className="px-6 py-12 text-center text-on-surface-variant">
                   Cargando ventas...
                 </td>
               </tr>
             ) : error ? (
               <tr>
-                <td colSpan={6} className="px-6 py-12 text-center text-error">
+                <td colSpan={7} className="px-6 py-12 text-center text-error">
                   {error}
                 </td>
               </tr>
             ) : (
               paginated.map((sale) => (
-                <tr key={sale.id} className="hover:bg-surface-container-lowest transition-colors group">
+                  <tr key={sale.id} className="hover:bg-surface-container-lowest transition-colors group">
                   <td className="px-6 py-4">
                     <div className="flex flex-col">
                       <span className="text-primary font-medium">
                         {new Date(sale.fecha).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' })}
                       </span>
                     </div>
+                  </td>
+                  <td className="px-6 py-4">
+                    {sale.fecha_cobro ? (
+                      <div className="flex flex-col">
+                        <span className="text-on-surface-variant font-medium text-sm">
+                          {new Date(sale.fecha_cobro).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' })}
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="text-on-surface-variant/50 text-sm">—</span>
+                    )}
                   </td>
                   <td className="px-6 py-4 text-primary font-body-base">{sale.nombre}</td>
                   <td className="px-6 py-4 text-right font-data-mono">{sale.cantidad}</td>
@@ -89,7 +100,7 @@ export default function SaleHistory() {
             )}
             {!loading && !error && paginated.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-6 py-12 text-center text-on-surface-variant">
+                <td colSpan={7} className="px-6 py-12 text-center text-on-surface-variant">
                   No hay ventas registradas todavía.
                 </td>
               </tr>

@@ -27,6 +27,7 @@ CREATE TABLE IF NOT EXISTS ventas (
     producto_id INTEGER NOT NULL REFERENCES productos(id),
     cantidad INTEGER NOT NULL,
     ganancia NUMERIC(10,2) NOT NULL DEFAULT 0,
+    fecha_cobro DATE,
     created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
@@ -52,3 +53,6 @@ CREATE TABLE IF NOT EXISTS deudores (
     monto NUMERIC(10,2) NOT NULL,
     fecha TIMESTAMP NOT NULL DEFAULT NOW()
 );
+
+-- Migración: agregar fecha_cobro a ventas (si la tabla ya existe)
+-- ALTER TABLE ventas ADD COLUMN IF NOT EXISTS fecha_cobro DATE;
