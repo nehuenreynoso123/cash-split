@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 function toRaw(value: string): string {
   // Keep only digits, dots, commas; normalize comma→dot; remove thousand-separator dots
@@ -46,6 +46,17 @@ export default function CalculadoraClient() {
   const [precioVenta, setPrecioVenta] = useState('');
   const [ganancia, setGanancia] = useState<number | null>(null);
   const [porcentaje, setPorcentaje] = useState<number | null>(null);
+
+  // Bloc de Notas
+  const [notas, setNotas] = useState(() => {
+    try { return localStorage.getItem('calculadora-notas') ?? ''; } catch { return ''; }
+  });
+
+  useEffect(() => {
+    try { localStorage.setItem('calculadora-notas', notas); } catch { /* noop */ }
+  }, [notas]);
+
+  const limpiarNotas = () => setNotas('');
 
   // % del Costo
   const [porcentajeCosto, setPorcentajeCosto] = useState('');
@@ -327,6 +338,36 @@ export default function CalculadoraClient() {
             </div>
           )}
         </div>
+      </div>
+
+      {/* ── Bloc de Notas ── */}
+      <div class="p-6 bg-surface rounded-2xl shadow-md md:col-span-3">
+        <div class="flex items-center justify-between mb-4">
+          <div class="flex items-center gap-3">
+            <span class="material-symbols-outlined text-2xl text-secondary">sticky_note_2</span>
+            <h2 class="font-headline-md font-bold text-on-surface">Bloc de Notas</h2>
+          </div>
+          {notas && (
+            <button
+              onClick={limpiarNotas}
+              class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-on-surface-variant hover:text-error hover:bg-error/10 transition-all duration-200"
+            >
+              <span class="material-symbols-outlined text-[18px]">delete</span>
+              Limpiar
+            </button>
+          )}
+        </div>
+        <textarea
+          value={notas}
+          onChange={(e) => setNotas(e.target.value)}
+          placeholder="Escribí notas, números parciales, observaciones..."
+          rows={5}
+          class="w-full p-4 rounded-xl border border-outline bg-surface-container text-on-surface font-body-base placeholder:text-on-surface-variant/40 resize-y focus:outline-none focus:ring-2 focus:ring-secondary min-h-[120px]"
+        />
+        <p class="font-body-sm text-on-surface-variant mt-2 flex items-center gap-1">
+          <span class="material-symbols-outlined text-[16px]">save</span>
+          Se guarda automáticamente
+        </p>
       </div>
     </div>
   );
