@@ -10,18 +10,13 @@ export default function DashboardClient() {
   const [desde, setDesde] = useState('');
   const [hasta, setHasta] = useState('');
 
-  const loadData = useCallback(() => {
-    let cancelled = false;
-
-    const params: { desde?: string; hasta?: string } = {};
-    if (desde) params.desde = desde;
-    if (hasta) params.hasta = hasta;
+  const fetchData = useCallback((params?: { desde?: string; hasta?: string }) => {
+    setLoading(true);
 
     Promise.all([
       getTotalCajas(params).catch(() => [] as TotalCaja[]),
-      listLiquidez().catch(() => [] as Liquidez[]),
+      listLiquidez(params).catch(() => [] as Liquidez[]),
     ]).then(([cajasData, liquidezData]) => {
-      if (cancelled) return;
       setCajas(cajasData);
       const neto = liquidezData.reduce((s, l) => {
         return l.tipo === 'ingreso' ? s + Number(l.monto) : s - Number(l.monto);
@@ -29,14 +24,12 @@ export default function DashboardClient() {
       setNetoLiquidezManual(neto);
       setLoading(false);
     });
+  }, []);
 
-    return () => { cancelled = true; };
-  }, [desde, hasta]);
-
+  // Carga inicial al montar el componente
   useEffect(() => {
-    const cancel = loadData();
-    return cancel;
-  }, [loadData]);
+    fetchData();
+  }, [fetchData]);
 
   if (loading) {
     return (
@@ -55,8 +48,18 @@ export default function DashboardClient() {
 
   const metrics = { totalInversion, totalGastos, liquidezDisponible, saludCartera, gananciaTotal, unidadesVendidas };
 
-  const handleFilter = () => loadData();
-  const handleClear = () => { setDesde(''); setHasta(''); };
+  const handleFilter = () => {
+    const params: { desde?: string; hasta?: string } = {};
+    if (desde) params.desde = desde;
+    if (hasta) params.hasta = hasta;
+    fetchData(params);
+  };
+
+  const handleClear = () => {
+    setDesde('');
+    setHasta('');
+    fetchData();
+  };
 
   return (
     <div className="space-y-gutter">

@@ -14,8 +14,8 @@ export const removeLiquidez = async (id) => {
   await remove({ id });
 };
 
-export const getLiquidez = async () => {
-  const items = await list();
+export const getLiquidez = async ({ desde, hasta } = {}) => {
+  const items = await list({ desde, hasta });
   return items;
 };
 

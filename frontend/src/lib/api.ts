@@ -151,8 +151,11 @@ export interface Liquidez {
   fecha: string;
 }
 
-export async function listLiquidez(): Promise<Liquidez[]> {
-  const data = await request<Liquidez[]>('GET', '/liquidez');
+export async function listLiquidez(params?: { desde?: string; hasta?: string }): Promise<Liquidez[]> {
+  const query = params
+    ? '?' + new URLSearchParams(Object.fromEntries(Object.entries(params).filter(([_, v]) => v))).toString()
+    : '';
+  const data = await request<Liquidez[]>('GET', `/liquidez${query}`);
   return data.map((l) => ({ ...l, monto: Number(l.monto) }));
 }
 

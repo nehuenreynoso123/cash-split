@@ -18,8 +18,9 @@ function addLiquidez(req, resp, next) {
 }
 
 function listLiquidez(req, resp, next) {
+  const { desde, hasta } = req.query;
   controller
-    .getLiquidez()
+    .getLiquidez({ desde, hasta })
     .then((data) => response.success(req, resp, data, 200))
     .catch(next);
 }
