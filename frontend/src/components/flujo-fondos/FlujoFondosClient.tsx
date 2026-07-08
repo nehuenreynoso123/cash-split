@@ -1,5 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Modal from '../ui/Modal';
+import { getTotalCajas, listLiquidez, type TotalCaja, type Liquidez } from '../../lib/api';
+import { formatCurrency } from '../../lib/data';
 
 interface CajaInfo {
   id: string;
@@ -12,99 +14,127 @@ interface CajaInfo {
   detalle: string;
 }
 
-const cajas: CajaInfo[] = [
-  {
-    id: 'liquidez-dinero',
-    titulo: 'Liquidez Dinero',
-    valor: '$45,000.00',
-    icono: 'account_balance_wallet',
-    colorIcono: 'text-green-500',
-    bordeClase: 'border-l-green-500',
-    descripcion: '100% disponible. No tiene stock asignado todavía.',
-    detalle:
-      'Es el motor en reposo. Te da la velocidad de reaccionar si aparece una oferta de oportunidad del proveedor o absorber un imprevisto sin frenar las compras.',
-  },
-  {
-    id: 'total-invertido',
-    titulo: 'Total Invertido',
-    valor: '$128,500.00',
-    icono: 'inventory_2',
-    colorIcono: 'text-blue-500',
-    bordeClase: 'border-l-blue-500',
-    descripcion: 'Suma total de (Costo Base + Ganancia Reinvertida).',
-    detalle:
-      'Es la métrica del tamaño de tu negocio. Si este número sube mes a mes, tu rueda se está agrandando (Efecto bola de nieve).',
-  },
-  {
-    id: 'ganancia',
-    titulo: 'Ganancia',
-    valor: '$32,800.00',
-    icono: 'savings',
-    colorIcono: 'text-emerald-500',
-    bordeClase: 'border-l-emerald-500',
-    descripcion: 'Precio de Venta menos Costo de Mercadería.',
-    detalle:
-      'El valor bruto generado por tu trabajo. De este bloque se alimentan las cajas operativas, de reserva y de escala.',
-  },
-  {
-    id: 'caja-transito',
-    titulo: 'Caja en Tránsito',
-    valor: '$15,200.00',
-    icono: 'local_shipping',
-    colorIcono: 'text-amber-500',
-    bordeClase: 'border-l-amber-500',
-    descripcion: '100% del dinero enviado al proveedor que aún no llegó en formato mercadería.',
-    detalle:
-      'Controlar los "fondos congelados". Te recuerda que esa plata ya salió de tu billetera pero todavía no puede generar ventas.',
-  },
-  {
-    id: 'ganancia-cobrar',
-    titulo: 'Ganancia por Cobrar',
-    valor: '$8,400.00',
-    icono: 'hourglass_bottom',
-    colorIcono: 'text-orange-500',
-    bordeClase: 'border-l-orange-500',
-    descripcion: 'Margen de las ventas ya hechas pero retenidas por Mercado Pago, tarjetas o clientes.',
-    detalle:
-      'Medir tu descalce financiero. Te dice cuánta ganancia tenés "en el aire" esperando impactar en tu cuenta.',
-  },
-  {
-    id: 'caja-reposicion',
-    titulo: 'Caja Reposición Base',
-    valor: '$85,000.00',
-    icono: 'shield',
-    colorIcono: 'text-purple-500',
-    bordeClase: 'border-l-purple-500',
-    descripcion: 'El 100% del costo viejo de la mercadería. Es intocable para gastos personales.',
-    detalle:
-      'Garantizar la supervivencia. Asegura que cuando cobres, recuperás los mismos pesos exactos que te costó el stock para volver a comprar la misma cantidad.',
-  },
-  {
-    id: 'caja-operativa',
-    titulo: 'Caja Operativa',
-    valor: '$9,840.00',
-    icono: 'work_history',
-    colorIcono: 'text-cyan-500',
-    bordeClase: 'border-l-cyan-500',
-    descripcion: '30% de la Ganancia Real (o un sueldo fijo mensual estipulado por vos).',
-    detalle:
-      'Pagarte a vos por tu trabajo diario y cubrir los gastos fijos del negocio (envíos, publicidad, monotributo) para no tocar el capital de trabajo.',
-  },
-  {
-    id: 'caja-amortiguacion',
-    titulo: 'Caja de Amortiguación (Reserva)',
-    valor: '$3,280.00',
-    icono: 'security',
-    colorIcono: 'text-rose-500',
-    bordeClase: 'border-l-rose-500',
-    descripcion: '10% de la Ganancia Real acumulada hasta armar un colchón equivalente a 1 mes de costos.',
-    detalle:
-      'El airbag del negocio. Se usa exclusivamente si el proveedor se atrasa con la entrega o si las ventas caen drásticamente una semana.',
-  },
-];
+function buildCajas(
+  liquidezDisponible: number,
+  totalInvertido: number,
+  gananciaReal: number,
+  costoReposicion: number,
+  gananciaPorCobrar: number,
+): CajaInfo[] {
+  return [
+    {
+      id: 'liquidez-dinero',
+      titulo: 'Liquidez Dinero',
+      valor: formatCurrency(liquidezDisponible),
+      icono: 'account_balance_wallet',
+      colorIcono: 'text-green-500',
+      bordeClase: 'border-l-green-500',
+      descripcion: '100% disponible. No tiene stock asignado todavía.',
+      detalle:
+        'Es el motor en reposo. Te da la velocidad de reaccionar si aparece una oferta de oportunidad del proveedor o absorber un imprevisto sin frenar las compras.',
+    },
+    {
+      id: 'total-invertido',
+      titulo: 'Total Invertido',
+      valor: formatCurrency(totalInvertido),
+      icono: 'inventory_2',
+      colorIcono: 'text-blue-500',
+      bordeClase: 'border-l-blue-500',
+      descripcion: 'Suma total de (Costo Base + Ganancia Reinvertida).',
+      detalle:
+        'Es la métrica del tamaño de tu negocio. Si este número sube mes a mes, tu rueda se está agrandando (Efecto bola de nieve).',
+    },
+    {
+      id: 'ganancia',
+      titulo: 'Ganancia',
+      valor: formatCurrency(gananciaReal),
+      icono: 'savings',
+      colorIcono: 'text-emerald-500',
+      bordeClase: 'border-l-emerald-500',
+      descripcion: 'Precio de Venta menos Costo de Mercadería.',
+      detalle:
+        'El valor bruto generado por tu trabajo. De este bloque se alimentan las cajas operativas, de reserva y de escala.',
+    },
+    {
+      id: 'caja-reposicion',
+      titulo: 'Caja Reposición Base',
+      valor: formatCurrency(costoReposicion),
+      icono: 'shield',
+      colorIcono: 'text-purple-500',
+      bordeClase: 'border-l-purple-500',
+      descripcion: 'El 100% del costo viejo de la mercadería. Es intocable para gastos personales.',
+      detalle:
+        'Garantizar la supervivencia. Asegura que cuando cobres, recuperás los mismos pesos exactos que te costó el stock para volver a comprar la misma cantidad.',
+    },
+    {
+      id: 'ganancia-cobrar',
+      titulo: 'Ganancia por Cobrar',
+      valor: formatCurrency(gananciaPorCobrar),
+      icono: 'hourglass_bottom',
+      colorIcono: 'text-orange-500',
+      bordeClase: 'border-l-orange-500',
+      descripcion: 'Margen de las ventas ya hechas pero retenidas por Mercado Pago, tarjetas o clientes.',
+      detalle:
+        'Medir tu descalce financiero. Te dice cuánta ganancia tenés "en el aire" esperando impactar en tu cuenta.',
+    },
+    {
+      id: 'caja-operativa',
+      titulo: 'Caja Operativa',
+      valor: formatCurrency(Math.round(gananciaReal * 0.3)),
+      icono: 'work_history',
+      colorIcono: 'text-cyan-500',
+      bordeClase: 'border-l-cyan-500',
+      descripcion: '30% de la Ganancia Real (o un sueldo fijo mensual estipulado por vos).',
+      detalle:
+        'Pagarte a vos por tu trabajo diario y cubrir los gastos fijos del negocio (envíos, publicidad, monotributo) para no tocar el capital de trabajo.',
+    },
+    {
+      id: 'caja-amortiguacion',
+      titulo: 'Caja de Amortiguación (Reserva)',
+      valor: formatCurrency(Math.round(gananciaReal * 0.1)),
+      icono: 'security',
+      colorIcono: 'text-rose-500',
+      bordeClase: 'border-l-rose-500',
+      descripcion: '10% de la Ganancia Real acumulada hasta armar un colchón equivalente a 1 mes de costos.',
+      detalle:
+        'El airbag del negocio. Se usa exclusivamente si el proveedor se atrasa con la entrega o si las ventas caen drásticamente una semana.',
+    },
+  ];
+}
 
 export default function FlujoFondosClient() {
   const [selected, setSelected] = useState<CajaInfo | null>(null);
+  const [cajas, setCajas] = useState<CajaInfo[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const load = useCallback(() => {
+    setLoading(true);
+    Promise.all([
+      getTotalCajas().catch(() => [] as TotalCaja[]),
+      listLiquidez().catch(() => [] as Liquidez[]),
+    ]).then(([totalCajasData, liquidezData]) => {
+      const totalInvertido = totalCajasData.reduce((s, r) => s + Number(r.costo_invertido_stock), 0);
+      const gananciaReal = totalCajasData.reduce((s, r) => s + Number(r.ganancia_real_total), 0);
+      const costoReposicion = totalCajasData.reduce((s, r) => s + Number(r.costo_reposicion_total), 0);
+      // Ganancia por cobrar: total de ingresos de ventas que NO tienen fecha_cobro (pendientes)
+      const gananciaPorCobrar = totalCajasData.reduce((s, r) => {
+        const ingresos = Number(r.ingresos_totales);
+        const costo = Number(r.costo_reposicion_total);
+        return s + (ingresos - costo);
+      }, 0);
+
+      const netoLiquidez = liquidezData.reduce((s, l) => {
+        return l.tipo === 'ingreso' ? s + Number(l.monto) : s - Number(l.monto);
+      }, 0);
+
+      const liquidezDisponible = totalInvertido - costoReposicion + netoLiquidez;
+      const built = buildCajas(liquidezDisponible, totalInvertido, gananciaReal, costoReposicion, gananciaPorCobrar);
+      setCajas(built);
+      setLoading(false);
+    });
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
 
   return (
     <div className="space-y-gutter">
@@ -123,6 +153,12 @@ export default function FlujoFondosClient() {
       </div>
 
       {/* Grilla de cajas */}
+      {loading ? (
+        <div className="flex items-center justify-center py-20 text-on-surface-variant">
+          <span className="material-symbols-outlined animate-spin mr-2">sync</span>
+          Calculando estructura de capital...
+        </div>
+      ) : (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-gutter">
         {cajas.map((caja) => (
           <button
@@ -154,6 +190,7 @@ export default function FlujoFondosClient() {
           </button>
         ))}
       </div>
+      )}
 
       {/* Modal de detalle */}
       <Modal open={!!selected} onClose={() => setSelected(null)} title={selected?.titulo ?? ''}>
