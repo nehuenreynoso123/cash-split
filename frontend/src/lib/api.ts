@@ -152,12 +152,31 @@ export interface Liquidez {
   fecha: string;
 }
 
+export interface LiquidezResponse {
+  data: Liquidez[];
+  total: number;
+}
+
 export async function listLiquidez(params?: { desde?: string; hasta?: string }): Promise<Liquidez[]> {
   const query = params
     ? '?' + new URLSearchParams(Object.fromEntries(Object.entries(params).filter(([_, v]) => v))).toString()
     : '';
-  const data = await request<Liquidez[]>('GET', `/liquidez${query}`);
-  return data.map((l) => ({ ...l, monto: Number(l.monto) }));
+  const data = await request<Liquidez>('GET', `/liquidez${query}`);
+  // El endpoint ahora devuelve { data, total }, pero listLiquidez extrae data
+  if (Array.isArray(data)) {
+    return data.map((l) => ({ ...l, monto: Number(l.monto) }));
+  }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const resp = data as unknown as LiquidezResponse;
+  return resp.data.map((l) => ({ ...l, monto: Number(l.monto) }));
+}
+
+export async function getLiquidezTotal(params?: { desde?: string; hasta?: string }): Promise<number> {
+  const query = params
+    ? '?' + new URLSearchParams(Object.fromEntries(Object.entries(params).filter(([_, v]) => v))).toString()
+    : '';
+  const data = await request<LiquidezResponse>('GET', `/liquidez${query}`);
+  return Number(data.total);
 }
 
 export async function createLiquidez(data: { descripcion: string; monto: number; tipo: string }): Promise<void> {

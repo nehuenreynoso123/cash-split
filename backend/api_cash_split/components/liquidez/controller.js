@@ -1,4 +1,4 @@
-import { add, remove, list, update } from "./store.js";
+import { add, remove, list, listWithTotal, update } from "./store.js";
 
 export const addLiquidez = async (body) => {
   const { descripcion, monto, tipo } = body;
@@ -15,8 +15,8 @@ export const removeLiquidez = async (id) => {
 };
 
 export const getLiquidez = async ({ desde, hasta } = {}) => {
-  const items = await list({ desde, hasta });
-  return items;
+  const result = await listWithTotal({ desde, hasta });
+  return result;
 };
 
 export default {

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import Modal from '../ui/Modal';
-import { getTotalCajas, listLiquidez, type TotalCaja, type Liquidez } from '../../lib/api';
+import { getTotalCajas, getLiquidezTotal, type TotalCaja } from '../../lib/api';
 import { formatCurrency } from '../../lib/data';
 
 interface CajaInfo {
@@ -111,8 +111,8 @@ export default function FlujoFondosClient() {
     setLoading(true);
     Promise.all([
       getTotalCajas().catch(() => [] as TotalCaja[]),
-      listLiquidez().catch(() => [] as Liquidez[]),
-    ]).then(([totalCajasData, liquidezData]) => {
+      getLiquidezTotal().catch(() => 0),
+    ]).then(([totalCajasData, netoLiquidez]) => {
       const totalInvertido = totalCajasData.reduce((s, r) => s + Number(r.costo_invertido_stock), 0);
       const gananciaReal = totalCajasData.reduce((s, r) => s + Number(r.ganancia_real_total), 0);
       const costoReposicion = totalCajasData.reduce((s, r) => s + Number(r.costo_reposicion_total), 0);
@@ -121,10 +121,6 @@ export default function FlujoFondosClient() {
         const ingresos = Number(r.ingresos_totales);
         const costo = Number(r.costo_reposicion_total);
         return s + (ingresos - costo);
-      }, 0);
-
-      const netoLiquidez = liquidezData.reduce((s, l) => {
-        return l.tipo === 'ingreso' ? s + Number(l.monto) : s - Number(l.monto);
       }, 0);
 
       const liquidezDisponible = totalInvertido - costoReposicion + netoLiquidez;
