@@ -1,12 +1,10 @@
 import { useState, useEffect } from 'react';
 
 function toRaw(value: string): string {
-  // Keep only digits, dots, commas; normalize comma→dot; remove thousand-separator dots
+  // Argentine format: dots = thousand separators (remove), commas = decimal (normalize to dot)
   const cleaned = value.replace(/[^\d.,]/g, '');
-  const normalized = cleaned.replace(/,/g, '.');
-  const parts = normalized.split('.');
-  if (parts.length <= 1) return parts[0];
-  return parts.slice(0, -1).join('') + '.' + parts[parts.length - 1];
+  const withoutDots = cleaned.replace(/\./g, '');
+  return withoutDots.replace(/,/g, '.');
 }
 
 function toDisplay(raw: string): string {
@@ -16,8 +14,8 @@ function toDisplay(raw: string): string {
     return raw.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
   }
   const intPart = raw.slice(0, dotIndex);
-  const decPart = raw.slice(dotIndex);
-  return intPart.replace(/\B(?=(\d{3})+(?!\d))/g, '.') + decPart;
+  const decPart = raw.slice(dotIndex + 1);
+  return intPart.replace(/\B(?=(\d{3})+(?!\d))/g, '.') + ',' + decPart;
 }
 
 function numChange(e: React.ChangeEvent<HTMLInputElement>, setter: (v: string) => void) {
@@ -159,31 +157,29 @@ export default function CalculadoraClient() {
 
         <div class="space-y-4">
           <div>
-            <label class="block font-body-base font-medium text-on-surface mb-1.5">
-              Costo del producto en USDT
-            </label>
+            <label class="block font-body-base font-medium text-on-surface mb-1.5">Valor del USDT ($)</label>
             <input
               type="text"
               inputMode="decimal"
               value={numVal(costoUsdt)}
               onChange={(e) => numChange(e, setCostoUsdt)}
-              placeholder="Ej: 15"
-              class="w-full p-3 rounded-xl border border-outline bg-surface-container text-on-surface font-body-base placeholder:text-on-surface-variant/50 focus:outline-none focus:ring-2 focus:ring-secondary"
-            />
-          </div>
-          <div>
-            <label class="block font-body-base font-medium text-on-surface mb-1.5">Valor del USDT ($)</label>
-            <input
-              type="text"
-              inputMode="decimal"
-              value={numVal(valorUsdt2)}
-              onChange={(e) => numChange(e, setValorUsdt2)}
               placeholder="Ej: 1.300,50"
               class="w-full p-3 rounded-xl border border-outline bg-surface-container text-on-surface font-body-base placeholder:text-on-surface-variant/50 focus:outline-none focus:ring-2 focus:ring-secondary"
             />
           </div>
           <div>
-            <label class="block font-body-base font-medium text-on-surface mb-1.5">Precio de venta en ARS ($)</label>
+            <label class="block font-body-base font-medium text-on-surface mb-1.5">Cantidad de USDT</label>
+            <input
+              type="text"
+              inputMode="decimal"
+              value={numVal(valorUsdt2)}
+              onChange={(e) => numChange(e, setValorUsdt2)}
+              placeholder="Ej: 15"
+              class="w-full p-3 rounded-xl border border-outline bg-surface-container text-on-surface font-body-base placeholder:text-on-surface-variant/50 focus:outline-none focus:ring-2 focus:ring-secondary"
+            />
+          </div>
+          <div>
+            <label class="block font-body-base font-medium text-on-surface mb-1.5">Precio de Venta ($)</label>
             <input
               type="text"
               inputMode="decimal"
@@ -203,15 +199,21 @@ export default function CalculadoraClient() {
           {gananciaArs !== null && porcentajeGanancia !== null && (
             <div class="p-4 rounded-xl bg-secondary-container/30 border border-secondary-container space-y-2">
               <div>
-                <p class="font-body-sm text-on-surface-variant mb-0.5">Costo total en ARS</p>
-                <p class="font-body-base font-bold text-on-surface">
+                <p class="font-body-sm text-on-surface-variant mb-0.5">Total en pesos</p>
+                <p class="font-headline-md font-bold text-on-surface">
                   $ {(Number(costoUsdt) * Number(valorUsdt2)).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </p>
+                <p class="font-body-sm text-on-surface-variant mt-1">
+                  ${Number(costoUsdt).toLocaleString('es-AR')} × ${Number(valorUsdt2).toLocaleString('es-AR')} = ${(Number(costoUsdt) * Number(valorUsdt2)).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </p>
               </div>
-              <div>
-                <p class="font-body-sm text-on-surface-variant mb-0.5">Ganancia en ARS</p>
+              <div class="border-t border-secondary-container/50 pt-2">
+                <p class="font-body-sm text-on-surface-variant mb-0.5">Ganancia en pesos</p>
                 <p class={`font-headline-md font-bold ${gananciaArs >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                   $ {gananciaArs.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </p>
+                <p class="font-body-sm text-on-surface-variant mt-1">
+                  ${Number(ventaArs).toLocaleString('es-AR')} − ${(Number(costoUsdt) * Number(valorUsdt2)).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} = $ {gananciaArs.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </p>
               </div>
               <div class="border-t border-secondary-container/50 pt-2">
@@ -219,10 +221,10 @@ export default function CalculadoraClient() {
                 <p class={`font-headline-md font-bold ${porcentajeGanancia >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                   {porcentajeGanancia >= 0 ? '+' : ''}{porcentajeGanancia.toFixed(2)}%
                 </p>
+                <p class="font-body-sm text-on-surface-variant mt-1">
+                  (${gananciaArs.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ÷ ${(Number(costoUsdt) * Number(valorUsdt2)).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}) × 100 = {porcentajeGanancia >= 0 ? '+' : ''}{porcentajeGanancia.toFixed(2)}%
+                </p>
               </div>
-              <p class="font-body-sm text-on-surface-variant">
-                ({costoUsdt} USDT × ${Number(valorUsdt2).toLocaleString('es-AR')}) → ${Number(ventaArs).toLocaleString('es-AR')}
-              </p>
             </div>
           )}
         </div>
