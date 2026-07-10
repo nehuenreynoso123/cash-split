@@ -31,7 +31,7 @@ export default function LoginForm() {
   };
 
   return (
-    <div className="w-full max-w-[440px] animate-in fade-in slide-in-from-bottom-4 duration-700">
+    <div className="w-full max-w-[440px] mx-auto animate-in fade-in slide-in-from-bottom-4 duration-700">
       {/* Branding */}
       <div className="flex flex-col items-center mb-stack_lg">
         <div className="w-16 h-16 bg-primary rounded-xl flex items-center justify-center mb-stack_md shadow-sm">
