@@ -5,6 +5,7 @@
   "description": "",
   "main": "api_cash_split/server.js",
   "scripts": {
+    "start": "node api_cash_split/server.js",
     "test": "echo \"Error: no test specified\" && exit 1",
     "api:dev": "tsx watch api_cash_split/server.js"
   },
