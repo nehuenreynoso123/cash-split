@@ -1,6 +1,7 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import { formatCurrency } from '../../lib/data';
 import { listProductos, createVenta, type Producto } from '../../lib/api';
+import { useAuthRedirect } from '../../hooks/useAuthRedirect';
 
 interface SaleFormProps {
   onSaleComplete: () => void;
@@ -9,6 +10,7 @@ interface SaleFormProps {
 type ProductOption = Producto & { _stock: number };
 
 export default function SaleForm({ onSaleComplete }: SaleFormProps) {
+  useAuthRedirect();
   const [products, setProducts] = useState<ProductOption[]>([]);
   const [productId, setProductId] = useState('');
   const [unitPriceInput, setUnitPriceInput] = useState('');

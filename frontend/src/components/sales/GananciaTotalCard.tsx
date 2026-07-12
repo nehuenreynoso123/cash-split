@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { formatCurrency } from '../../lib/data';
 import { listVentas } from '../../lib/api';
+import { useAuthRedirect } from '../../hooks/useAuthRedirect';
 
 export default function GananciaTotalCard() {
+  useAuthRedirect();
   const [totalGanancia, setTotalGanancia] = useState(0);
   const [cantidad, setCantidad] = useState(0);
 

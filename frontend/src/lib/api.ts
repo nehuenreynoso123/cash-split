@@ -16,6 +16,17 @@ export function clearUser(): void {
   localStorage.removeItem('cs_user');
 }
 
+export async function signout(): Promise<void> {
+  const API_BASE = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:3000/api';
+  try {
+    await fetch(`${API_BASE}/signout`, {
+      method: 'POST',
+      credentials: 'include',
+    });
+  } catch { /* cookie may already be gone */ }
+  clearUser();
+}
+
 export function getStoredUser(): User | null {
   if (typeof window === 'undefined') return null;
   try {

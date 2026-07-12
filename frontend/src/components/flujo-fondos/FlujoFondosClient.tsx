@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import Modal from '../ui/Modal';
 import { getTotalCajas, getLiquidezTotal, type TotalCaja } from '../../lib/api';
 import { formatCurrency } from '../../lib/data';
+import { useAuthRedirect } from '../../hooks/useAuthRedirect';
 
 interface CajaInfo {
   id: string;
@@ -103,6 +104,7 @@ function buildCajas(
 }
 
 export default function FlujoFondosClient() {
+  useAuthRedirect();
   const [selected, setSelected] = useState<CajaInfo | null>(null);
   const [cajas, setCajas] = useState<CajaInfo[]>([]);
   const [loading, setLoading] = useState(true);

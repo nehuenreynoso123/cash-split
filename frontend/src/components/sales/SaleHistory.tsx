@@ -3,8 +3,10 @@ import Badge, { statusBadge, statusLabel } from '../ui/Badge';
 import Pagination from '../ui/Pagination';
 import { formatCurrency } from '../../lib/data';
 import { listVentas, type Venta } from '../../lib/api';
+import { useAuthRedirect } from '../../hooks/useAuthRedirect';
 
 export default function SaleHistory() {
+  useAuthRedirect();
   const [sales, setSales] = useState<Venta[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');

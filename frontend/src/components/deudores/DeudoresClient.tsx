@@ -2,8 +2,10 @@ import { useState, useEffect } from 'react';
 import { listDeudores, createDeudor, type Deudor } from '../../lib/api';
 import { formatCurrency } from '../../lib/data';
 import DeudorModal from './DeudorModal';
+import { useAuthRedirect } from '../../hooks/useAuthRedirect';
 
 export default function DeudoresClient() {
+  useAuthRedirect();
   const [items, setItems] = useState<Deudor[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');

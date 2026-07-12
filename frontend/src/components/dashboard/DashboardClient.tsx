@@ -2,8 +2,10 @@ import { useState, useEffect, useCallback } from 'react';
 import SummaryMetrics from './SummaryMetrics';
 import CapitalTable from './CapitalTable';
 import { getTotalCajas, listLiquidez, type TotalCaja, type Liquidez } from '../../lib/api';
+import { useAuthRedirect } from '../../hooks/useAuthRedirect';
 
 export default function DashboardClient() {
+  useAuthRedirect();
   const [cajas, setCajas] = useState<TotalCaja[]>([]);
   const [netoLiquidezManual, setNetoLiquidezManual] = useState(0);
   const [loading, setLoading] = useState(true);

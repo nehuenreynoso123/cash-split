@@ -2,8 +2,10 @@ import { useState, useEffect } from 'react';
 import { listLiquidez, createLiquidez, deleteLiquidez, type Liquidez } from '../../lib/api';
 import { formatCurrency } from '../../lib/data';
 import LiquidezModal from './LiquidezModal';
+import { useAuthRedirect } from '../../hooks/useAuthRedirect';
 
 export default function LiquidezClient() {
+  useAuthRedirect();
   const [items, setItems] = useState<Liquidez[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');

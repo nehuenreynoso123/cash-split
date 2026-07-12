@@ -15,6 +15,7 @@ const COOKIE_OPTIONS = {
 
 router.post("/signup", signup);
 router.post("/signin", signin);
+router.post("/signout", signout);
 
 function signup(req, resp, next) {
   controller
@@ -34,6 +35,20 @@ function signin(req, resp, next) {
       response.success(req, resp, { user: data.user }, 200);
     })
     .catch(next);
+}
+
+function signout(_req, resp, next) {
+  try {
+    resp.clearCookie("cs_token", {
+      path: "/",
+      httpOnly: true,
+      secure: config.env === "production",
+      sameSite: "lax",
+    });
+    response.success(_req, resp, { message: "Sesión cerrada" }, 200);
+  } catch (err) {
+    next(err);
+  }
 }
 
 export default router;

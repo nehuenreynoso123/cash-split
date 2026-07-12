@@ -2,8 +2,10 @@ import { useState, useEffect } from 'react';
 import { listGastos, createGasto, type Gasto } from '../../lib/api';
 import { formatCurrency } from '../../lib/data';
 import GastoModal from './GastoModal';
+import { useAuthRedirect } from '../../hooks/useAuthRedirect';
 
 export default function GastosClient() {
+  useAuthRedirect();
   const [items, setItems] = useState<Gasto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');

@@ -1,9 +1,16 @@
+import { signout } from '../../lib/api';
+
 interface HeaderProps {
   pageTitle: string;
   pageSubtitle?: string;
 }
 
 export default function Header({ pageTitle, pageSubtitle }: HeaderProps) {
+  const handleLogout = async () => {
+    await signout();
+    window.location.href = '/';
+  };
+
   return (
     <header className="flex justify-between items-center h-header_height px-container_padding w-full sticky top-0 bg-surface border-b border-outline-variant z-40">
       <div className="flex items-center gap-4">
@@ -33,12 +40,12 @@ export default function Header({ pageTitle, pageSubtitle }: HeaderProps) {
         </div>
 
         <div className="flex items-center gap-3 border-l border-outline-variant pl-6">
-          <a
-            href="/"
-            className="text-on-surface-variant hover:text-primary transition-colors font-body-base"
+          <button
+            onClick={handleLogout}
+            className="text-on-surface-variant hover:text-primary transition-colors font-body-base cursor-pointer"
           >
             Cerrar sesión
-          </a>
+          </button>
           <img
             alt="User profile"
             className="w-8 h-8 rounded-full"

@@ -5,8 +5,10 @@ import MetricCard from '../ui/MetricCard';
 import { formatCurrency } from '../../lib/data';
 import { listProductos, type Producto } from '../../lib/api';
 import type { Product } from '../../lib/data';
+import { useAuthRedirect } from '../../hooks/useAuthRedirect';
 
 export default function ProductPageClient() {
+  useAuthRedirect();
   const [modalOpen, setModalOpen] = useState(false);
   const [editProduct, setEditProduct] = useState<Product | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
