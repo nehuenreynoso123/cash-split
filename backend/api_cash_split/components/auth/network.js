@@ -8,7 +8,7 @@ const router = express.Router();
 const COOKIE_OPTIONS = {
   httpOnly: true,
   secure: config.env === "production",
-  sameSite: "lax",
+  sameSite: config.env === "production" ? "none" : "lax",
   maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
   path: "/",
 };
@@ -43,7 +43,7 @@ function signout(_req, resp, next) {
       path: "/",
       httpOnly: true,
       secure: config.env === "production",
-      sameSite: "lax",
+      sameSite: config.env === "production" ? "none" : "lax",
     });
     response.success(_req, resp, { message: "Sesión cerrada" }, 200);
   } catch (err) {
