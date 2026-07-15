@@ -73,6 +73,7 @@ export default function CalculadoraClient() {
     porcentajeGanancia: number;
     usdt: string;
     cantidadUsdt: string;
+    precioVenta: string;
   }
   const [productos, setProductos] = useState<ProductoCalculado[]>(() => {
     try { return JSON.parse(localStorage.getItem('calculadora-productos') ?? '[]'); } catch { return []; }
@@ -122,7 +123,7 @@ export default function CalculadoraClient() {
   };
 
   const calcularPorcentajeCosto = () => {
-    const p = parseFloat(porcentajeCosto);
+    const p = parseFloat(porcentajeCosto.replace(',', '.'));
     const c = parseFloat(costoBase);
     if (isNaN(p) || isNaN(c)) return;
     setResultadoPorcentajeCosto(c * (p / 100));
@@ -173,6 +174,7 @@ export default function CalculadoraClient() {
       porcentajeGanancia: porcVal,
       usdt: costoUsdt,
       cantidadUsdt: valorUsdt2,
+      precioVenta: ventaArs,
     }]);
     setNextId(prev => prev + 1);
     setNombreProducto('');
@@ -193,6 +195,7 @@ export default function CalculadoraClient() {
       porcentajeGanancia: porcVal,
       usdt: costoUsdt,
       cantidadUsdt: valorUsdt2,
+      precioVenta: ventaArs,
     } : p));
     setNombreProducto('');
   };
@@ -287,8 +290,8 @@ export default function CalculadoraClient() {
               <input
                 type="text"
                 inputMode="decimal"
-                value={numVal(porcentajeCosto)}
-                onChange={(e) => numChange(e, setPorcentajeCosto)}
+                value={porcentajeCosto}
+                onChange={(e) => setPorcentajeCosto(e.target.value)}
                 placeholder="Ej: 25"
                 class="w-full p-3 rounded-xl border border-outline bg-surface-container text-on-surface font-body-base placeholder:text-on-surface-variant/50 focus:outline-none focus:ring-2 focus:ring-secondary"
               />
@@ -545,6 +548,7 @@ export default function CalculadoraClient() {
                   <th class="py-3 px-3 font-body-sm font-medium text-on-surface-variant">% Ganancia</th>
                   <th class="py-3 px-3 font-body-sm font-medium text-on-surface-variant">USDT</th>
                   <th class="py-3 px-3 font-body-sm font-medium text-on-surface-variant">Cant. USDT</th>
+                  <th class="py-3 px-3 font-body-sm font-medium text-on-surface-variant">Precio Venta</th>
                   <th class="py-3 px-3 font-body-sm font-medium text-on-surface-variant"></th>
                 </tr>
               </thead>
@@ -565,6 +569,7 @@ export default function CalculadoraClient() {
                     </td>
                     <td class="py-3 px-3 font-body-base text-on-surface">{p.usdt}</td>
                     <td class="py-3 px-3 font-body-base text-on-surface">{p.cantidadUsdt}</td>
+                    <td class="py-3 px-3 font-body-base text-on-surface">{p.precioVenta ? `$ ${Number(p.precioVenta).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—'}</td>
                     <td class="py-3 px-3">
                       <button
                         onClick={() => eliminarProducto(p.id)}
