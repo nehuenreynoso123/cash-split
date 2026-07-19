@@ -18,6 +18,16 @@ const { title = 'cash_split — Capital Management' } = Astro.props;
       rel="stylesheet"
       href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
     />
+    <script is:inline>
+      // Auth gate: redirect before body renders on protected pages
+      (function () {
+        var PUBLIC_PATHS = ['/', '/index.html'];
+        var path = window.location.pathname;
+        if (PUBLIC_PATHS.indexOf(path) === -1 && !localStorage.getItem('cs_user')) {
+          window.location.replace('/');
+        }
+      })();
+    </script>
   </head>
   <body>
     <slot />
