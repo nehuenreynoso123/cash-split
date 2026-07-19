@@ -11,16 +11,21 @@ export default function GastosClient() {
   const [error, setError] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
   const [editItem, setEditItem] = useState<Gasto | null>(null);
+  const [desde, setDesde] = useState('');
+  const [hasta, setHasta] = useState('');
 
   const load = () => {
     setLoading(true);
-    listGastos()
+    const params: { desde?: string; hasta?: string } = {};
+    if (desde) params.desde = desde;
+    if (hasta) params.hasta = hasta;
+    listGastos(Object.keys(params).length > 0 ? params : undefined)
       .then(setItems)
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
   };
 
-  useEffect(load, []);
+  useEffect(() => { load(); }, [desde, hasta]);
 
   const handleNew = () => { setEditItem(null); setModalOpen(true); };
   const handleEdit = (item: Gasto) => { setEditItem(item); setModalOpen(true); };
@@ -53,6 +58,36 @@ export default function GastosClient() {
           <span className="material-symbols-outlined">add_circle</span>
           Nuevo Gasto
         </button>
+      </div>
+
+      {/* Date filter bar */}
+      <div className="flex flex-wrap items-end gap-4 mb-6 p-4 bg-surface-container-low rounded-xl border border-outline-variant">
+        <div className="flex-1 min-w-[160px]">
+          <label className="block font-label-caps text-label-caps text-on-surface-variant uppercase mb-1">Desde</label>
+          <input
+            type="date"
+            className="w-full px-4 py-2.5 border border-outline-variant rounded-lg focus:ring-2 focus:ring-secondary/20 focus:border-secondary outline-none font-data-mono text-on-surface"
+            value={desde}
+            onChange={(e) => setDesde(e.target.value)}
+          />
+        </div>
+        <div className="flex-1 min-w-[160px]">
+          <label className="block font-label-caps text-label-caps text-on-surface-variant uppercase mb-1">Hasta</label>
+          <input
+            type="date"
+            className="w-full px-4 py-2.5 border border-outline-variant rounded-lg focus:ring-2 focus:ring-secondary/20 focus:border-secondary outline-none font-data-mono text-on-surface"
+            value={hasta}
+            onChange={(e) => setHasta(e.target.value)}
+          />
+        </div>
+        {(desde || hasta) && (
+          <button
+            className="px-4 py-2.5 text-on-surface-variant hover:text-on-surface font-semibold rounded-lg hover:bg-surface-container transition-all"
+            onClick={() => { setDesde(''); setHasta(''); }}
+          >
+            Limpiar
+          </button>
+        )}
       </div>
 
       <div className="bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden shadow-sm">

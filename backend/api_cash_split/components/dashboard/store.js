@@ -1,13 +1,18 @@
 import sql from "../../../store/database.js";
 
 export async function listTotalCajas({ desde, hasta } = {}) {
-  const conditions = [];
-  if (desde) conditions.push(sql`v.created_at >= ${desde}`);
-  if (hasta) conditions.push(sql`v.created_at < ${hasta} + interval '1 day'`);
+  let joinFilter;
 
-  const joinFilter = conditions.length > 0
-    ? sql`LEFT JOIN ventas v ON p.id = v.producto_id AND ${sql.join(conditions, sql` AND `)}`
-    : sql`LEFT JOIN ventas v ON p.id = v.producto_id`;
+  if (!desde && !hasta) {
+    joinFilter = sql`LEFT JOIN ventas v ON p.id = v.producto_id`;
+  } else {
+    const desdeCond = desde ? sql`v.created_at >= ${desde}` : null;
+    const hastaCond = hasta ? sql`v.created_at < (${hasta}::date + interval '1 day')` : null;
+
+    joinFilter = desdeCond && hastaCond
+      ? sql`LEFT JOIN ventas v ON p.id = v.producto_id AND ${desdeCond} AND ${hastaCond}`
+      : sql`LEFT JOIN ventas v ON p.id = v.producto_id AND ${desdeCond || hastaCond}`;
+  }
 
   const result = await sql`
     SELECT 

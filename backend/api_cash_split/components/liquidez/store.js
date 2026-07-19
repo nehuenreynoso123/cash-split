@@ -5,44 +5,39 @@ export async function add({ descripcion, monto, tipo }) {
 }
 
 export async function list({ desde, hasta } = {}) {
-  const conditions = [];
-  if (desde) conditions.push(sql`fecha >= ${desde}`);
-  if (hasta) conditions.push(sql`fecha < ${hasta} + interval '1 day'`);
+  if (!desde && !hasta) {
+    return sql`SELECT id, descripcion, monto, tipo, fecha FROM liquidez ORDER BY fecha DESC, id DESC`;
+  }
 
-  const where = conditions.length > 0
-    ? sql`WHERE ${sql.join(conditions, sql` AND `)}`
-    : sql``;
+  const desdeCond = desde ? sql`fecha >= ${desde}` : null;
+  const hastaCond = hasta ? sql`fecha < (${hasta}::date + interval '1 day')` : null;
 
-  const items = await sql`
-    SELECT id, descripcion, monto, tipo, fecha
-    FROM liquidez
-    ${where}
-    ORDER BY fecha DESC, id DESC
-  `;
-  return items;
+  const where = desdeCond && hastaCond
+    ? sql`WHERE ${desdeCond} AND ${hastaCond}`
+    : sql`WHERE ${desdeCond || hastaCond}`;
+
+  return sql`SELECT id, descripcion, monto, tipo, fecha FROM liquidez ${where} ORDER BY fecha DESC, id DESC`;
 }
 
 export async function listWithTotal({ desde, hasta } = {}) {
-  const conditions = [];
-  if (desde) conditions.push(sql`fecha >= ${desde}`);
-  if (hasta) conditions.push(sql`fecha < ${hasta} + interval '1 day'`);
+  if (!desde && !hasta) {
+    const [items, totalRows] = await Promise.all([
+      sql`SELECT id, descripcion, monto, tipo, fecha FROM liquidez ORDER BY fecha DESC, id DESC`,
+      sql`SELECT COALESCE(SUM(CASE WHEN tipo = 'ingreso' THEN monto ELSE -monto END), 0) AS total FROM liquidez`,
+    ]);
+    return { data: items, total: Number(totalRows[0].total) };
+  }
 
-  const where = conditions.length > 0
-    ? sql`WHERE ${sql.join(conditions, sql` AND `)}`
-    : sql``;
+  const desdeCond = desde ? sql`fecha >= ${desde}` : null;
+  const hastaCond = hasta ? sql`fecha < (${hasta}::date + interval '1 day')` : null;
+
+  const where = desdeCond && hastaCond
+    ? sql`WHERE ${desdeCond} AND ${hastaCond}`
+    : sql`WHERE ${desdeCond || hastaCond}`;
 
   const [items, totalRows] = await Promise.all([
-    sql`
-      SELECT id, descripcion, monto, tipo, fecha
-      FROM liquidez
-      ${where}
-      ORDER BY fecha DESC, id DESC
-    `,
-    sql`
-      SELECT COALESCE(SUM(CASE WHEN tipo = 'ingreso' THEN monto ELSE -monto END), 0) AS total
-      FROM liquidez
-      ${where}
-    `,
+    sql`SELECT id, descripcion, monto, tipo, fecha FROM liquidez ${where} ORDER BY fecha DESC, id DESC`,
+    sql`SELECT COALESCE(SUM(CASE WHEN tipo = 'ingreso' THEN monto ELSE -monto END), 0) AS total FROM liquidez ${where}`,
   ]);
 
   return { data: items, total: Number(totalRows[0].total) };

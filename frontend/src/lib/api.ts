@@ -210,8 +210,11 @@ export interface Gasto {
   fecha: string;
 }
 
-export async function listGastos(): Promise<Gasto[]> {
-  const data = await request<Gasto[]>('GET', '/gastos');
+export async function listGastos(params?: { desde?: string; hasta?: string }): Promise<Gasto[]> {
+  const query = params
+    ? '?' + new URLSearchParams(Object.fromEntries(Object.entries(params).filter(([_, v]) => v))).toString()
+    : '';
+  const data = await request<Gasto[]>('GET', `/gastos${query}`);
   return data.map((g) => ({ ...g, monto: Number(g.monto) }));
 }
 

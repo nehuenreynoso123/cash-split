@@ -18,8 +18,9 @@ function addGastos(req, resp, next) {
 }
 
 function listGastos(req, resp, next) {
+  const { desde, hasta } = req.query;
   controller
-    .getCajaGastos()
+    .getCajaGastos({ desde, hasta })
     .then((data) => response.success(req, resp, data, 200))
     .catch(next);
 }
