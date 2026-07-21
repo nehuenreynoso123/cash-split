@@ -5,6 +5,7 @@ import deudoresNetwork from "./components/deudores/network.js";
 import ventasNetwork from "./components/ventas/network.js";
 import productosNetwork from "./components/productos/network.js";
 import totalCajasNetwork from "./components/dashboard/network.js";
+import flujoFondosNetwork from "./components/flujoFondos/network.js";
 import authNetwork from "./components/auth/network.js";
 
 export default (server) => {
@@ -15,5 +16,6 @@ export default (server) => {
   server.use("/api", ventasNetwork);
   server.use("/api", productosNetwork);
   server.use("/api", totalCajasNetwork);
+  server.use("/api", flujoFondosNetwork);
   server.use("/api", authNetwork);
 };

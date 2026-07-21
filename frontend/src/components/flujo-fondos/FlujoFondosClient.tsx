@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import Modal from '../ui/Modal';
-import { getTotalCajas, getLiquidezTotal, type TotalCaja } from '../../lib/api';
+import { getFlujoFondos, getLiquidezTotal, type TotalCaja } from '../../lib/api';
 import { formatCurrency } from '../../lib/data';
 import { useAuthRedirect } from '../../hooks/useAuthRedirect';
 
@@ -112,14 +112,14 @@ export default function FlujoFondosClient() {
   const load = useCallback(() => {
     setLoading(true);
     Promise.all([
-      getTotalCajas().catch(() => [] as TotalCaja[]),
+      getFlujoFondos().catch(() => [] as TotalCaja[]),
       getLiquidezTotal().catch(() => 0),
-    ]).then(([totalCajasData, netoLiquidez]) => {
-      const totalInvertido = totalCajasData.reduce((s, r) => s + Number(r.costo_invertido_stock), 0);
-      const gananciaReal = totalCajasData.reduce((s, r) => s + Number(r.ganancia_real_total), 0);
-      const costoReposicion = totalCajasData.reduce((s, r) => s + Number(r.costo_reposicion_total), 0);
+    ]).then(([flujoFondosData, netoLiquidez]) => {
+      const totalInvertido = flujoFondosData.reduce((s, r) => s + Number(r.costo_invertido_stock), 0);
+      const gananciaReal = flujoFondosData.reduce((s, r) => s + Number(r.ganancia_real_total), 0);
+      const costoReposicion = flujoFondosData.reduce((s, r) => s + Number(r.costo_reposicion_total), 0);
       // Ganancia por cobrar: total de ingresos de ventas que NO tienen fecha_cobro (pendientes)
-      const gananciaPorCobrar = totalCajasData.reduce((s, r) => {
+      const gananciaPorCobrar = flujoFondosData.reduce((s, r) => {
         const ingresos = Number(r.ingresos_totales);
         const costo = Number(r.costo_reposicion_total);
         return s + (ingresos - costo);

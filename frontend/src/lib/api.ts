@@ -154,6 +154,21 @@ export async function getTotalCajas(params?: { desde?: string; hasta?: string })
   }));
 }
 
+// ── Flujo de Fondos ────────────────────────────────────────────
+export async function getFlujoFondos(params?: { desde?: string; hasta?: string }): Promise<TotalCaja[]> {
+  const query = params
+    ? '?' + new URLSearchParams(Object.fromEntries(Object.entries(params).filter(([_, v]) => v))).toString()
+    : '';
+  const data = await request<TotalCaja[]>('GET', `/flujo-fondos${query}`);
+  return data.map((t) => ({
+    ...t,
+    costo_invertido_stock: Number(t.costo_invertido_stock),
+    ingresos_totales: Number(t.ingresos_totales),
+    costo_reposicion_total: Number(t.costo_reposicion_total),
+    ganancia_real_total: Number(t.ganancia_real_total),
+  }));
+}
+
 // ── Liquidez ───────────────────────────────────────────────────
 export interface Liquidez {
   id: number;
