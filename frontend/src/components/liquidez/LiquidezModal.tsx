@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useState, useEffect, type FormEvent } from 'react';
 import Modal from '../ui/Modal';
 import type { Liquidez } from '../../lib/api';
 import { createLiquidez, updateLiquidez } from '../../lib/api';
@@ -16,6 +16,19 @@ export default function LiquidezModal({ open, onClose, editItem, onSaved }: Prop
   const [tipo, setTipo] = useState(editItem?.tipo ?? 'ingreso');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (editItem) {
+      setDescripcion(editItem.descripcion ?? '');
+      setMonto(editItem.monto?.toString() ?? '');
+      setTipo(editItem.tipo ?? 'ingreso');
+    } else {
+      setDescripcion('');
+      setMonto('');
+      setTipo('ingreso');
+    }
+    setError('');
+  }, [editItem]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
