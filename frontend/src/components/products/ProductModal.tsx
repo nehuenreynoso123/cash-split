@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useState, useEffect, type FormEvent } from 'react';
 import Modal from '../ui/Modal';
 import { type Product } from '../../lib/data';
 import { createProducto, updateProducto } from '../../lib/api';
@@ -17,6 +17,21 @@ export default function ProductModal({ open, onClose, editProduct, onSaved }: Pr
   const [category, setCategory] = useState(editProduct?.category ?? '');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (editProduct) {
+      setName(editProduct.name ?? '');
+      setPrice(editProduct.price?.toString() ?? '');
+      setStock(editProduct.stock?.toString() ?? '');
+      setCategory(editProduct.category ?? '');
+    } else {
+      setName('');
+      setPrice('');
+      setStock('');
+      setCategory('');
+    }
+    setError('');
+  }, [editProduct]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
