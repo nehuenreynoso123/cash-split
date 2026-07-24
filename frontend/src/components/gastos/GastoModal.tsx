@@ -1,7 +1,7 @@
-import { useState, type FormEvent } from 'react';
+import { useState, useEffect, type FormEvent } from 'react';
 import Modal from '../ui/Modal';
 import type { Gasto } from '../../lib/api';
-import { createGasto } from '../../lib/api';
+import { createGasto, updateGasto } from '../../lib/api';
 
 interface Props {
   open: boolean;
@@ -16,12 +16,27 @@ export default function GastoModal({ open, onClose, editItem, onSaved }: Props) 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
+  useEffect(() => {
+    if (editItem) {
+      setDescripcion(editItem.descripcion ?? '');
+      setMonto(editItem.monto?.toString() ?? '');
+    } else {
+      setDescripcion('');
+      setMonto('');
+    }
+    setError('');
+  }, [editItem]);
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError('');
     setSaving(true);
     try {
-      await createGasto({ descripcion, monto: parseFloat(monto) });
+      if (editItem) {
+        await updateGasto({ id: editItem.id, descripcion, monto: parseFloat(monto) });
+      } else {
+        await createGasto({ descripcion, monto: parseFloat(monto) });
+      }
       onSaved();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al guardar');
@@ -31,7 +46,7 @@ export default function GastoModal({ open, onClose, editItem, onSaved }: Props) 
   };
 
   return (
-    <Modal open={open} onClose={onClose} title="Nuevo Gasto">
+    <Modal open={open} onClose={onClose} title={editItem ? 'Editar Gasto' : 'Nuevo Gasto'}>
       <form onSubmit={handleSubmit} className="p-8 space-y-6">
         {error && <div className="bg-error-container text-on-error-container text-body-sm rounded-lg px-4 py-2">{error}</div>}
         <div>

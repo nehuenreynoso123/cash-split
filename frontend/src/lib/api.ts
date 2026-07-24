@@ -237,6 +237,10 @@ export async function createGasto(data: { descripcion: string; monto: number }):
   return request<void>('POST', '/gastos', data);
 }
 
+export async function updateGasto(data: { id: number; descripcion: string; monto: number }): Promise<void> {
+  return request<void>('PUT', '/gastos', data);
+}
+
 // ── Deudores ───────────────────────────────────────────────────
 export interface Deudor {
   id: number;
