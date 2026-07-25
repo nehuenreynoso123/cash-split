@@ -24,15 +24,15 @@ export default function MetricCard({
   const valueColor = variant === 'primary' ? 'text-on-primary' : 'text-primary';
 
   return (
-    <div className={`${bg} rounded-xl p-stack_lg ${variant === 'default' ? 'border' : ''}`}>
-      <div className="flex items-center justify-between mb-2">
-        <span className={`font-label-caps text-label-caps ${labelColor} uppercase tracking-wider`}>
+    <div className={`${bg} rounded-xl p-stack_lg ${variant === 'default' ? 'border' : ''} overflow-hidden min-w-0`}>
+      <div className="flex items-center justify-between mb-2 min-w-0">
+        <span className={`font-label-caps text-label-caps ${labelColor} uppercase tracking-wider truncate`}>
           {title}
         </span>
-        <span className={`material-symbols-outlined ${iconColor}`}>{icon}</span>
+        <span className={`material-symbols-outlined ${iconColor} shrink-0`}>{icon}</span>
       </div>
-      <div className="flex flex-col">
-        <span className={`font-data-mono text-display-lg ${valueColor}`}>{value}</span>
+      <div className="flex flex-col min-w-0">
+        <span className={`font-data-mono text-display-lg ${valueColor} break-all leading-tight`}>{value}</span>
         {trend && (
           <span className={`text-xs font-bold mt-1 flex items-center gap-1 ${trend.color || (trend.direction === 'up' ? 'text-green-600' : 'text-red-600')}`}>
             <span className="material-symbols-outlined text-xs">
