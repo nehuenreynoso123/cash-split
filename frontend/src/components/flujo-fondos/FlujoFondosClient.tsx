@@ -162,18 +162,18 @@ export default function FlujoFondosClient() {
           <button
             key={caja.id}
             onClick={() => setSelected(caja)}
-            className={`text-left w-full bg-surface-container-lowest border border-outline-variant border-l-4 rounded-xl p-stack_lg hover:shadow-md hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 cursor-pointer group ${caja.bordeClase}`}
+            className={`text-left w-full bg-surface-container-lowest border border-outline-variant border-l-4 rounded-xl p-stack_lg overflow-hidden min-w-0 hover:shadow-md hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 cursor-pointer group ${caja.bordeClase}`}
           >
-            <div className="flex items-center justify-between mb-3">
-              <span className="font-label-caps text-label-caps text-on-surface-variant uppercase tracking-wider">
+            <div className="flex items-center justify-between mb-3 min-w-0">
+              <span className="font-label-caps text-label-caps text-on-surface-variant uppercase tracking-wider truncate">
                 {caja.titulo}
               </span>
-              <span className={`material-symbols-outlined ${caja.colorIcono} group-hover:scale-110 transition-transform`}>
+              <span className={`material-symbols-outlined ${caja.colorIcono} shrink-0 group-hover:scale-110 transition-transform`}>
                 {caja.icono}
               </span>
             </div>
 
-            <span className="font-data-mono text-display-lg text-primary block mb-2">
+            <span className="font-data-mono text-display-lg text-primary block mb-2 break-all leading-tight">
               {caja.valor}
             </span>
 
