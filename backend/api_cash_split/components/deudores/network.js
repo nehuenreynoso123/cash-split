@@ -6,7 +6,7 @@ import { verifyToken } from "../../middleware/index.js";
 const router = express.Router();
 
 router.get("/deudores", [verifyToken], listDeudores);
-router.delete("/deudores", [verifyToken], removeDeudores);
+router.delete("/deudores/:id", [verifyToken], removeDeudores);
 router.post("/deudores", [verifyToken], addDeudores);
 router.put("/deudores", [verifyToken], editDeudores);
 

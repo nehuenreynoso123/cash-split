@@ -259,4 +259,8 @@ export async function createDeudor(data: { nombre: string; descripcion: string; 
   return request<void>('POST', '/deudores', data);
 }
 
+export async function deleteDeudor(id: number): Promise<void> {
+  return request<void>('DELETE', `/deudores/${id}`);
+}
+
 

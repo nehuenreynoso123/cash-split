@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { listDeudores, createDeudor, type Deudor } from '../../lib/api';
+import { listDeudores, createDeudor, deleteDeudor, type Deudor } from '../../lib/api';
 import { formatCurrency } from '../../lib/data';
 import DeudorModal from './DeudorModal';
 import { useAuthRedirect } from '../../hooks/useAuthRedirect';
@@ -25,6 +25,16 @@ export default function DeudoresClient() {
   const handleNew = () => { setEditItem(null); setModalOpen(true); };
   const handleEdit = (item: Deudor) => { setEditItem(item); setModalOpen(true); };
   const handleSaved = () => { setModalOpen(false); setEditItem(null); load(); };
+
+  const handleDelete = async (id: number) => {
+    if (!confirm('¿Estás seguro de eliminar este deudor?')) return;
+    try {
+      await deleteDeudor(id);
+      load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al eliminar');
+    }
+  };
 
   const total = items.reduce((s, i) => s + Number(i.monto), 0);
 
@@ -84,6 +94,9 @@ export default function DeudoresClient() {
                     <td className="px-6 py-4 text-right">
                       <button className="p-2 text-on-surface-variant hover:text-secondary hover:bg-secondary/5 rounded-lg transition-all" onClick={() => handleEdit(item)}>
                         <span className="material-symbols-outlined">edit_square</span>
+                      </button>
+                      <button className="p-2 text-on-surface-variant hover:text-error hover:bg-error/5 rounded-lg transition-all ml-1" onClick={() => handleDelete(item.id)}>
+                        <span className="material-symbols-outlined">delete</span>
                       </button>
                     </td>
                   </tr>
