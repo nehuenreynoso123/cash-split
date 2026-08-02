@@ -7,6 +7,12 @@ interface ApiResponse<T> {
   body: T;
 }
 
+// ── Shared types ───────────────────────────────────────────────
+export interface DateRangeParams {
+  desde?: string;
+  hasta?: string;
+}
+
 // ── Session management ─────────────────────────────────────────
 export function isAuthenticated(): boolean {
   return !!getStoredUser();
@@ -140,7 +146,7 @@ export interface TotalCaja {
   ganancia_real_total: number;
 }
 
-export async function getTotalCajas(params?: { desde?: string; hasta?: string }): Promise<TotalCaja[]> {
+export async function getTotalCajas(params?: DateRangeParams): Promise<TotalCaja[]> {
   const query = params
     ? '?' + new URLSearchParams(Object.fromEntries(Object.entries(params).filter(([_, v]) => v))).toString()
     : '';
@@ -155,7 +161,7 @@ export async function getTotalCajas(params?: { desde?: string; hasta?: string })
 }
 
 // ── Flujo de Fondos ────────────────────────────────────────────
-export async function getFlujoFondos(params?: { desde?: string; hasta?: string }): Promise<TotalCaja[]> {
+export async function getFlujoFondos(params?: DateRangeParams): Promise<TotalCaja[]> {
   const query = params
     ? '?' + new URLSearchParams(Object.fromEntries(Object.entries(params).filter(([_, v]) => v))).toString()
     : '';
@@ -183,7 +189,7 @@ export interface LiquidezResponse {
   total: number;
 }
 
-export async function listLiquidez(params?: { desde?: string; hasta?: string }): Promise<Liquidez[]> {
+export async function listLiquidez(params?: DateRangeParams): Promise<Liquidez[]> {
   const query = params
     ? '?' + new URLSearchParams(Object.fromEntries(Object.entries(params).filter(([_, v]) => v))).toString()
     : '';
@@ -197,7 +203,7 @@ export async function listLiquidez(params?: { desde?: string; hasta?: string }):
   return resp.data.map((l) => ({ ...l, monto: Number(l.monto) }));
 }
 
-export async function getLiquidezTotal(params?: { desde?: string; hasta?: string }): Promise<number> {
+export async function getLiquidezTotal(params?: DateRangeParams): Promise<number> {
   const query = params
     ? '?' + new URLSearchParams(Object.fromEntries(Object.entries(params).filter(([_, v]) => v))).toString()
     : '';
@@ -225,7 +231,7 @@ export interface Gasto {
   fecha: string;
 }
 
-export async function listGastos(params?: { desde?: string; hasta?: string }): Promise<Gasto[]> {
+export async function listGastos(params?: DateRangeParams): Promise<Gasto[]> {
   const query = params
     ? '?' + new URLSearchParams(Object.fromEntries(Object.entries(params).filter(([_, v]) => v))).toString()
     : '';
