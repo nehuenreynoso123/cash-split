@@ -108,12 +108,14 @@ export default function FlujoFondosClient() {
   const [selected, setSelected] = useState<CajaInfo | null>(null);
   const [cajas, setCajas] = useState<CajaInfo[]>([]);
   const [loading, setLoading] = useState(true);
+  const [desde, setDesde] = useState('');
+  const [hasta, setHasta] = useState('');
 
-  const load = useCallback(() => {
+  const load = useCallback((params?: { desde?: string; hasta?: string }) => {
     setLoading(true);
     Promise.all([
-      getFlujoFondos().catch(() => [] as TotalCaja[]),
-      getLiquidezTotal().catch(() => 0),
+      getFlujoFondos(params).catch(() => [] as TotalCaja[]),
+      getLiquidezTotal(params).catch(() => 0),
     ]).then(([flujoFondosData, netoLiquidez]) => {
       const totalInvertido = flujoFondosData.reduce((s, r) => s + Number(r.costo_invertido_stock), 0);
       const gananciaReal = flujoFondosData.reduce((s, r) => s + Number(r.ganancia_real_total), 0);
@@ -134,6 +136,19 @@ export default function FlujoFondosClient() {
 
   useEffect(() => { load(); }, [load]);
 
+  const handleFilter = () => {
+    const params: { desde?: string; hasta?: string } = {};
+    if (desde) params.desde = desde;
+    if (hasta) params.hasta = hasta;
+    load(params);
+  };
+
+  const handleClear = () => {
+    setDesde('');
+    setHasta('');
+    load();
+  };
+
   return (
     <div className="space-y-gutter">
       {/* Encabezado */}
@@ -148,6 +163,46 @@ export default function FlujoFondosClient() {
             Tocá cualquier tarjeta para ver su detalle y entender cómo se compone.
           </p>
         </div>
+      </div>
+
+      {/* Filtro por fechas */}
+      <div className="bg-surface-container-lowest border border-outline-variant rounded-xl p-4 flex items-center gap-4 flex-wrap">
+        <span className="font-label-caps text-label-caps text-on-surface-variant uppercase tracking-wider flex items-center gap-1">
+          <span className="material-symbols-outlined text-lg">calendar_month</span>
+          Filtrar por fecha
+        </span>
+        <div className="flex items-center gap-2">
+          <label className="text-body-sm text-on-surface-variant">Desde</label>
+          <input
+            type="date"
+            value={desde}
+            onChange={(e) => setDesde(e.target.value)}
+            className="px-3 py-1.5 border border-outline-variant rounded-lg text-body-sm focus:ring-2 focus:ring-secondary/20 focus:border-secondary outline-none bg-surface-container-low"
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <label className="text-body-sm text-on-surface-variant">Hasta</label>
+          <input
+            type="date"
+            value={hasta}
+            onChange={(e) => setHasta(e.target.value)}
+            className="px-3 py-1.5 border border-outline-variant rounded-lg text-body-sm focus:ring-2 focus:ring-secondary/20 focus:border-secondary outline-none bg-surface-container-low"
+          />
+        </div>
+        <button
+          onClick={handleFilter}
+          className="px-4 py-1.5 bg-secondary text-on-secondary text-body-sm font-semibold rounded-lg hover:bg-secondary-container transition-all active:scale-95"
+        >
+          Aplicar
+        </button>
+        {(desde || hasta) && (
+          <button
+            onClick={handleClear}
+            className="px-4 py-1.5 border border-outline-variant text-on-surface-variant text-body-sm font-semibold rounded-lg hover:bg-surface-container-low transition-all"
+          >
+            Limpiar
+          </button>
+        )}
       </div>
 
       {/* Grilla de cajas */}
