@@ -12,8 +12,8 @@ export const editCajaGastos = async (body) => {
 export const removeCajaGastos = async (id) => {
   await remove({ id });
 };
-export const getCajaGastos = async ({ desde, hasta } = {}) => {
-  const listGastos = await list({ desde, hasta });
+export const getCajaGastos = async ({ desde, hasta, limit, offset } = {}) => {
+  const listGastos = await list({ desde, hasta, limit, offset });
   return listGastos;
 };
 

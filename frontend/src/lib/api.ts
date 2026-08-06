@@ -231,12 +231,26 @@ export interface Gasto {
   fecha: string;
 }
 
-export async function listGastos(params?: DateRangeParams): Promise<Gasto[]> {
+export interface GastosResponse {
+  data: Gasto[];
+  total: number;
+  totalMonto: number;
+}
+
+export async function listGastos(params?: { desde?: string; hasta?: string; limit?: number; offset?: number }): Promise<GastosResponse> {
   const query = params
-    ? '?' + new URLSearchParams(Object.fromEntries(Object.entries(params).filter(([_, v]) => v))).toString()
+    ? '?' + new URLSearchParams(
+        Object.entries(params)
+          .filter(([, v]) => v !== undefined && v !== '')
+          .map(([k, v]) => [k, String(v)])
+      ).toString()
     : '';
-  const data = await request<Gasto[]>('GET', `/gastos${query}`);
-  return data.map((g) => ({ ...g, monto: Number(g.monto) }));
+  const data = await request<GastosResponse>('GET', `/gastos${query}`);
+  return {
+    data: Array.isArray(data.data) ? data.data.map((g) => ({ ...g, monto: Number(g.monto) })) : [],
+    total: Number(data.total) || 0,
+    totalMonto: Number(data.totalMonto) || 0,
+  };
 }
 
 export async function createGasto(data: { descripcion: string; monto: number }): Promise<void> {

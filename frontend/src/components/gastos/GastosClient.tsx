@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { listGastos, createGasto, type Gasto } from '../../lib/api';
 import { formatCurrency } from '../../lib/data';
 import GastoModal from './GastoModal';
+import Pagination from '../ui/Pagination';
 import { useAuthRedirect } from '../../hooks/useAuthRedirect';
 
 export default function GastosClient() {
@@ -13,25 +14,45 @@ export default function GastosClient() {
   const [editItem, setEditItem] = useState<Gasto | null>(null);
   const [desde, setDesde] = useState('');
   const [hasta, setHasta] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [totalMonto, setTotalMonto] = useState(0);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const pageSize = 15;
 
   const load = () => {
     setLoading(true);
-    const params: { desde?: string; hasta?: string } = {};
+    const params: { desde?: string; hasta?: string; limit: number; offset: number } = {
+      limit: pageSize,
+      offset: (currentPage - 1) * pageSize,
+    };
     if (desde) params.desde = desde;
     if (hasta) params.hasta = hasta;
-    listGastos(Object.keys(params).length > 0 ? params : undefined)
-      .then(setItems)
+    listGastos(params)
+      .then((res) => {
+        setItems(res.data);
+        setTotal(res.total);
+        setTotalMonto(res.totalMonto);
+      })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
   };
 
-  useEffect(() => { load(); }, [desde, hasta]);
+  useEffect(() => {
+    load();
+  }, [desde, hasta, currentPage, refreshKey]);
 
   const handleNew = () => { setEditItem(null); setModalOpen(true); };
   const handleEdit = (item: Gasto) => { setEditItem(item); setModalOpen(true); };
-  const handleSaved = () => { setModalOpen(false); setEditItem(null); load(); };
+  const handleSaved = () => {
+    const wasCreate = editItem === null; // read BEFORE clearing
+    setModalOpen(false);
+    setEditItem(null);
+    if (wasCreate) setCurrentPage(1); // new expense is newest -> page 1
+    setRefreshKey((k) => k + 1);      // always refetch (effect owns fetching now)
+  };
 
-  const total = items.reduce((s, i) => s + Number(i.monto), 0);
+  const totalPages = Math.ceil(total / pageSize);
 
   return (
     <div>
@@ -43,7 +64,7 @@ export default function GastosClient() {
             </h3>
             {!loading && (
               <span className="font-data-mono text-display-sm text-error">
-                {formatCurrency(total)}
+                {formatCurrency(totalMonto)}
               </span>
             )}
           </div>
@@ -68,7 +89,7 @@ export default function GastosClient() {
             type="date"
             className="w-full px-4 py-2.5 border border-outline-variant rounded-lg focus:ring-2 focus:ring-secondary/20 focus:border-secondary outline-none font-data-mono text-on-surface"
             value={desde}
-            onChange={(e) => setDesde(e.target.value)}
+            onChange={(e) => { setDesde(e.target.value); setCurrentPage(1); }}
           />
         </div>
         <div className="flex-1 min-w-[160px]">
@@ -77,13 +98,13 @@ export default function GastosClient() {
             type="date"
             className="w-full px-4 py-2.5 border border-outline-variant rounded-lg focus:ring-2 focus:ring-secondary/20 focus:border-secondary outline-none font-data-mono text-on-surface"
             value={hasta}
-            onChange={(e) => setHasta(e.target.value)}
+            onChange={(e) => { setHasta(e.target.value); setCurrentPage(1); }}
           />
         </div>
         {(desde || hasta) && (
           <button
             className="px-4 py-2.5 text-on-surface-variant hover:text-on-surface font-semibold rounded-lg hover:bg-surface-container transition-all"
-            onClick={() => { setDesde(''); setHasta(''); }}
+            onClick={() => { setDesde(''); setHasta(''); setCurrentPage(1); }}
           >
             Limpiar
           </button>
@@ -126,6 +147,15 @@ export default function GastosClient() {
             </tbody>
           </table>
         </div>
+        {totalPages > 1 && (
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalItems={total}
+            pageSize={pageSize}
+            onPageChange={setCurrentPage}
+          />
+        )}
       </div>
 
       <GastoModal open={modalOpen} onClose={() => { setModalOpen(false); setEditItem(null); }} editItem={editItem} onSaved={handleSaved} />
