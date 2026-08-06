@@ -140,6 +140,7 @@ export default function ProductTable({ onNewProduct, onEditProduct }: ProductTab
           totalPages={totalPages}
           totalItems={products.length}
           pageSize={pageSize}
+          onPageChange={setCurrentPage}
         />
       )}
     </div>

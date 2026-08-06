@@ -3,7 +3,7 @@ interface PaginationProps {
   totalPages: number;
   totalItems: number;
   pageSize: number;
-  onPageChange?: (page: number) => void;
+  onPageChange: (page: number) => void;
 }
 
 export default function Pagination({
@@ -11,6 +11,7 @@ export default function Pagination({
   totalPages,
   totalItems,
   pageSize,
+  onPageChange,
 }: PaginationProps) {
   const from = (currentPage - 1) * pageSize + 1;
   const to = Math.min(currentPage * pageSize, totalItems);
@@ -24,6 +25,7 @@ export default function Pagination({
         <button
           className="p-2 border border-outline-variant rounded-lg hover:bg-white transition-colors disabled:opacity-40"
           disabled={currentPage <= 1}
+          onClick={() => onPageChange(Math.max(1, currentPage - 1))}
         >
           <span className="material-symbols-outlined text-sm">chevron_left</span>
         </button>
@@ -41,6 +43,7 @@ export default function Pagination({
                     ? 'bg-secondary text-on-secondary'
                     : 'hover:bg-white border border-transparent hover:border-outline-variant'
                 }`}
+                onClick={() => onPageChange(p)}
               >
                 {p}
               </button>
@@ -50,6 +53,7 @@ export default function Pagination({
         <button
           className="p-2 border border-outline-variant rounded-lg hover:bg-white transition-colors disabled:opacity-40"
           disabled={currentPage >= totalPages}
+          onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
         >
           <span className="material-symbols-outlined text-sm">chevron_right</span>
         </button>

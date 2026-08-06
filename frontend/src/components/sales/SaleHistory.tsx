@@ -117,6 +117,7 @@ export default function SaleHistory() {
           totalPages={totalPages}
           totalItems={sales.length}
           pageSize={pageSize}
+          onPageChange={setCurrentPage}
         />
       )}
     </section>
