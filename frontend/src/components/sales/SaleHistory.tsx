@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import Badge, { statusBadge, statusLabel } from '../ui/Badge';
 import Pagination from '../ui/Pagination';
 import { formatCurrency } from '../../lib/data';
-import { listVentas, type Venta } from '../../lib/api';
+import { listVentas, deleteVenta, type Venta } from '../../lib/api';
 import { useAuthRedirect } from '../../hooks/useAuthRedirect';
 
 export default function SaleHistory() {
@@ -13,12 +13,24 @@ export default function SaleHistory() {
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 5;
 
-  useEffect(() => {
+  const load = () => {
     listVentas()
       .then((list) => setSales(list))
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
-  }, []);
+  };
+
+  useEffect(load, []);
+
+  const handleDelete = async (id: number) => {
+    if (!confirm('¿Estás seguro de eliminar esta venta?')) return;
+    try {
+      await deleteVenta(id);
+      load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al eliminar');
+    }
+  };
 
   const totalPages = Math.ceil(sales.length / pageSize);
   const paginated = sales.slice((currentPage - 1) * pageSize, currentPage * pageSize);
@@ -40,11 +52,11 @@ export default function SaleHistory() {
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="bg-surface-bright border-b border-outline-variant">
-              {['Fecha', 'Cobro', 'Producto', 'Cant.', 'Total', 'Ganancia', 'Estado'].map((h) => (
+              {['Fecha', 'Cobro', 'Producto', 'Cant.', 'Total', 'Ganancia', 'Estado', 'Acciones'].map((h) => (
                 <th
                   key={h}
                   className={`px-6 py-4 font-label-caps text-on-surface-variant uppercase tracking-wider ${
-                    h === 'Cant.' || h === 'Total' || h === 'Ganancia' ? 'text-right' : h === 'Estado' ? 'text-center' : ''
+                    h === 'Cant.' || h === 'Total' || h === 'Ganancia' || h === 'Acciones' ? 'text-right' : h === 'Estado' ? 'text-center' : ''
                   }`}
                 >
                   {h}
@@ -55,13 +67,13 @@ export default function SaleHistory() {
           <tbody className="divide-y divide-outline-variant/30">
             {loading ? (
               <tr>
-                <td colSpan={7} className="px-6 py-12 text-center text-on-surface-variant">
+                <td colSpan={8} className="px-6 py-12 text-center text-on-surface-variant">
                   Cargando ventas...
                 </td>
               </tr>
             ) : error ? (
               <tr>
-                <td colSpan={7} className="px-6 py-12 text-center text-error">
+                <td colSpan={8} className="px-6 py-12 text-center text-error">
                   {error}
                 </td>
               </tr>
@@ -97,12 +109,21 @@ export default function SaleHistory() {
                   <td className="px-6 py-4 text-center">
                     <Badge variant="success">Pagado</Badge>
                   </td>
+                  <td className="px-6 py-4 text-right">
+                    <button
+                      className="p-2 text-on-surface-variant hover:text-error hover:bg-error/5 rounded-lg transition-all"
+                      onClick={() => handleDelete(sale.id)}
+                      title="Eliminar venta"
+                    >
+                      <span className="material-symbols-outlined">delete</span>
+                    </button>
+                  </td>
                 </tr>
               ))
             )}
             {!loading && !error && paginated.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-6 py-12 text-center text-on-surface-variant">
+                <td colSpan={8} className="px-6 py-12 text-center text-on-surface-variant">
                   No hay ventas registradas todavía.
                 </td>
               </tr>
