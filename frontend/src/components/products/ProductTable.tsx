@@ -12,7 +12,7 @@ interface ProductTableProps {
 function toProduct(p: Producto): Product {
   const stock = p.stock ?? 0;
   const status = stock === 0 ? 'agotado' as const : stock <= 5 ? 'stock_bajo' as const : 'disponible' as const;
-  return { id: p.id, name: p.nombre, price: Number(p.precio), stock, category: '', icon: 'inventory_2', status };
+  return { id: p.id, name: p.nombre, price: Number(p.precio), stock, category: '', icon: 'inventory_2', status, fecha_carga: p.fecha_carga };
 }
 
 export default function ProductTable({ onNewProduct, onEditProduct }: ProductTableProps) {

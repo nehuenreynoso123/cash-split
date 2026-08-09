@@ -3,6 +3,12 @@ import Modal from '../ui/Modal';
 import { type Product } from '../../lib/data';
 import { createProducto, updateProducto } from '../../lib/api';
 
+// The value is already an opaque 'YYYY-MM-DD' string — never construct a Date
+// from it (that would shift through a UTC instant in negative-offset zones).
+function toDateInputValue(iso?: string): string {
+  return iso ? iso.slice(0, 10) : '';
+}
+
 interface ProductModalProps {
   open: boolean;
   onClose: () => void;
@@ -15,6 +21,7 @@ export default function ProductModal({ open, onClose, editProduct, onSaved }: Pr
   const [price, setPrice] = useState(editProduct?.price?.toString() ?? '');
   const [stock, setStock] = useState(editProduct?.stock?.toString() ?? '');
   const [category, setCategory] = useState(editProduct?.category ?? '');
+  const [fechaCarga, setFechaCarga] = useState(editProduct?.fecha_carga ? toDateInputValue(editProduct.fecha_carga) : '');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -24,11 +31,13 @@ export default function ProductModal({ open, onClose, editProduct, onSaved }: Pr
       setPrice(editProduct.price?.toString() ?? '');
       setStock(editProduct.stock?.toString() ?? '');
       setCategory(editProduct.category ?? '');
+      setFechaCarga(editProduct.fecha_carga ? toDateInputValue(editProduct.fecha_carga) : '');
     } else {
       setName('');
       setPrice('');
       setStock('');
       setCategory('');
+      setFechaCarga('');
     }
     setError('');
   }, [editProduct]);
@@ -43,7 +52,7 @@ export default function ProductModal({ open, onClose, editProduct, onSaved }: Pr
       const stockNum = parseInt(stock);
 
       if (editProduct) {
-        await updateProducto({ id: editProduct.id, nombre: name, precio, stock: stockNum });
+        await updateProducto({ id: editProduct.id, nombre: name, precio, stock: stockNum, fecha_carga: fechaCarga || undefined });
       } else {
         await createProducto({ nombre: name, precio, stock: stockNum });
       }
@@ -115,6 +124,21 @@ export default function ProductModal({ open, onClose, editProduct, onSaved }: Pr
             />
           </div>
         </div>
+
+        {editProduct && (
+          <div>
+            <label className="block font-label-caps text-label-caps text-on-surface-variant uppercase mb-2">
+              Fecha de Carga
+            </label>
+            <input
+              className="w-full px-4 py-2.5 border border-outline-variant rounded-lg focus:ring-2 focus:ring-secondary/20 focus:border-secondary outline-none font-body-base transition-all"
+              type="date"
+              value={fechaCarga}
+              onChange={(e) => setFechaCarga(e.target.value)}
+              required
+            />
+          </div>
+        )}
 
         <div>
           <label className="block font-label-caps text-label-caps text-on-surface-variant uppercase mb-2">

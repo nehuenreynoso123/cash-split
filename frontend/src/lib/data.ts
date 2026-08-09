@@ -6,6 +6,7 @@ export interface Product {
   stock: number;
   icon: string;
   status: 'disponible' | 'stock_bajo' | 'agotado';
+  fecha_carga?: string;
 }
 
 export interface Sale {
