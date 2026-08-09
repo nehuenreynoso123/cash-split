@@ -17,8 +17,15 @@ CREATE TABLE IF NOT EXISTS productos (
     nombre VARCHAR(100) NOT NULL,
     precio NUMERIC(10,2) NOT NULL,
     stock INTEGER NOT NULL DEFAULT 0,
+    fecha_carga DATE NOT NULL DEFAULT CURRENT_DATE,
     activo BOOLEAN NOT NULL DEFAULT true
 );
+
+-- Migración: agregar fecha_carga a productos (si la tabla ya existe)
+-- Backfill semantics: existing rows are stamped with CURRENT_DATE, so legacy
+-- products start at 0 days in stock.
+ALTER TABLE productos ADD COLUMN IF NOT EXISTS fecha_carga DATE NOT NULL DEFAULT CURRENT_DATE;
+ALTER TABLE productos ALTER COLUMN fecha_carga TYPE DATE USING fecha_carga::date;
 
 CREATE TABLE IF NOT EXISTS ventas (
     id SERIAL PRIMARY KEY,

@@ -1,0 +1,12 @@
+---
+import AppLayout from '../layouts/AppLayout.astro';
+import RotacionClient from '../components/rotacion/RotacionClient';
+---
+
+<AppLayout
+  currentPage="rotacion"
+  pageTitle="Rotación de Mercadería"
+  pageSubtitle="Días de mercadería en stock desde su carga"
+>
+  <RotacionClient client:load />
+</AppLayout>

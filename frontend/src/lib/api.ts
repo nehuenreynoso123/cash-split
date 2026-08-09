@@ -91,6 +91,7 @@ export interface Producto {
   nombre: string;
   precio: number;
   stock: number;
+  fecha_carga: string;
 }
 
 export async function listProductos(): Promise<Producto[]> {
@@ -102,7 +103,7 @@ export async function createProducto(data: { nombre: string; precio: number; sto
   return request<void>('POST', '/producto', data);
 }
 
-export async function updateProducto(data: { id: number; nombre: string; precio: number; stock: number }): Promise<void> {
+export async function updateProducto(data: { id: number; nombre: string; precio: number; stock: number; fecha_carga?: string }): Promise<void> {
   return request<void>('PUT', '/producto', data);
 }
 

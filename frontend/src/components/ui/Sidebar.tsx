@@ -14,6 +14,7 @@ interface NavItem {
 const navItems: NavItem[] = [
   { id: 'dashboard', label: 'Dashboard', icon: 'dashboard', href: '/dashboard/' },
   { id: 'productos', label: 'Productos', icon: 'inventory_2', href: '/productos/' },
+  { id: 'rotacion', label: 'Rotación de Mercadería', icon: 'swap_horiz', href: '/rotacion' },
   { id: 'ventas', label: 'Ventas', icon: 'payments', href: '/ventas/' },
   { id: 'liquidez', label: 'Liquidez', icon: 'account_balance_wallet', href: '/liquidez' },
   { id: 'gastos', label: 'Gastos', icon: 'receipt_long', href: '/gastos' },
