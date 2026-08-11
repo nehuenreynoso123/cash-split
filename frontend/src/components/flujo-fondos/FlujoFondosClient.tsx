@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Modal from '../ui/Modal';
 import DateRangeFilter from '../ui/DateRangeFilter';
-import { getFlujoFondos, getLiquidezTotal, listProductos, type TotalCaja, type DateRangeParams, type Producto } from '../../lib/api';
+import { getFlujoFondos, getLiquidezTotal, listLiquidez, listProductos, type TotalCaja, type DateRangeParams, type Producto, type Liquidez } from '../../lib/api';
 import { formatCurrency } from '../../lib/data';
 import { useAuthRedirect } from '../../hooks/useAuthRedirect';
 
@@ -111,6 +111,8 @@ export default function FlujoFondosClient() {
   const [loading, setLoading] = useState(true);
   const [productos, setProductos] = useState<Producto[]>([]);
   const [flujoFondosData, setFlujoFondosData] = useState<TotalCaja[]>([]);
+  const [liquidezItems, setLiquidezItems] = useState<Liquidez[]>([]);
+  const [netoLiquidez, setNetoLiquidez] = useState(0);
   const requestIdRef = useRef(0);
   // El "desde" por defecto arranca el día 1 del mes actual
   const now = new Date();
@@ -126,9 +128,12 @@ export default function FlujoFondosClient() {
     Promise.all([
       getFlujoFondos(params).catch(() => [] as TotalCaja[]),
       getLiquidezTotal(params).catch(() => 0),
-    ]).then(([flujoFondosData, netoLiquidez]) => {
+      listLiquidez(params).catch(() => [] as Liquidez[]),
+    ]).then(([flujoFondosData, netoLiquidez, liquidezItems]) => {
       if (requestId !== requestIdRef.current) return;
       setFlujoFondosData(flujoFondosData);
+      setNetoLiquidez(netoLiquidez);
+      setLiquidezItems(liquidezItems);
       const totalInvertido = flujoFondosData.reduce((s, r) => s + Number(r.costo_invertido_stock), 0);
       const gananciaReal = flujoFondosData.reduce((s, r) => s + Number(r.ganancia_real_total), 0);
       const costoReposicion = flujoFondosData.reduce((s, r) => s + Number(r.costo_reposicion_total), 0);
@@ -148,6 +153,11 @@ export default function FlujoFondosClient() {
 
   // Carga inicial al montar el componente: aplica el rango por defecto (desde el día 1 del mes actual)
   useEffect(() => { load({ desde: firstDayOfMonth }); }, [load, firstDayOfMonth]);
+
+  // Desglose de Liquidez Dinero: Total Invertido − Caja Reposición + Liquidez neta
+  const totalInvertidoDesglose = flujoFondosData.reduce((s, r) => s + Number(r.costo_invertido_stock), 0);
+  const costoReposicionDesglose = flujoFondosData.reduce((s, r) => s + Number(r.costo_reposicion_total), 0);
+  const liquidezDisponibleDesglose = totalInvertidoDesglose - costoReposicionDesglose + netoLiquidez;
 
   return (
     <div className="space-y-gutter">
@@ -349,6 +359,63 @@ export default function FlujoFondosClient() {
                       ))}
                   </ul>
                 )}
+              </div>
+            )}
+
+            {selected.id === 'liquidez-dinero' && (
+              <div className="border-t border-outline-variant pt-5 space-y-4">
+                <div>
+                  <h4 className="font-label-caps text-label-caps text-secondary uppercase tracking-wider mb-2">
+                    De dónde sale el cálculo
+                  </h4>
+                  <ul className="divide-y divide-outline-variant/40 border border-outline-variant rounded-xl overflow-hidden">
+                    <li className="flex items-center justify-between gap-4 px-4 py-3 bg-surface-container-lowest">
+                      <span className="font-body-base text-on-surface">Total Invertido</span>
+                      <span className="font-data-mono text-on-surface-variant shrink-0">+{formatCurrency(totalInvertidoDesglose)}</span>
+                    </li>
+                    <li className="flex items-center justify-between gap-4 px-4 py-3 bg-surface-container-lowest">
+                      <span className="font-body-base text-on-surface">Caja Reposición Base</span>
+                      <span className="font-data-mono text-on-surface-variant shrink-0">−{formatCurrency(costoReposicionDesglose)}</span>
+                    </li>
+                    <li className="flex items-center justify-between gap-4 px-4 py-3 bg-surface-container-lowest">
+                      <span className="font-body-base text-on-surface">Liquidez neta (movimientos)</span>
+                      <span className="font-data-mono text-on-surface-variant shrink-0">
+                        {netoLiquidez >= 0 ? '+' : '−'}{formatCurrency(Math.abs(netoLiquidez))}
+                      </span>
+                    </li>
+                    <li className="flex items-center justify-between gap-4 px-4 py-3 bg-surface-container-low">
+                      <span className="font-label-caps text-label-caps text-secondary uppercase tracking-wider">Liquidez Dinero</span>
+                      <span className="font-data-mono text-primary font-semibold shrink-0">{formatCurrency(liquidezDisponibleDesglose)}</span>
+                    </li>
+                  </ul>
+                </div>
+
+                <div>
+                  <h4 className="font-label-caps text-label-caps text-secondary uppercase tracking-wider mb-2">
+                    Movimientos de liquidez
+                  </h4>
+                  {liquidezItems.length === 0 ? (
+                    <p className="text-body-sm text-on-surface-variant">
+                      No hay movimientos en el período.
+                    </p>
+                  ) : (
+                    <ul className="divide-y divide-outline-variant/40 border border-outline-variant rounded-xl overflow-hidden max-h-64 overflow-y-auto">
+                      {liquidezItems.map((item) => (
+                        <li
+                          key={item.id}
+                          className="flex items-center justify-between gap-4 px-4 py-3 bg-surface-container-lowest hover:bg-surface-container-low transition-colors"
+                        >
+                          <span className="font-body-base text-on-surface truncate">
+                            {item.descripcion}
+                          </span>
+                          <span className={`font-data-mono shrink-0 ${item.tipo === 'ingreso' ? 'text-green-600' : 'text-error'}`}>
+                            {item.tipo === 'ingreso' ? '+' : '−'}{formatCurrency(item.monto)}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
               </div>
             )}
 
