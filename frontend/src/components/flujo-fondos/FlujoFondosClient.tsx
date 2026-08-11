@@ -110,6 +110,7 @@ export default function FlujoFondosClient() {
   const [cajas, setCajas] = useState<CajaInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [productos, setProductos] = useState<Producto[]>([]);
+  const [flujoFondosData, setFlujoFondosData] = useState<TotalCaja[]>([]);
   const requestIdRef = useRef(0);
   // El "desde" por defecto arranca el día 1 del mes actual
   const now = new Date();
@@ -127,6 +128,7 @@ export default function FlujoFondosClient() {
       getLiquidezTotal(params).catch(() => 0),
     ]).then(([flujoFondosData, netoLiquidez]) => {
       if (requestId !== requestIdRef.current) return;
+      setFlujoFondosData(flujoFondosData);
       const totalInvertido = flujoFondosData.reduce((s, r) => s + Number(r.costo_invertido_stock), 0);
       const gananciaReal = flujoFondosData.reduce((s, r) => s + Number(r.ganancia_real_total), 0);
       const costoReposicion = flujoFondosData.reduce((s, r) => s + Number(r.costo_reposicion_total), 0);
@@ -262,6 +264,46 @@ export default function FlujoFondosClient() {
                           </span>
                           <span className="font-data-mono text-on-surface-variant shrink-0">
                             {formatCurrency(p.precio)}
+                          </span>
+                        </li>
+                      ))}
+                  </ul>
+                )}
+              </div>
+            )}
+
+            {selected.id === 'ganancia-cobrar' && (
+              <div className="border-t border-outline-variant pt-5">
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="font-label-caps text-label-caps text-secondary uppercase tracking-wider">
+                    Ventas del período
+                  </h4>
+                  <span className="text-body-sm text-on-surface-variant">
+                    {flujoFondosData.filter((r) => Number(r.unidades_vendidas) > 0).length} productos
+                  </span>
+                </div>
+                {flujoFondosData.filter((r) => Number(r.unidades_vendidas) > 0).length === 0 ? (
+                  <p className="text-body-sm text-on-surface-variant">
+                    No hay ventas en el período.
+                  </p>
+                ) : (
+                  <ul className="divide-y divide-outline-variant/40 border border-outline-variant rounded-xl overflow-hidden max-h-64 overflow-y-auto">
+                    {[...flujoFondosData]
+                      .filter((r) => Number(r.unidades_vendidas) > 0)
+                      .sort((a, b) => Number(b.ganancia_real_total) - Number(a.ganancia_real_total))
+                      .map((r) => (
+                        <li
+                          key={r.producto_id}
+                          className="flex items-center justify-between gap-4 px-4 py-3 bg-surface-container-lowest hover:bg-surface-container-low transition-colors"
+                        >
+                          <span className="font-body-base text-on-surface truncate">
+                            {r.producto}
+                          </span>
+                          <span className="text-body-sm text-on-surface-variant shrink-0">
+                            Cant. ventas: {r.unidades_vendidas}
+                          </span>
+                          <span className="font-data-mono text-green-600 shrink-0">
+                            {formatCurrency(r.ganancia_real_total)}
                           </span>
                         </li>
                       ))}
