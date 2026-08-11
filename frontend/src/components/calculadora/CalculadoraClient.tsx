@@ -71,6 +71,16 @@ export default function CalculadoraClient() {
     try { return JSON.parse(localStorage.getItem('calculadora-productos-nextid') ?? '1'); } catch { return 1; }
   });
 
+  // Calculadora Ganancia de Productos: items seleccionados del listado
+  interface ItemGananciaCalculadora {
+    id: number;
+    nombre: string;
+    costo: number;
+    ganancia: number;
+    cantidad: number;
+  }
+  const [itemsGanancia, setItemsGanancia] = useState<ItemGananciaCalculadora[]>([]);
+
   useEffect(() => {
     try { localStorage.setItem('calculadora-productos', JSON.stringify(productos)); } catch { /* noop */ }
   }, [productos]);
@@ -192,6 +202,24 @@ export default function CalculadoraClient() {
   const eliminarProducto = (id: number) => {
     setProductos(prev => prev.filter(p => p.id !== id));
   };
+
+  const toggleGananciaProducto = (p: ProductoCalculado) => {
+    setItemsGanancia(prev => {
+      const existe = prev.some(s => s.id === p.id);
+      if (existe) return prev.filter(s => s.id !== p.id);
+      return [...prev, { id: p.id, nombre: p.nombre, costo: p.costo, ganancia: p.ganancia, cantidad: 1 }];
+    });
+  };
+
+  const cambiarCantidadGanancia = (id: number, cantidad: number) => {
+    setItemsGanancia(prev => prev.map(s => s.id === id ? { ...s, cantidad: Math.max(0, cantidad) } : s));
+  };
+
+  const eliminarGananciaProducto = (id: number) => {
+    setItemsGanancia(prev => prev.filter(s => s.id !== id));
+  };
+
+  const totalGananciaCalculadora = itemsGanancia.reduce((s, it) => s + it.ganancia * it.cantidad, 0);
 
   return (
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
@@ -531,6 +559,9 @@ export default function CalculadoraClient() {
             <table class="w-full text-left">
               <thead>
                 <tr class="border-b border-outline">
+                  <th class="py-3 px-3 font-body-sm font-medium text-on-surface-variant">
+                    <span class="sr-only">Seleccionar</span>
+                  </th>
                   <th class="py-3 px-3 font-body-sm font-medium text-on-surface-variant">Nombre</th>
                   <th class="py-3 px-3 font-body-sm font-medium text-on-surface-variant">Costo</th>
                   <th class="py-3 px-3 font-body-sm font-medium text-on-surface-variant">Ganancia</th>
@@ -544,6 +575,15 @@ export default function CalculadoraClient() {
               <tbody>
                 {productos.map((p) => (
                   <tr key={p.id} class="border-b border-outline/50 hover:bg-surface-container/50 transition-colors">
+                    <td class="py-3 px-3">
+                      <input
+                        type="checkbox"
+                        checked={itemsGanancia.some(s => s.id === p.id)}
+                        onChange={() => toggleGananciaProducto(p)}
+                        class="w-4 h-4 accent-secondary cursor-pointer"
+                        title="Agregar a la Calculadora Ganancia de Productos"
+                      />
+                    </td>
                     <td class="py-3 px-3 font-body-base font-medium text-on-surface">{p.nombre}</td>
                     <td class="py-3 px-3 font-body-base text-on-surface">$ {p.costo.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                     <td class="py-3 px-3 font-body-base font-medium text-on-surface">
@@ -572,6 +612,74 @@ export default function CalculadoraClient() {
                 ))}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* ── Calculadora Ganancia de Productos ── */}
+      {itemsGanancia.length > 0 && (
+        <div class="p-6 bg-surface rounded-2xl shadow-md md:col-span-3">
+          <div class="flex items-center justify-between mb-5">
+            <div class="flex items-center gap-3">
+              <span class="material-symbols-outlined text-2xl text-secondary">calculate</span>
+              <h2 class="font-headline-md font-bold text-on-surface">Calculadora Ganancia de Productos</h2>
+            </div>
+          </div>
+
+          <div class="overflow-x-auto">
+            <table class="w-full text-left">
+              <thead>
+                <tr class="border-b border-outline">
+                  <th class="py-3 px-3 font-body-sm font-medium text-on-surface-variant">Producto</th>
+                  <th class="py-3 px-3 font-body-sm font-medium text-on-surface-variant">Costo</th>
+                  <th class="py-3 px-3 font-body-sm font-medium text-on-surface-variant">Ganancia</th>
+                  <th class="py-3 px-3 font-body-sm font-medium text-on-surface-variant">Cantidad</th>
+                  <th class="py-3 px-3 font-body-sm font-medium text-on-surface-variant">Subtotal</th>
+                  <th class="py-3 px-3 font-body-sm font-medium text-on-surface-variant"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {itemsGanancia.map((s) => (
+                  <tr key={s.id} class="border-b border-outline/50 hover:bg-surface-container/50 transition-colors">
+                    <td class="py-3 px-3 font-body-base font-medium text-on-surface">{s.nombre}</td>
+                    <td class="py-3 px-3 font-body-base text-on-surface">$ {s.costo.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td class="py-3 px-3 font-body-base font-medium text-on-surface">
+                      <span class={s.ganancia >= 0 ? 'text-green-600' : 'text-red-600'}>
+                        $ {s.ganancia.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                    </td>
+                    <td class="py-3 px-3">
+                      <input
+                        type="number"
+                        min="1"
+                        value={s.cantidad}
+                        onChange={(e) => cambiarCantidadGanancia(s.id, parseInt(e.target.value) || 0)}
+                        class="w-20 p-2 rounded-lg border border-outline bg-surface-container text-on-surface font-body-base text-center focus:outline-none focus:ring-2 focus:ring-secondary"
+                      />
+                    </td>
+                    <td class="py-3 px-3 font-body-base font-semibold text-on-surface">
+                      $ {(s.ganancia * s.cantidad).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </td>
+                    <td class="py-3 px-3">
+                      <button
+                        onClick={() => eliminarGananciaProducto(s.id)}
+                        class="p-1.5 rounded-lg text-on-surface-variant hover:text-error hover:bg-error/10 transition-all duration-200"
+                        title="Quitar de la calculadora"
+                      >
+                        <span class="material-symbols-outlined text-[18px]">close</span>
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div class="mt-5 p-4 rounded-xl bg-secondary-container/30 border border-secondary-container flex items-center justify-between">
+            <p class="font-body-base font-medium text-on-surface">Total ganancia calculado</p>
+            <p class={`font-display-lg text-display-lg font-bold ${totalGananciaCalculadora >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+              $ {totalGananciaCalculadora.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </p>
           </div>
         </div>
       )}
