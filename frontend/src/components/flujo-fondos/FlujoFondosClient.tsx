@@ -253,6 +253,9 @@ export default function FlujoFondosClient() {
                           <span className="font-body-base text-on-surface truncate">
                             {p.nombre}
                           </span>
+                          <span className="text-body-sm text-on-surface-variant shrink-0">
+                            Stock: {p.stock}
+                          </span>
                           <span className="font-data-mono text-on-surface-variant shrink-0">
                             {formatCurrency(p.precio)}
                           </span>
