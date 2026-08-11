@@ -111,6 +111,9 @@ export default function FlujoFondosClient() {
   const [loading, setLoading] = useState(true);
   const [productos, setProductos] = useState<Producto[]>([]);
   const requestIdRef = useRef(0);
+  // El "desde" por defecto arranca el día 1 del mes actual
+  const now = new Date();
+  const firstDayOfMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
 
   useEffect(() => {
     listProductos().then(setProductos).catch(() => {});
@@ -141,7 +144,8 @@ export default function FlujoFondosClient() {
     });
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  // Carga inicial al montar el componente: aplica el rango por defecto (desde el día 1 del mes actual)
+  useEffect(() => { load({ desde: firstDayOfMonth }); }, [load, firstDayOfMonth]);
 
   return (
     <div className="space-y-gutter">
@@ -160,7 +164,7 @@ export default function FlujoFondosClient() {
       </div>
 
       {/* Filtro por fechas */}
-      <DateRangeFilter onApply={(params) => load(params)} onClear={() => load()} />
+      <DateRangeFilter initialDesde={firstDayOfMonth} onApply={(params) => load(params)} onClear={() => load()} />
 
       {/* Grilla de cajas */}
       {loading ? (
