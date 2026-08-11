@@ -234,6 +234,9 @@ export default function CalculadoraClient() {
   const totalGananciaCalculadora = itemsGanancia.reduce((s, it) => s + it.ganancia * it.cantidad, 0);
   const totalCostoCalculadora = itemsGanancia.reduce((s, it) => s + it.costo * it.cantidad, 0);
 
+  // Productos calculados ordenados por mayor margen de ganancia
+  const productosOrdenados = [...productos].sort((a, b) => b.porcentajeGanancia - a.porcentajeGanancia);
+
   return (
     <div class="space-y-4">
       {/* ── Card con tabs de calculadoras ── */}
@@ -592,25 +595,25 @@ export default function CalculadoraClient() {
             <h2 class="font-headline-md font-bold text-on-surface">Productos calculados</h2>
           </div>
 
-          <div class="overflow-x-auto">
+          <div class="overflow-x-auto max-h-[520px] overflow-y-auto">
             <table class="w-full text-left">
               <thead>
                 <tr class="border-b border-outline">
-                  <th class="py-3 px-3 font-body-sm font-medium text-on-surface-variant">
+                  <th class="sticky top-0 bg-surface z-10 py-3 px-3 font-body-sm font-medium text-on-surface-variant">
                     <span class="sr-only">Seleccionar</span>
                   </th>
-                  <th class="py-3 px-3 font-body-sm font-medium text-on-surface-variant">Nombre</th>
-                  <th class="py-3 px-3 font-body-sm font-medium text-on-surface-variant">Costo</th>
-                  <th class="py-3 px-3 font-body-sm font-medium text-on-surface-variant">Ganancia</th>
-                  <th class="py-3 px-3 font-body-sm font-medium text-on-surface-variant">% Ganancia</th>
-                  <th class="py-3 px-3 font-body-sm font-medium text-on-surface-variant">USDT</th>
-                  <th class="py-3 px-3 font-body-sm font-medium text-on-surface-variant">Cant. USDT</th>
-                  <th class="py-3 px-3 font-body-sm font-medium text-on-surface-variant">Precio Venta</th>
-                  <th class="py-3 px-3 font-body-sm font-medium text-on-surface-variant"></th>
+                  <th class="sticky top-0 bg-surface z-10 py-3 px-3 font-body-sm font-medium text-on-surface-variant">Nombre</th>
+                  <th class="sticky top-0 bg-surface z-10 py-3 px-3 font-body-sm font-medium text-on-surface-variant">Costo</th>
+                  <th class="sticky top-0 bg-surface z-10 py-3 px-3 font-body-sm font-medium text-on-surface-variant">Ganancia</th>
+                  <th class="sticky top-0 bg-surface z-10 py-3 px-3 font-body-sm font-medium text-on-surface-variant">% Ganancia</th>
+                  <th class="sticky top-0 bg-surface z-10 py-3 px-3 font-body-sm font-medium text-on-surface-variant">USDT</th>
+                  <th class="sticky top-0 bg-surface z-10 py-3 px-3 font-body-sm font-medium text-on-surface-variant">Cant. USDT</th>
+                  <th class="sticky top-0 bg-surface z-10 py-3 px-3 font-body-sm font-medium text-on-surface-variant">Precio Venta</th>
+                  <th class="sticky top-0 bg-surface z-10 py-3 px-3 font-body-sm font-medium text-on-surface-variant"></th>
                 </tr>
               </thead>
               <tbody>
-                {productos.map((p) => (
+                {productosOrdenados.map((p) => (
                   <tr key={p.id} class="border-b border-outline/50 hover:bg-surface-container/50 transition-colors">
                     <td class="py-3 px-3">
                       <input
