@@ -232,6 +232,7 @@ export default function CalculadoraClient() {
   };
 
   const totalGananciaCalculadora = itemsGanancia.reduce((s, it) => s + it.ganancia * it.cantidad, 0);
+  const totalCostoCalculadora = itemsGanancia.reduce((s, it) => s + it.costo * it.cantidad, 0);
 
   return (
     <div class="space-y-4">
@@ -712,10 +713,18 @@ export default function CalculadoraClient() {
           </div>
 
           <div class="mt-5 p-4 rounded-xl bg-secondary-container/30 border border-secondary-container flex items-center justify-between">
-            <p class="font-body-base font-medium text-on-surface">Total ganancia calculado</p>
-            <p class={`font-display-lg text-display-lg font-bold ${totalGananciaCalculadora >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-              $ {totalGananciaCalculadora.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-            </p>
+            <div class="flex flex-col gap-1">
+              <p class="font-body-base font-medium text-on-surface">Total precio costo</p>
+              <p class="font-headline-md font-bold text-on-surface">
+                $ {totalCostoCalculadora.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </p>
+            </div>
+            <div class="flex flex-col items-end gap-1">
+              <p class="font-body-base font-medium text-on-surface">Total ganancia calculado</p>
+              <p class={`font-display-lg text-display-lg font-bold ${totalGananciaCalculadora >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                $ {totalGananciaCalculadora.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </p>
+            </div>
           </div>
         </div>
       )}
