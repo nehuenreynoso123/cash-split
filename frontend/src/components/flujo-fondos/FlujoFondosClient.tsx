@@ -137,12 +137,8 @@ export default function FlujoFondosClient() {
       const totalInvertido = flujoFondosData.reduce((s, r) => s + Number(r.costo_invertido_stock), 0);
       const gananciaReal = flujoFondosData.reduce((s, r) => s + Number(r.ganancia_real_total), 0);
       const costoReposicion = flujoFondosData.reduce((s, r) => s + Number(r.costo_reposicion_total), 0);
-      // Ganancia por cobrar: total de ingresos de ventas que NO tienen fecha_cobro (pendientes)
-      const gananciaPorCobrar = flujoFondosData.reduce((s, r) => {
-        const ingresos = Number(r.ingresos_totales);
-        const costo = Number(r.costo_reposicion_total);
-        return s + (ingresos - costo);
-      }, 0);
+      // Ganancia por cobrar: margen de las ventas pendientes de cobro (sin fecha_cobro)
+      const gananciaPorCobrar = flujoFondosData.reduce((s, r) => s + (Number(r.ganancia_por_cobrar_total) || 0), 0);
 
       const liquidezDisponible = totalInvertido - costoReposicion + netoLiquidez;
       const built = buildCajas(liquidezDisponible, totalInvertido, gananciaReal, costoReposicion, gananciaPorCobrar);
@@ -286,21 +282,21 @@ export default function FlujoFondosClient() {
               <div className="border-t border-outline-variant pt-5">
                 <div className="flex items-center justify-between mb-3">
                   <h4 className="font-label-caps text-label-caps text-secondary uppercase tracking-wider">
-                    Ventas del período
+                    Ventas pendientes de cobro
                   </h4>
                   <span className="text-body-sm text-on-surface-variant">
-                    {flujoFondosData.filter((r) => Number(r.unidades_vendidas) > 0).length} productos
+                    {flujoFondosData.filter((r) => Number(r.unidades_por_cobrar) > 0).length} productos
                   </span>
                 </div>
-                {flujoFondosData.filter((r) => Number(r.unidades_vendidas) > 0).length === 0 ? (
+                {flujoFondosData.filter((r) => Number(r.unidades_por_cobrar) > 0).length === 0 ? (
                   <p className="text-body-sm text-on-surface-variant">
-                    No hay ventas en el período.
+                    No hay ventas pendientes de cobro en el período.
                   </p>
                 ) : (
                   <ul className="divide-y divide-outline-variant/40 border border-outline-variant rounded-xl overflow-hidden max-h-64 overflow-y-auto">
                     {[...flujoFondosData]
-                      .filter((r) => Number(r.unidades_vendidas) > 0)
-                      .sort((a, b) => Number(b.ganancia_real_total) - Number(a.ganancia_real_total))
+                      .filter((r) => Number(r.unidades_por_cobrar) > 0)
+                      .sort((a, b) => Number(b.ganancia_por_cobrar_total) - Number(a.ganancia_por_cobrar_total))
                       .map((r) => (
                         <li
                           key={r.producto_id}
@@ -310,10 +306,10 @@ export default function FlujoFondosClient() {
                             {r.producto}
                           </span>
                           <span className="text-body-sm text-on-surface-variant shrink-0">
-                            Cant. ventas: {r.unidades_vendidas}
+                            Cant. por cobrar: {r.unidades_por_cobrar}
                           </span>
                           <span className="font-data-mono text-green-600 shrink-0">
-                            {formatCurrency(r.ganancia_real_total)}
+                            {formatCurrency(r.ganancia_por_cobrar_total)}
                           </span>
                         </li>
                       ))}

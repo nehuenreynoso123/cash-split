@@ -145,6 +145,8 @@ export interface TotalCaja {
   ingresos_totales: number;
   costo_reposicion_total: number;
   ganancia_real_total: number;
+  ganancia_por_cobrar_total?: number;
+  unidades_por_cobrar?: number;
 }
 
 export async function getTotalCajas(params?: DateRangeParams): Promise<TotalCaja[]> {
@@ -173,6 +175,8 @@ export async function getFlujoFondos(params?: DateRangeParams): Promise<TotalCaj
     ingresos_totales: Number(t.ingresos_totales),
     costo_reposicion_total: Number(t.costo_reposicion_total),
     ganancia_real_total: Number(t.ganancia_real_total),
+    ganancia_por_cobrar_total: Number(t.ganancia_por_cobrar_total),
+    unidades_por_cobrar: Number(t.unidades_por_cobrar),
   }));
 }
 
