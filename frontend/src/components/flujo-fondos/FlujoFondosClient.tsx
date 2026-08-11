@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Modal from '../ui/Modal';
 import DateRangeFilter from '../ui/DateRangeFilter';
-import { getFlujoFondos, getLiquidezTotal, type TotalCaja, type DateRangeParams } from '../../lib/api';
+import { getFlujoFondos, getLiquidezTotal, listProductos, type TotalCaja, type DateRangeParams, type Producto } from '../../lib/api';
 import { formatCurrency } from '../../lib/data';
 import { useAuthRedirect } from '../../hooks/useAuthRedirect';
 
@@ -109,7 +109,12 @@ export default function FlujoFondosClient() {
   const [selected, setSelected] = useState<CajaInfo | null>(null);
   const [cajas, setCajas] = useState<CajaInfo[]>([]);
   const [loading, setLoading] = useState(true);
+  const [productos, setProductos] = useState<Producto[]>([]);
   const requestIdRef = useRef(0);
+
+  useEffect(() => {
+    listProductos().then(setProductos).catch(() => {});
+  }, []);
 
   const load = useCallback((params?: DateRangeParams) => {
     const requestId = ++requestIdRef.current;
@@ -220,6 +225,43 @@ export default function FlujoFondosClient() {
                 {selected.descripcion}
               </p>
             </div>
+
+            {selected.id === 'total-invertido' && (
+              <div className="border-t border-outline-variant pt-5">
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="font-label-caps text-label-caps text-secondary uppercase tracking-wider">
+                    Productos en stock
+                  </h4>
+                  <span className="text-body-sm text-on-surface-variant">
+                    {productos.filter((p) => p.stock > 0).length} productos
+                  </span>
+                </div>
+                {productos.filter((p) => p.stock > 0).length === 0 ? (
+                  <p className="text-body-sm text-on-surface-variant">
+                    No hay productos con stock.
+                  </p>
+                ) : (
+                  <ul className="divide-y divide-outline-variant/40 border border-outline-variant rounded-xl overflow-hidden max-h-64 overflow-y-auto">
+                    {[...productos]
+                      .filter((p) => p.stock > 0)
+                      .sort((a, b) => a.nombre.localeCompare(b.nombre))
+                      .map((p) => (
+                        <li
+                          key={p.id}
+                          className="flex items-center justify-between gap-4 px-4 py-3 bg-surface-container-lowest hover:bg-surface-container-low transition-colors"
+                        >
+                          <span className="font-body-base text-on-surface truncate">
+                            {p.nombre}
+                          </span>
+                          <span className="font-data-mono text-on-surface-variant shrink-0">
+                            {formatCurrency(p.precio)}
+                          </span>
+                        </li>
+                      ))}
+                  </ul>
+                )}
+              </div>
+            )}
 
             <div className="border-t border-outline-variant pt-5">
               <h4 className="font-label-caps text-label-caps text-secondary uppercase tracking-wider mb-2">
