@@ -11,6 +11,9 @@ export default function DashboardClient() {
   const [netoLiquidezManual, setNetoLiquidezManual] = useState(0);
   const [loading, setLoading] = useState(true);
   const requestIdRef = useRef(0);
+  // El "desde" por defecto arranca el día 1 del mes actual
+  const now = new Date();
+  const firstDayOfMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
 
   const fetchData = useCallback((params?: DateRangeParams) => {
     const requestId = ++requestIdRef.current;
@@ -30,10 +33,10 @@ export default function DashboardClient() {
     });
   }, []);
 
-  // Carga inicial al montar el componente
+  // Carga inicial al montar el componente: aplica el rango por defecto (desde el día 1 del mes actual)
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    fetchData({ desde: firstDayOfMonth });
+  }, [fetchData, firstDayOfMonth]);
 
   const totalInversion = cajas.reduce((s, r) => s + Number(r.costo_invertido_stock), 0);
   const totalGastos = cajas.reduce((s, r) => s + Number(r.costo_reposicion_total), 0);
@@ -47,7 +50,7 @@ export default function DashboardClient() {
   return (
     <div className="space-y-gutter">
       {/* Filtro por fechas — se mantiene montado durante la carga para no perder el rango aplicado */}
-      <DateRangeFilter onApply={(params) => fetchData(params)} onClear={() => fetchData()} />
+      <DateRangeFilter initialDesde={firstDayOfMonth} onApply={(params) => fetchData(params)} onClear={() => fetchData()} />
 
       {loading ? (
         <div className="flex items-center justify-center h-64 text-on-surface-variant">

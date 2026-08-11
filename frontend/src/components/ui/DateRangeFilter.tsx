@@ -4,10 +4,11 @@ import type { DateRangeParams } from '../../lib/api';
 interface DateRangeFilterProps {
   onApply: (params: DateRangeParams) => void;
   onClear: () => void;
+  initialDesde?: string;
 }
 
-export default function DateRangeFilter({ onApply, onClear }: DateRangeFilterProps) {
-  const [desde, setDesde] = useState('');
+export default function DateRangeFilter({ onApply, onClear, initialDesde = '' }: DateRangeFilterProps) {
+  const [desde, setDesde] = useState(initialDesde);
   const [hasta, setHasta] = useState('');
 
   // String comparison is correct for YYYY-MM-DD dates.
