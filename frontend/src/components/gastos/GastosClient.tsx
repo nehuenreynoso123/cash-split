@@ -12,7 +12,10 @@ export default function GastosClient() {
   const [error, setError] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
   const [editItem, setEditItem] = useState<Gasto | null>(null);
-  const [desde, setDesde] = useState('');
+  // El "desde" por defecto arranca el día 1 del mes actual
+  const now = new Date();
+  const firstDayOfMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+  const [desde, setDesde] = useState(firstDayOfMonth);
   const [hasta, setHasta] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [total, setTotal] = useState(0);
