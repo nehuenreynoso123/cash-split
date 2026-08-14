@@ -137,7 +137,7 @@ export default function FlujoFondosClient() {
       const totalInvertido = flujoFondosData.reduce((s, r) => s + Number(r.costo_invertido_stock), 0);
       const gananciaReal = flujoFondosData.reduce((s, r) => s + Number(r.ganancia_real_total), 0);
       const costoReposicion = flujoFondosData.reduce((s, r) => s + Number(r.costo_reposicion_total), 0);
-      // Ganancia por cobrar: margen de las ventas pendientes de cobro (sin fecha_cobro)
+      // Ganancia por cobrar: margen de las ventas pendientes (sin fecha de cobro o con fecha futura)
       const gananciaPorCobrar = flujoFondosData.reduce((s, r) => s + (Number(r.ganancia_por_cobrar_total) || 0), 0);
 
       const liquidezDisponible = totalInvertido - costoReposicion + netoLiquidez;
