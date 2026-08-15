@@ -1,7 +1,7 @@
 import { formatCurrency, formatLocalDate } from '../../lib/data';
 import type { Venta } from './ventas';
 
-interface ComisionesRetencionesTableProps {
+interface FacturasTableProps {
   ventas: Venta[];
 }
 
@@ -9,29 +9,34 @@ const COLUMNS: { label: string; align?: 'right' }[] = [
   { label: 'ID de venta' },
   { label: 'Fecha' },
   { label: 'Cantidad' },
-  { label: 'Precio de Venta', align: 'right' },
-  { label: 'Comisión por Venta', align: 'right' },
-  { label: 'Comisión por Cuota', align: 'right' },
-  { label: 'Envío ML', align: 'right' },
-  { label: 'Envío Flex', align: 'right' },
-  { label: 'Descuento', align: 'right' },
-  { label: 'Retenciones', align: 'right' },
-  { label: 'Total Recibido', align: 'right' },
+  { label: 'Nro de Factura' },
+  { label: 'Fecha de Factura' },
+  { label: 'Importe', align: 'right' },
+  { label: 'Jurisdicción' },
+  { label: 'DNI / CUIT' },
+  { label: 'Nombre Apellido' },
   { label: 'Producto Vendido' },
 ];
 
-const moneyCell = 'px-6 py-4 text-right font-data-mono whitespace-nowrap';
+// Combine the jurisdiction parts following the "CP <cp> - <localidad>, <provincia>"
+// shape (e.g. "CP 7600 - Mar del Plata, Buenos Aires"), skipping empty parts.
+function jurisdiccionLabel(j: Venta['jurisdiccion']): string {
+  const cp = j.codigoPostal.trim() ? `CP ${j.codigoPostal.trim()}` : '';
+  const place = [j.localidad.trim(), j.provincia.trim()].filter(Boolean).join(', ');
+  const label = [cp, place].filter(Boolean).join(' - ');
+  return label || '—';
+}
 
-export default function ComisionesRetencionesTable({ ventas }: ComisionesRetencionesTableProps) {
+export default function FacturasTable({ ventas }: FacturasTableProps) {
   return (
     <section className="bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden shadow-sm">
       <div className="p-6 border-b border-outline-variant bg-surface-container-low flex justify-between items-center">
         <div className="flex items-center gap-2">
-          <span className="material-symbols-outlined text-secondary">request_quote</span>
-          <h3 className="font-headline-md text-headline-md text-primary">Comisiones y Retenciones</h3>
+          <span className="material-symbols-outlined text-secondary">receipt_long</span>
+          <h3 className="font-headline-md text-headline-md text-primary">Facturas Emitidas</h3>
         </div>
         <span className="text-on-surface-variant font-body-sm">
-          {ventas.length} {ventas.length === 1 ? 'venta' : 'ventas'}
+          {ventas.length} {ventas.length === 1 ? 'factura' : 'facturas'}
         </span>
       </div>
 
@@ -55,7 +60,7 @@ export default function ComisionesRetencionesTable({ ventas }: ComisionesRetenci
             {ventas.length === 0 ? (
               <tr>
                 <td colSpan={COLUMNS.length} className="px-6 py-12 text-center text-on-surface-variant">
-                  No hay comisiones ni retenciones cargadas todavía.
+                  No hay facturas emitidas todavía.
                 </td>
               </tr>
             ) : (
@@ -68,18 +73,20 @@ export default function ComisionesRetencionesTable({ ventas }: ComisionesRetenci
                     {formatLocalDate(v.fecha)}
                   </td>
                   <td className="px-6 py-4 text-on-surface-variant">{v.cantidad}</td>
-                  <td className={`${moneyCell} text-primary font-semibold`}>
-                    {formatCurrency(v.precioVenta)}
+                  <td className="px-6 py-4 font-data-mono text-on-surface-variant whitespace-nowrap">
+                    {v.nroFactura}
                   </td>
-                  <td className={moneyCell}>{formatCurrency(v.comisionVenta)}</td>
-                  <td className={moneyCell}>{formatCurrency(v.comisionCuota)}</td>
-                  <td className={moneyCell}>{formatCurrency(v.envioML)}</td>
-                  <td className={moneyCell}>{formatCurrency(v.envioFlex)}</td>
-                  <td className={`${moneyCell} text-error`}>{formatCurrency(v.descuento)}</td>
-                  <td className={`${moneyCell} text-error`}>{formatCurrency(v.retenciones)}</td>
-                  <td className={`${moneyCell} text-primary font-semibold`}>
-                    {formatCurrency(v.totalRecibido)}
+                  <td className="px-6 py-4 text-on-surface-variant whitespace-nowrap">
+                    {formatLocalDate(v.fechaFactura)}
                   </td>
+                  <td className="px-6 py-4 text-right font-data-mono text-primary font-semibold whitespace-nowrap">
+                    {formatCurrency(v.importe)}
+                  </td>
+                  <td className="px-6 py-4 text-on-surface-variant">{jurisdiccionLabel(v.jurisdiccion)}</td>
+                  <td className="px-6 py-4 font-data-mono text-on-surface-variant whitespace-nowrap">
+                    {v.dniCuit || '—'}
+                  </td>
+                  <td className="px-6 py-4 text-on-surface-variant">{v.nombreApellido}</td>
                   <td className="px-6 py-4 text-on-surface-variant">{v.producto}</td>
                 </tr>
               ))

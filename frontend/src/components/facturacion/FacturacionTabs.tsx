@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useAuthRedirect } from '../../hooks/useAuthRedirect';
-import FacturacionSection from './FacturacionSection';
 import VentasTable from './VentasTable';
+import FacturasTable from './FacturasTable';
 import AgregarVentaForm from './AgregarVentaForm';
 import ComisionesRetencionesTable from './ComisionesRetencionesTable';
 import type { Venta } from './ventas';
@@ -20,14 +20,23 @@ export default function FacturacionTabs() {
 
   const [activeTab, setActiveTab] = useState<TabId>('ventas');
 
-  // Local sales table — starts EMPTY; rows are added manually via the form.
+  // Local sales array — starts EMPTY; rows are added manually via the form.
+  // One counter drives id, numero and nroFactura so the three tables (Ventas,
+  // Facturas, Comisiones y Retenciones) project the same record consistently.
+  // Nro de factura starts at 202 and ascends (202, 203, 204...).
+  const NRO_FACTURA_INICIAL = 202;
   const [ventas, setVentas] = useState<Venta[]>([]);
   const [seq, setSeq] = useState(1);
 
-  const handleAddVenta = (draft: Omit<Venta, 'id' | 'numero'>) => {
+  const handleAddVenta = (draft: Omit<Venta, 'id' | 'numero' | 'nroFactura'>) => {
     setVentas((prev) => [
       ...prev,
-      { id: seq, numero: `V-${String(seq).padStart(4, '0')}`, ...draft },
+      {
+        id: seq,
+        numero: `V-${String(seq).padStart(4, '0')}`,
+        nroFactura: String(NRO_FACTURA_INICIAL + seq - 1),
+        ...draft,
+      },
     ]);
     setSeq((s) => s + 1);
   };
@@ -58,10 +67,10 @@ export default function FacturacionTabs() {
         <VentasTable ventas={ventas} />
       </div>
       <div className={activeTab === 'facturacion' ? '' : 'hidden'}>
-        <FacturacionSection />
+        <FacturasTable ventas={ventas} />
       </div>
       <div className={activeTab === 'comisionesRetenciones' ? '' : 'hidden'}>
-        <ComisionesRetencionesTable />
+        <ComisionesRetencionesTable ventas={ventas} />
       </div>
       <div className={activeTab === 'agregarVenta' ? '' : 'hidden'}>
         <AgregarVentaForm onAddVenta={handleAddVenta} />

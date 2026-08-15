@@ -1,10 +1,17 @@
-import Badge, { statusBadge, statusLabel } from '../ui/Badge';
 import { formatCurrency, formatLocalDate } from '../../lib/data';
 import type { Venta } from './ventas';
 
 interface VentasTableProps {
   ventas: Venta[];
 }
+
+const COLUMNS: { label: string; align?: 'right' }[] = [
+  { label: 'ID de venta' },
+  { label: 'Producto Vendido' },
+  { label: 'Fecha' },
+  { label: 'Cantidad' },
+  { label: 'Total Recibido', align: 'right' },
+];
 
 export default function VentasTable({ ventas }: VentasTableProps) {
   return (
@@ -23,18 +30,14 @@ export default function VentasTable({ ventas }: VentasTableProps) {
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="bg-surface-bright border-b border-outline-variant">
-              {['N°', 'Cliente', 'Producto', 'Fecha', 'Tipo', 'Monto', 'Estado'].map((h) => (
+              {COLUMNS.map((c) => (
                 <th
-                  key={h}
-                  className={`px-6 py-4 font-label-caps text-on-surface-variant uppercase tracking-wider ${
-                    h === 'Tipo' || h === 'Estado'
-                      ? 'text-center'
-                      : h === 'Monto'
-                        ? 'text-right'
-                        : ''
+                  key={c.label}
+                  className={`px-6 py-4 font-label-caps text-on-surface-variant uppercase tracking-wider whitespace-nowrap ${
+                    c.align === 'right' ? 'text-right' : ''
                   }`}
                 >
-                  {h}
+                  {c.label}
                 </th>
               ))}
             </tr>
@@ -42,27 +45,23 @@ export default function VentasTable({ ventas }: VentasTableProps) {
           <tbody className="divide-y divide-outline-variant/30">
             {ventas.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-6 py-12 text-center text-on-surface-variant">
+                <td colSpan={COLUMNS.length} className="px-6 py-12 text-center text-on-surface-variant">
                   No hay ventas cargadas todavía. Usá la pestaña Agregar Venta para cargar datos.
                 </td>
               </tr>
             ) : (
               ventas.map((v) => (
                 <tr key={v.id} className="hover:bg-surface-container-lowest transition-colors group">
-                  <td className="px-6 py-4 font-data-mono text-on-surface-variant">{v.numero}</td>
-                  <td className="px-6 py-4 text-primary font-body-base">{v.cliente}</td>
+                  <td className="px-6 py-4 font-data-mono text-on-surface-variant whitespace-nowrap">
+                    {v.numero}
+                  </td>
                   <td className="px-6 py-4 text-on-surface-variant">{v.producto}</td>
-                  <td className="px-6 py-4 text-on-surface-variant">{formatLocalDate(v.fecha)}</td>
-                  <td className="px-6 py-4 text-center">
-                    <span className="inline-flex items-center justify-center min-w-[2rem] px-2 py-0.5 rounded-full bg-surface-container-low text-on-surface-variant font-data-mono">
-                      {v.tipo}
-                    </span>
+                  <td className="px-6 py-4 text-on-surface-variant whitespace-nowrap">
+                    {formatLocalDate(v.fecha)}
                   </td>
-                  <td className="px-6 py-4 text-right font-data-mono text-primary font-semibold">
-                    {formatCurrency(v.monto)}
-                  </td>
-                  <td className="px-6 py-4 text-center">
-                    <Badge variant={statusBadge(v.estado)}>{statusLabel(v.estado)}</Badge>
+                  <td className="px-6 py-4 text-on-surface-variant">{v.cantidad}</td>
+                  <td className="px-6 py-4 text-right font-data-mono text-primary font-semibold whitespace-nowrap">
+                    {formatCurrency(v.totalRecibido)}
                   </td>
                 </tr>
               ))
