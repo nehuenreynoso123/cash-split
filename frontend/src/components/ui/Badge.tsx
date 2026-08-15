@@ -30,11 +30,13 @@ export function statusBadge(status: string): BadgeProps['variant'] {
   switch (status) {
     case 'disponible':
     case 'pagado':
+    case 'pagada':
       return 'success';
     case 'stock_bajo':
     case 'pendiente':
       return 'warning';
     case 'agotado':
+    case 'vencida':
       return 'error';
     default:
       return 'info';
@@ -47,7 +49,9 @@ export function statusLabel(status: string): string {
     case 'stock_bajo': return 'Stock Bajo';
     case 'agotado': return 'Agotado';
     case 'pagado': return 'Pagado';
+    case 'pagada': return 'Pagada';
     case 'pendiente': return 'Pendiente';
+    case 'vencida': return 'Vencida';
     default: return status;
   }
 }

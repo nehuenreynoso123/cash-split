@@ -16,6 +16,7 @@ const navItems: NavItem[] = [
   { id: 'productos', label: 'Productos', icon: 'inventory_2', href: '/productos/' },
   { id: 'rotacion', label: 'Rotación de Mercadería', icon: 'swap_horiz', href: '/rotacion' },
   { id: 'ventas', label: 'Ventas', icon: 'payments', href: '/ventas/' },
+  { id: 'facturacion', label: 'Facturación', icon: 'receipt', href: '/facturacion/' },
   { id: 'liquidez', label: 'Liquidez', icon: 'account_balance_wallet', href: '/liquidez' },
   { id: 'gastos', label: 'Gastos', icon: 'receipt_long', href: '/gastos' },
   { id: 'deudores', label: 'Deudores', icon: 'group_remove', href: '/deudores' },

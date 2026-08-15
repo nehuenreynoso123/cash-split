@@ -1,0 +1,12 @@
+---
+import AppLayout from '../layouts/AppLayout.astro';
+import FacturacionSection from '../components/facturacion/FacturacionSection';
+---
+
+<AppLayout
+  currentPage="facturacion"
+  pageTitle="Facturación"
+  pageSubtitle="Gestión de facturas y comprobantes"
+>
+  <FacturacionSection client:load />
+</AppLayout>
