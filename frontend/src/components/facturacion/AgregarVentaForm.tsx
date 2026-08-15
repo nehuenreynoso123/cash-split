@@ -459,7 +459,7 @@ export default function AgregarVentaForm({
                 as the user types. */}
             <div className="space-y-2">
               <label className="font-label-caps text-on-surface-variant uppercase">
-                Nombre de quien factura
+                Nombre en factura
               </label>
               <div className="relative">
                 <input
