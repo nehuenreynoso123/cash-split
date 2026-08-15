@@ -52,6 +52,7 @@ export function statusLabel(status: string): string {
     case 'pagada': return 'Pagada';
     case 'pendiente': return 'Pendiente';
     case 'vencida': return 'Vencida';
+    case 'aplicada': return 'Aplicada';
     default: return status;
   }
 }
