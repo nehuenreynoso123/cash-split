@@ -13,6 +13,18 @@ const COLUMNS: { label: string; align?: 'right' }[] = [
   { label: 'Total Recibido', align: 'right' },
 ];
 
+// A sale link is rendered as a clickable anchor only when it is a non-empty,
+// parseable http(s) URL; anything else falls back to plain text.
+function isValidLink(value: string): boolean {
+  if (!value.trim()) return false;
+  try {
+    const url = new URL(value.trim());
+    return url.protocol === 'http:' || url.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
 export default function VentasTable({ ventas }: VentasTableProps) {
   return (
     <section className="bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden shadow-sm">
@@ -53,7 +65,18 @@ export default function VentasTable({ ventas }: VentasTableProps) {
               ventas.map((v) => (
                 <tr key={v.id} className="hover:bg-surface-container-lowest transition-colors group">
                   <td className="px-6 py-4 font-data-mono text-on-surface-variant whitespace-nowrap">
-                    {v.numero}
+                    {isValidLink(v.link) ? (
+                      <a
+                        href={v.link.trim()}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-primary underline hover:text-on-primary-container"
+                      >
+                        {v.numero}
+                      </a>
+                    ) : (
+                      v.numero
+                    )}
                   </td>
                   <td className="px-6 py-4 text-on-surface-variant">{v.producto}</td>
                   <td className="px-6 py-4 text-on-surface-variant whitespace-nowrap">

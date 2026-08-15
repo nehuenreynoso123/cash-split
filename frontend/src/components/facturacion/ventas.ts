@@ -1,8 +1,9 @@
 // Shared local model for the Facturación section.
 // The three tabs (Ventas, Facturas, Comisiones y Retenciones) are projections
 // of the SAME sale record — fields with equal names across tables are the same
-// data. Sales are entered manually through the Agregar Venta tab and live only
-// in React state; the backend has no sales-invoicing support, so no fetch calls.
+// data. Sales are entered through the Agregar Venta tab and persisted to the
+// backend (ventas_facturacion); id, numero and nro_factura are assigned
+// server-side on creation.
 
 export interface Venta {
   id: number;
@@ -18,10 +19,11 @@ export interface Venta {
   descuento: number; // Descuento
   retenciones: number; // Retenciones
   totalRecibido: number; // Total Recibido (manual input)
-  importe: number; // Importe (manual input)
+  importe: number; // Importe (= Precio de Venta; the facturación column name)
   nroFactura: string; // Nro de Factura, AUTO: starts with 202, ascending
   fechaFactura: string; // Fecha de Factura, YYYY-MM-DD
   jurisdiccion: { codigoPostal: string; localidad: string; provincia: string };
   dniCuit: string; // DNI / CUIT
   nombreApellido: string; // Nombre Apellido
+  link: string; // Link de la venta (Mercado Libre, etc.), optional
 }

@@ -38,6 +38,37 @@ CREATE TABLE IF NOT EXISTS ventas (
     created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
+-- Facturación de ventas (sección /facturacion del frontend).
+-- `numero` (V-0001...) se deriva del id en cada query; `nro_factura` (202, 203...)
+-- lo provee una secuencia, segura bajo escrituras concurrentes (a diferencia
+-- de un MAX+1 calculado en el INSERT).
+CREATE SEQUENCE IF NOT EXISTS ventas_facturacion_nro_factura_seq START 202;
+
+CREATE TABLE IF NOT EXISTS ventas_facturacion (
+    id SERIAL PRIMARY KEY,
+    producto VARCHAR(200) NOT NULL,
+    fecha DATE NOT NULL,
+    cantidad INTEGER NOT NULL,
+    precio_venta NUMERIC(10,2) NOT NULL,
+    comision_venta NUMERIC(10,2) NOT NULL DEFAULT 0,
+    comision_cuota NUMERIC(10,2) NOT NULL DEFAULT 0,
+    envio_ml NUMERIC(10,2) NOT NULL DEFAULT 0,
+    envio_flex NUMERIC(10,2) NOT NULL DEFAULT 0,
+    descuento NUMERIC(10,2) NOT NULL DEFAULT 0,
+    retenciones NUMERIC(10,2) NOT NULL DEFAULT 0,
+    total_recibido NUMERIC(10,2) NOT NULL,
+    importe NUMERIC(10,2) NOT NULL,
+    nro_factura INTEGER NOT NULL UNIQUE DEFAULT nextval('ventas_facturacion_nro_factura_seq'),
+    fecha_factura DATE NOT NULL,
+    codigo_postal VARCHAR(20),
+    localidad VARCHAR(100),
+    provincia VARCHAR(100),
+    dni_cuit VARCHAR(50),
+    nombre_apellido VARCHAR(200),
+    link VARCHAR(500),
+    created_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
 CREATE TABLE IF NOT EXISTS gastos (
     id SERIAL PRIMARY KEY,
     descripcion TEXT NOT NULL,

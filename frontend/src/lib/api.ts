@@ -288,4 +288,104 @@ export async function deleteDeudor(id: number): Promise<void> {
   return request<void>('DELETE', `/deudores/${id}`);
 }
 
+// ── Facturación (ventas) ───────────────────────────────────────
+// Backend rows come back snake_case with NUMERIC money as strings; the API
+// layer normalizes money to numbers and leaves the field mapping to the UI
+// (the facturación components work with a camelCase Venta model).
+export interface VentaFacturacion {
+  id: number;
+  numero: string;
+  producto: string;
+  fecha: string;
+  cantidad: number;
+  precio_venta: number;
+  comision_venta: number;
+  comision_cuota: number;
+  envio_ml: number;
+  envio_flex: number;
+  descuento: number;
+  retenciones: number;
+  total_recibido: number;
+  importe: number;
+  nro_factura: number;
+  fecha_factura: string;
+  codigo_postal: string | null;
+  localidad: string | null;
+  provincia: string | null;
+  dni_cuit: string | null;
+  nombre_apellido: string | null;
+  link: string | null;
+}
+
+// Draft payload shape (camelCase, same as the form model); the backend assigns
+// id, numero, nro_factura AND importe (importe is forced from precio_venta
+// server-side — the client never sends it).
+export interface VentaFacturacionDraft {
+  producto: string;
+  fecha: string;
+  cantidad: number;
+  precioVenta: number;
+  comisionVenta: number;
+  comisionCuota: number;
+  envioML: number;
+  envioFlex: number;
+  descuento: number;
+  retenciones: number;
+  totalRecibido: number;
+  fechaFactura: string;
+  jurisdiccion: { codigoPostal: string; localidad: string; provincia: string };
+  dniCuit: string;
+  nombreApellido: string;
+  link: string;
+}
+
+const MONEY_FIELDS = [
+  'precio_venta',
+  'comision_venta',
+  'comision_cuota',
+  'envio_ml',
+  'envio_flex',
+  'descuento',
+  'retenciones',
+  'total_recibido',
+  'importe',
+] as const;
+
+function normalizeVentaFacturacion(v: VentaFacturacion): VentaFacturacion {
+  const row = { ...v };
+  for (const field of MONEY_FIELDS) {
+    row[field] = Number(v[field]);
+  }
+  return row;
+}
+
+export async function listVentasFacturacion(): Promise<VentaFacturacion[]> {
+  const data = await request<VentaFacturacion[]>('GET', '/facturacion-ventas');
+  return data.map(normalizeVentaFacturacion);
+}
+
+export async function createVentaFacturacion(draft: VentaFacturacionDraft): Promise<VentaFacturacion> {
+  const data = await request<VentaFacturacion>('POST', '/facturacion-ventas', {
+    producto: draft.producto,
+    fecha: draft.fecha,
+    cantidad: draft.cantidad,
+    precio_venta: draft.precioVenta,
+    comision_venta: draft.comisionVenta,
+    comision_cuota: draft.comisionCuota,
+    envio_ml: draft.envioML,
+    envio_flex: draft.envioFlex,
+    descuento: draft.descuento,
+    retenciones: draft.retenciones,
+    total_recibido: draft.totalRecibido,
+    fecha_factura: draft.fechaFactura,
+    codigo_postal: draft.jurisdiccion.codigoPostal,
+    localidad: draft.jurisdiccion.localidad,
+    provincia: draft.jurisdiccion.provincia,
+    dni_cuit: draft.dniCuit,
+    nombre_apellido: draft.nombreApellido,
+    link: draft.link,
+  });
+  return normalizeVentaFacturacion(data);
+}
+
 

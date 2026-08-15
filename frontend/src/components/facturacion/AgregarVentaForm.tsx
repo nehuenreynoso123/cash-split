@@ -1,16 +1,17 @@
-import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useState, type FormEvent, type KeyboardEvent, type ReactNode } from 'react';
 import { todayISO } from '../../lib/data';
 import type { Venta } from './ventas';
 
 interface AgregarVentaFormProps {
-  onAddVenta: (draft: Omit<Venta, 'id' | 'numero' | 'nroFactura'>) => void;
+  onAddVenta: (draft: Omit<Venta, 'id' | 'numero' | 'nroFactura' | 'importe'>) => Promise<void>;
+  productosExistentes: string[];
 }
 
 interface FieldProps {
   label: string;
   value: string | number;
   onChange: (value: string) => void;
-  type?: 'text' | 'number' | 'date';
+  type?: 'text' | 'number' | 'date' | 'url';
   money?: boolean;
   min?: number;
   step?: string;
@@ -75,7 +76,7 @@ function SectionLabel({ icon, children }: { icon: string; children: ReactNode })
   );
 }
 
-export default function AgregarVentaForm({ onAddVenta }: AgregarVentaFormProps) {
+export default function AgregarVentaForm({ onAddVenta, productosExistentes }: AgregarVentaFormProps) {
   // Datos de la venta
   const [producto, setProducto] = useState('');
   // Dates start EMPTY to avoid a hydration mismatch (the static build bakes the
@@ -83,8 +84,8 @@ export default function AgregarVentaForm({ onAddVenta }: AgregarVentaFormProps) 
   const [fecha, setFecha] = useState('');
   const [cantidad, setCantidad] = useState(1);
   const [precioVenta, setPrecioVenta] = useState('');
-  const [importe, setImporte] = useState('');
   const [totalRecibido, setTotalRecibido] = useState('');
+  const [link, setLink] = useState('');
   // Comisiones, envíos y descuentos (default to 0)
   const [comisionVenta, setComisionVenta] = useState('0');
   const [comisionCuota, setComisionCuota] = useState('0');
@@ -100,8 +101,13 @@ export default function AgregarVentaForm({ onAddVenta }: AgregarVentaFormProps) 
   const [codigoPostal, setCodigoPostal] = useState('');
   const [localidad, setLocalidad] = useState('');
   const [provincia, setProvincia] = useState('');
+  // Autocomplete de producto
+  const [suggestionsOpen, setSuggestionsOpen] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(-1);
   // Feedback
   const [done, setDone] = useState(false);
+  const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   // Default the date inputs to today, client-side only.
   useEffect(() => {
@@ -116,6 +122,49 @@ export default function AgregarVentaForm({ onAddVenta }: AgregarVentaFormProps) 
     return Number.isFinite(n) && n > 0;
   };
 
+  // Autocomplete suggestions: only when the trimmed query has 3+ chars;
+  // case-insensitive substring match over the products already loaded.
+  const productQuery = producto.trim().toLowerCase();
+  const matches =
+    productQuery.length >= 3
+      ? productosExistentes.filter((p) => p.toLowerCase().includes(productQuery))
+      : [];
+
+  // A stale active index must never point at a different list: reset it on
+  // every query change (ArrowDown/ArrowUp navigate within the current list).
+  useEffect(() => {
+    setActiveIndex(-1);
+  }, [productQuery]);
+
+  // Keyboard navigation: ArrowDown/ArrowUp move the active suggestion, Enter
+  // selects it (preventDefault so the form does not submit), Escape closes.
+  const handleProductKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Escape') {
+      if (suggestionsOpen) {
+        e.preventDefault();
+        setSuggestionsOpen(false);
+        setActiveIndex(-1);
+      }
+      return;
+    }
+    if (!suggestionsOpen || matches.length === 0) return;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setActiveIndex((i) => (i + 1) % matches.length);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setActiveIndex((i) => (i <= 0 ? matches.length - 1 : i - 1));
+    } else if (e.key === 'Enter') {
+      if (activeIndex >= 0 && activeIndex < matches.length) {
+        e.preventDefault();
+        setProducto(matches[activeIndex]);
+        setActiveIndex(-1);
+        setSuggestionsOpen(false);
+      }
+      // No active index: let Enter submit the form as usual.
+    }
+  };
+
   const invalid =
     !producto.trim() ||
     !fecha ||
@@ -123,60 +172,70 @@ export default function AgregarVentaForm({ onAddVenta }: AgregarVentaFormProps) 
     !nombreApellido.trim() ||
     cantidad < 1 ||
     !isPositive(precioVenta) ||
-    !isPositive(importe) ||
     !isPositive(totalRecibido);
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (invalid) return;
 
-    onAddVenta({
-      producto: producto.trim(),
-      fecha,
-      cantidad,
-      precioVenta: parseFloat(precioVenta),
-      comisionVenta: parseFloat(comisionVenta) || 0,
-      comisionCuota: parseFloat(comisionCuota) || 0,
-      envioML: parseFloat(envioML) || 0,
-      envioFlex: parseFloat(envioFlex) || 0,
-      descuento: parseFloat(descuento) || 0,
-      retenciones: parseFloat(retenciones) || 0,
-      totalRecibido: parseFloat(totalRecibido),
-      importe: parseFloat(importe),
-      fechaFactura,
-      jurisdiccion: {
-        codigoPostal: codigoPostal.trim(),
-        localidad: localidad.trim(),
-        provincia: provincia.trim(),
-      },
-      dniCuit: dniCuit.trim(),
-      nombreApellido: nombreApellido.trim(),
-    });
+    setSubmitting(true);
+    try {
+      await onAddVenta({
+        producto: producto.trim(),
+        fecha,
+        cantidad,
+        precioVenta: parseFloat(precioVenta),
+        comisionVenta: parseFloat(comisionVenta) || 0,
+        comisionCuota: parseFloat(comisionCuota) || 0,
+        envioML: parseFloat(envioML) || 0,
+        envioFlex: parseFloat(envioFlex) || 0,
+        descuento: parseFloat(descuento) || 0,
+        retenciones: parseFloat(retenciones) || 0,
+        totalRecibido: parseFloat(totalRecibido),
+        fechaFactura,
+        jurisdiccion: {
+          codigoPostal: codigoPostal.trim(),
+          localidad: localidad.trim(),
+          provincia: provincia.trim(),
+        },
+        dniCuit: dniCuit.trim(),
+        nombreApellido: nombreApellido.trim(),
+        link: link.trim(),
+      });
 
-    setDone(true);
+      setDone(true);
+      setError('');
 
-    // Brief "¡Venta Cargada!" feedback, then reset to defaults.
-    setTimeout(() => {
-      setDone(false);
-      setProducto('');
-      setFecha(todayISO());
-      setCantidad(1);
-      setPrecioVenta('');
-      setImporte('');
-      setTotalRecibido('');
-      setComisionVenta('0');
-      setComisionCuota('0');
-      setEnvioML('0');
-      setEnvioFlex('0');
-      setDescuento('0');
-      setRetenciones('0');
-      setFechaFactura(todayISO());
-      setDniCuit('');
-      setNombreApellido('');
-      setCodigoPostal('');
-      setLocalidad('');
-      setProvincia('');
-    }, 2000);
+      // Brief "¡Venta Cargada!" feedback, then reset to defaults.
+      setTimeout(() => {
+        setDone(false);
+        setProducto('');
+        setFecha(todayISO());
+        setCantidad(1);
+        setPrecioVenta('');
+        setTotalRecibido('');
+        setLink('');
+        setComisionVenta('0');
+        setComisionCuota('0');
+        setEnvioML('0');
+        setEnvioFlex('0');
+        setDescuento('0');
+        setRetenciones('0');
+        setFechaFactura(todayISO());
+        setDniCuit('');
+        setNombreApellido('');
+        setCodigoPostal('');
+        setLocalidad('');
+        setProvincia('');
+        setSuggestionsOpen(false);
+        setActiveIndex(-1);
+      }, 2000);
+    } catch (err) {
+      // Keep the draft intact so the user can fix and retry.
+      setError(err instanceof Error ? err.message : 'No se pudo cargar la venta. Inténtalo de nuevo.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -186,20 +245,62 @@ export default function AgregarVentaForm({ onAddVenta }: AgregarVentaFormProps) 
           <span className="material-symbols-outlined text-secondary">add_circle</span>
           <h3 className="font-headline-md text-headline-md text-primary">Agregar Venta</h3>
         </div>
-        <span className="text-on-surface-variant font-body-sm">Datos locales</span>
+        <span className="text-on-surface-variant font-body-sm">Datos en el servidor</span>
       </div>
 
       <form onSubmit={handleSubmit} className="p-8 space-y-6">
         <div className="space-y-4">
           <SectionLabel icon="point_of_sale">Datos de la venta</SectionLabel>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Field
-              label="Producto Vendido"
-              value={producto}
-              onChange={setProducto}
-              placeholder="Producto de la venta"
-              required
-            />
+            {/* Producto Vendido with autocomplete: suggestions show for 3+
+                typed chars and are selected with onMouseDown so the click wins
+                the race against the input's onBlur. */}
+            <div className="space-y-2">
+              <label className="font-label-caps text-on-surface-variant uppercase">
+                Producto Vendido
+              </label>
+              <div className="relative">
+                <input
+                  type="text"
+                  value={producto}
+                  onChange={(e) => {
+                    setProducto(e.target.value);
+                    setSuggestionsOpen(true);
+                  }}
+                  onFocus={() => setSuggestionsOpen(true)}
+                  onBlur={() => setSuggestionsOpen(false)}
+                  onKeyDown={handleProductKeyDown}
+                  placeholder="Producto de la venta"
+                  required
+                  className="w-full h-12 px-4 border border-outline-variant rounded-xl focus:ring-2 focus:ring-secondary outline-none transition-all"
+                />
+                {suggestionsOpen && matches.length > 0 && (
+                  <ul className="absolute z-10 mt-1 w-full bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden shadow-lg">
+                    {matches.map((name, index) => (
+                      <li key={name}>
+                        <button
+                          type="button"
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            setProducto(name);
+                            setActiveIndex(-1);
+                            setSuggestionsOpen(false);
+                          }}
+                          onMouseEnter={() => setActiveIndex(index)}
+                          className={`w-full text-left px-4 py-2.5 transition-colors ${
+                            index === activeIndex
+                              ? 'bg-surface-container text-on-surface'
+                              : 'text-on-surface-variant hover:bg-surface-container'
+                          }`}
+                        >
+                          {name}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
             <Field label="Fecha" type="date" value={fecha} onChange={setFecha} required />
             <Field
               label="Cantidad"
@@ -220,16 +321,6 @@ export default function AgregarVentaForm({ onAddVenta }: AgregarVentaFormProps) 
               required
             />
             <Field
-              label="Importe"
-              money
-              min={0}
-              step="0.01"
-              value={importe}
-              onChange={setImporte}
-              placeholder="0.00"
-              required
-            />
-            <Field
               label="Total Recibido"
               money
               min={0}
@@ -238,6 +329,13 @@ export default function AgregarVentaForm({ onAddVenta }: AgregarVentaFormProps) 
               onChange={setTotalRecibido}
               placeholder="0.00"
               required
+            />
+            <Field
+              label="Link de la Venta"
+              type="url"
+              value={link}
+              onChange={setLink}
+              placeholder="https://..."
             />
           </div>
         </div>
@@ -324,9 +422,16 @@ export default function AgregarVentaForm({ onAddVenta }: AgregarVentaFormProps) 
           </div>
         </div>
 
+        {error && (
+          <p role="alert" className="text-error font-body-sm flex items-center gap-2">
+            <span className="material-symbols-outlined text-[18px]">error</span>
+            {error}
+          </p>
+        )}
+
         <button
           type="submit"
-          disabled={invalid || done}
+          disabled={invalid || done || submitting}
           className={`w-full h-14 font-bold rounded-xl flex items-center justify-center gap-3 transition-all active:scale-95 shadow-lg ${
             done
               ? 'bg-primary text-on-primary'
