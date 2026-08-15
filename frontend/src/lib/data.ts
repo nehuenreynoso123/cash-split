@@ -67,6 +67,25 @@ export function formatCurrency(value: number): string {
   }).format(value);
 }
 
+// Parse date-only strings ('YYYY-MM-DD') as local midnight so the rendered
+// date never shifts to the previous day in negative-offset timezones.
+export function formatLocalDate(dateStr: string): string {
+  return new Date(`${dateStr}T00:00:00`).toLocaleDateString('es-ES', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  });
+}
+
+// Today as a local 'YYYY-MM-DD' string: subtract the UTC offset so the date
+// does not shift to the previous day in negative-offset timezones.
+export function todayISO(): string {
+  const now = new Date();
+  return new Date(now.getTime() - now.getTimezoneOffset() * 60000)
+    .toISOString()
+    .split('T')[0];
+}
+
 export function getStorage<T>(key: string, fallback: T): T {
   if (typeof window === 'undefined') return fallback;
   try {

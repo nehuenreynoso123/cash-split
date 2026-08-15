@@ -38,6 +38,8 @@ export function statusBadge(status: string): BadgeProps['variant'] {
     case 'agotado':
     case 'vencida':
       return 'error';
+    case 'aplicada':
+      return 'info';
     default:
       return 'info';
   }
@@ -52,6 +54,7 @@ export function statusLabel(status: string): string {
     case 'pagada': return 'Pagada';
     case 'pendiente': return 'Pendiente';
     case 'vencida': return 'Vencida';
+    case 'aplicada': return 'Aplicada';
     default: return status;
   }
 }
