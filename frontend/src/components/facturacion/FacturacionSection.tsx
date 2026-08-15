@@ -1,8 +1,17 @@
 import MetricCard from '../ui/MetricCard';
 import Badge, { statusBadge, statusLabel } from '../ui/Badge';
-import { formatCurrency, formatLocalDate } from '../../lib/data';
+import { formatCurrency } from '../../lib/data';
 import { useAuthRedirect } from '../../hooks/useAuthRedirect';
 import { facturas } from './facturas';
+
+// Parse date-only strings ('YYYY-MM-DD') as local midnight so the rendered
+// date never shifts to the previous day in negative-offset timezones.
+const formatFecha = (fecha: string) =>
+  new Date(`${fecha}T00:00:00`).toLocaleDateString('es-ES', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  });
 
 export default function FacturacionSection() {
   useAuthRedirect();
@@ -78,7 +87,7 @@ export default function FacturacionSection() {
                   <tr key={f.id} className="hover:bg-surface-container-lowest transition-colors group">
                     <td className="px-6 py-4 font-data-mono text-on-surface-variant">{f.numero}</td>
                     <td className="px-6 py-4 text-primary font-body-base">{f.cliente}</td>
-                    <td className="px-6 py-4 text-on-surface-variant">{formatLocalDate(f.fecha)}</td>
+                    <td className="px-6 py-4 text-on-surface-variant">{formatFecha(f.fecha)}</td>
                     <td className="px-6 py-4 text-center">
                       <span className="inline-flex items-center justify-center min-w-[2rem] px-2 py-0.5 rounded-full bg-surface-container-low text-on-surface-variant font-data-mono">
                         {f.tipo}
