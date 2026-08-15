@@ -4,12 +4,19 @@ import { add, list } from "./store.js";
 const MAX_LENGTHS = {
   producto: 200,
   nombre_apellido: 200,
+  nombre_factura: 100,
   link: 500,
   localidad: 100,
   provincia: 100,
   dni_cuit: 50,
   codigo_postal: 20,
 };
+
+// Invoice numbering starts per name: almendra → 202, nehuen → 8, any other
+// name → 1. The key is matched case-insensitively after trim; the autocomplete
+// surfaces the exact stored names so users pick the canonical spelling.
+const NRO_FACTURA_BASES = { almendra: 202, nehuen: 8 };
+const DEFAULT_NRO_FACTURA_BASE = 1;
 
 // Optional money fields: must be finite and >= 0 when present.
 const OPTIONAL_MONEY = [
@@ -30,6 +37,7 @@ const FIELD_LABELS = {
   total_recibido: "Total recibido",
   fecha_factura: "Fecha de factura",
   nombre_apellido: "Nombre y apellido",
+  nombre_factura: "Nombre de quien factura",
   codigo_postal: "Código postal",
   localidad: "Localidad",
   provincia: "Provincia",
@@ -83,14 +91,22 @@ const addVenta = async (body) => {
   const invalid = [];
 
   // Required free-text: non-empty after trim and within schema length.
-  for (const field of ["producto", "nombre_apellido"]) {
+  for (const field of [
+    "producto",
+    "nombre_apellido",
+    "nombre_factura",
+    "dni_cuit",
+    "codigo_postal",
+    "localidad",
+    "provincia",
+  ]) {
     const value = body[field];
     if (typeof value !== "string" || !value.trim()) invalid.push(field);
     else if (value.trim().length > MAX_LENGTHS[field]) invalid.push(field);
   }
 
   // Optional free-text: length-checked when present (empty/null allowed).
-  for (const field of ["codigo_postal", "localidad", "provincia", "dni_cuit", "link"]) {
+  for (const field of ["link"]) {
     const value = body[field];
     if (value !== undefined && value !== null && value !== "") {
       if (typeof value !== "string" || value.trim().length > MAX_LENGTHS[field]) {
@@ -118,11 +134,15 @@ const addVenta = async (body) => {
   // Infinity (JSON.parse accepts 1e999) and '' — all of which slip through a
   // raw `> 0` check — and anything that would overflow NUMERIC(10,2).
   const precioVenta = Number(body.precio_venta);
-  const totalRecibido = Number(body.total_recibido);
   if (!Number.isFinite(precioVenta) || precioVenta <= 0 || precioVenta > MAX_MONEY) {
     invalid.push("precio_venta");
   }
-  if (!Number.isFinite(totalRecibido) || totalRecibido <= 0 || totalRecibido > MAX_MONEY) {
+
+  // Optional money: Total Recibido defaults to 0 when absent/empty (the form
+  // may leave it blank), but must be finite and within [0, 99,999,999.99]
+  // when present.
+  const totalRecibido = Number(body.total_recibido ?? 0);
+  if (!Number.isFinite(totalRecibido) || totalRecibido < 0 || totalRecibido > MAX_MONEY) {
     invalid.push("total_recibido");
   }
 
@@ -138,6 +158,7 @@ const addVenta = async (body) => {
   // Importe IS Precio de Venta — the facturación table just names the column
   // Importe. The server owns that value: it is forced from precio_venta and
   // the client can never send a different one.
+  const nombreFactura = body.nombre_factura.trim();
   const payload = {
     producto: body.producto.trim(),
     fecha: body.fecha,
@@ -152,11 +173,13 @@ const addVenta = async (body) => {
     total_recibido: totalRecibido,
     importe: precioVenta,
     fecha_factura: body.fecha_factura,
-    codigo_postal: typeof body.codigo_postal === "string" ? body.codigo_postal.trim() : "",
-    localidad: typeof body.localidad === "string" ? body.localidad.trim() : "",
-    provincia: typeof body.provincia === "string" ? body.provincia.trim() : "",
-    dni_cuit: typeof body.dni_cuit === "string" ? body.dni_cuit.trim() : "",
+    codigo_postal: body.codigo_postal.trim(),
+    localidad: body.localidad.trim(),
+    provincia: body.provincia.trim(),
+    dni_cuit: body.dni_cuit.trim(),
     nombre_apellido: body.nombre_apellido.trim(),
+    nombre_factura: nombreFactura,
+    nro_factura_base: NRO_FACTURA_BASES[nombreFactura.toLowerCase()] ?? DEFAULT_NRO_FACTURA_BASE,
     link,
   };
 

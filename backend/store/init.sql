@@ -39,11 +39,16 @@ CREATE TABLE IF NOT EXISTS ventas (
 );
 
 -- Facturación de ventas (sección /facturacion del frontend).
--- `numero` (V-0001...) se deriva del id en cada query; `nro_factura` (202, 203...)
--- lo provee una secuencia, segura bajo escrituras concurrentes (a diferencia
--- de un MAX+1 calculado en el INSERT).
-CREATE SEQUENCE IF NOT EXISTS ventas_facturacion_nro_factura_seq START 202;
-
+-- `numero` (V-0001...) se deriva del id en cada query; `nro_factura` se calcula
+-- POR NOMBRE en store.js: cada nombre numera sus propias facturas desde su base
+-- (Almendra desde 202, Nehuen desde 8, cualquier otro desde 1) dentro de una
+-- transacción con advisory lock — MAX+1 por nombre, seguro bajo escrituras
+-- concurrentes del mismo nombre. La serie se keyea en lower(nombre_factura)
+-- (mismo casing que el lookup de bases y el índice único), así "Almendra" y
+-- "ALMENDRA" son UNA sola serie.
+-- UNICIDAD: no hay CONSTRAINT a nivel columna; el índice único funcional
+-- (lower(nombre_factura), nro_factura) se crea en migrate.js en cada boot
+-- (única fuente de la garantía, antes de que sirvan las rutas).
 CREATE TABLE IF NOT EXISTS ventas_facturacion (
     id SERIAL PRIMARY KEY,
     producto VARCHAR(200) NOT NULL,
@@ -58,13 +63,14 @@ CREATE TABLE IF NOT EXISTS ventas_facturacion (
     retenciones NUMERIC(10,2) NOT NULL DEFAULT 0,
     total_recibido NUMERIC(10,2) NOT NULL,
     importe NUMERIC(10,2) NOT NULL,
-    nro_factura INTEGER NOT NULL UNIQUE DEFAULT nextval('ventas_facturacion_nro_factura_seq'),
+    nro_factura INTEGER NOT NULL,
     fecha_factura DATE NOT NULL,
     codigo_postal VARCHAR(20),
     localidad VARCHAR(100),
     provincia VARCHAR(100),
     dni_cuit VARCHAR(50),
     nombre_apellido VARCHAR(200),
+    nombre_factura VARCHAR(100) NOT NULL,
     link VARCHAR(500),
     created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );

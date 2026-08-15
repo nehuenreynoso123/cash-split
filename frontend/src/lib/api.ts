@@ -314,6 +314,7 @@ export interface VentaFacturacion {
   provincia: string | null;
   dni_cuit: string | null;
   nombre_apellido: string | null;
+  nombre_factura: string;
   link: string | null;
 }
 
@@ -336,6 +337,7 @@ export interface VentaFacturacionDraft {
   jurisdiccion: { codigoPostal: string; localidad: string; provincia: string };
   dniCuit: string;
   nombreApellido: string;
+  nombreFactura: string;
   link: string;
 }
 
@@ -383,6 +385,7 @@ export async function createVentaFacturacion(draft: VentaFacturacionDraft): Prom
     provincia: draft.jurisdiccion.provincia,
     dni_cuit: draft.dniCuit,
     nombre_apellido: draft.nombreApellido,
+    nombre_factura: draft.nombreFactura,
     link: draft.link,
   });
   return normalizeVentaFacturacion(data);

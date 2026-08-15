@@ -16,6 +16,7 @@ const COLUMNS: { label: string; align?: 'right' }[] = [
   { label: 'DNI / CUIT' },
   { label: 'Nombre Apellido' },
   { label: 'Producto Vendido' },
+  { label: 'Nombre' },
 ];
 
 // Combine the jurisdiction parts following the "CP <cp> - <localidad>, <provincia>"
@@ -88,6 +89,9 @@ export default function FacturasTable({ ventas }: FacturasTableProps) {
                   </td>
                   <td className="px-6 py-4 text-on-surface-variant">{v.nombreApellido}</td>
                   <td className="px-6 py-4 text-on-surface-variant">{v.producto}</td>
+                  <td className="px-6 py-4 text-on-surface-variant whitespace-nowrap">
+                    {v.nombreFactura}
+                  </td>
                 </tr>
               ))
             )}

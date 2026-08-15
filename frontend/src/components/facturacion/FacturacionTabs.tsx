@@ -35,7 +35,9 @@ function toVenta(row: VentaFacturacion): Venta {
     retenciones: Number(row.retenciones),
     totalRecibido: Number(row.total_recibido),
     importe: Number(row.importe),
-    nroFactura: String(row.nro_factura),
+    // nro_factura is numbered per name (almendra → 202+, nehuen → 8+,
+    // other → 1+); pad to 2 digits so single-digit sequences render as 08, 01.
+    nroFactura: String(row.nro_factura).padStart(2, '0'),
     fechaFactura: row.fecha_factura,
     jurisdiccion: {
       codigoPostal: row.codigo_postal ?? '',
@@ -44,6 +46,7 @@ function toVenta(row: VentaFacturacion): Venta {
     },
     dniCuit: row.dni_cuit ?? '',
     nombreApellido: row.nombre_apellido ?? '',
+    nombreFactura: row.nombre_factura ?? '',
     link: row.link ?? '',
   };
 }
@@ -105,6 +108,12 @@ export default function FacturacionTabs() {
     new Set(ventas.map((v) => v.producto.trim()).filter((p) => p.length > 0))
   );
 
+  // Unique, trimmed invoice names already present (who the invoice is for) —
+  // feeds the form's name autocomplete. Shows on focus, no minimum chars.
+  const nombresExistentes = Array.from(
+    new Set(ventas.map((v) => v.nombreFactura.trim()).filter((n) => n.length > 0))
+  );
+
   return (
     <div className="space-y-gutter">
       {/* Pill-style tab bar */}
@@ -144,7 +153,11 @@ export default function FacturacionTabs() {
         <ComisionesRetencionesTable ventas={ventas} />
       </div>
       <div className={activeTab === 'agregarVenta' ? '' : 'hidden'}>
-        <AgregarVentaForm onAddVenta={handleAddVenta} productosExistentes={productosExistentes} />
+        <AgregarVentaForm
+          onAddVenta={handleAddVenta}
+          productosExistentes={productosExistentes}
+          nombresExistentes={nombresExistentes}
+        />
       </div>
     </div>
   );

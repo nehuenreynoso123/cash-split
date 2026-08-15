@@ -18,12 +18,14 @@ export interface Venta {
   envioFlex: number; // Envio Flex
   descuento: number; // Descuento
   retenciones: number; // Retenciones
-  totalRecibido: number; // Total Recibido (manual input)
+  totalRecibido: number; // Total Recibido (optional, defaults to 0)
   importe: number; // Importe (= Precio de Venta; the facturación column name)
-  nroFactura: string; // Nro de Factura, AUTO: starts with 202, ascending
+  // Nro de Factura, auto per issuer name: almendra 202+, nehuen 08+, others 01+
+  nroFactura: string;
   fechaFactura: string; // Fecha de Factura, YYYY-MM-DD
   jurisdiccion: { codigoPostal: string; localidad: string; provincia: string };
   dniCuit: string; // DNI / CUIT
   nombreApellido: string; // Nombre Apellido
+  nombreFactura: string; // Factura a nombre de (quién la emite), REQUIRED
   link: string; // Link de la venta (Mercado Libre, etc.), optional
 }

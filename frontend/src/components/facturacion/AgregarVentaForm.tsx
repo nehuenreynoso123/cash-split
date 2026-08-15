@@ -5,6 +5,7 @@ import type { Venta } from './ventas';
 interface AgregarVentaFormProps {
   onAddVenta: (draft: Omit<Venta, 'id' | 'numero' | 'nroFactura' | 'importe'>) => Promise<void>;
   productosExistentes: string[];
+  nombresExistentes: string[];
 }
 
 interface FieldProps {
@@ -76,7 +77,11 @@ function SectionLabel({ icon, children }: { icon: string; children: ReactNode })
   );
 }
 
-export default function AgregarVentaForm({ onAddVenta, productosExistentes }: AgregarVentaFormProps) {
+export default function AgregarVentaForm({
+  onAddVenta,
+  productosExistentes,
+  nombresExistentes,
+}: AgregarVentaFormProps) {
   // Datos de la venta
   const [producto, setProducto] = useState('');
   // Dates start EMPTY to avoid a hydration mismatch (the static build bakes the
@@ -97,6 +102,8 @@ export default function AgregarVentaForm({ onAddVenta, productosExistentes }: Ag
   const [fechaFactura, setFechaFactura] = useState('');
   const [dniCuit, setDniCuit] = useState('');
   const [nombreApellido, setNombreApellido] = useState('');
+  // A nombre de quién se factura (REQUIRED; numera sus propias facturas)
+  const [nombreFactura, setNombreFactura] = useState('');
   // Jurisdicción
   const [codigoPostal, setCodigoPostal] = useState('');
   const [localidad, setLocalidad] = useState('');
@@ -104,6 +111,9 @@ export default function AgregarVentaForm({ onAddVenta, productosExistentes }: Ag
   // Autocomplete de producto
   const [suggestionsOpen, setSuggestionsOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
+  // Autocomplete de nombre de factura
+  const [nombreSuggestionsOpen, setNombreSuggestionsOpen] = useState(false);
+  const [nombreActiveIndex, setNombreActiveIndex] = useState(-1);
   // Feedback
   const [done, setDone] = useState(false);
   const [error, setError] = useState('');
@@ -165,14 +175,64 @@ export default function AgregarVentaForm({ onAddVenta, productosExistentes }: Ag
     }
   };
 
+  // Name autocomplete: unlike products there is NO minimum char count — the
+  // distinct invoice names are few (Almendra, Nehuen...), so the list shows on
+  // focus and narrows as the user types. Same keyboard UX as the product field.
+  const nombreQuery = nombreFactura.trim().toLowerCase();
+  const nombreMatches = nombreQuery
+    ? nombresExistentes.filter((n) => n.toLowerCase().includes(nombreQuery))
+    : nombresExistentes;
+
+  // A stale active index must never point at a different list: reset it on
+  // every query change (same reasoning as the product autocomplete).
+  useEffect(() => {
+    setNombreActiveIndex(-1);
+  }, [nombreQuery]);
+
+  const handleNombreKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Escape') {
+      if (nombreSuggestionsOpen) {
+        e.preventDefault();
+        setNombreSuggestionsOpen(false);
+        setNombreActiveIndex(-1);
+      }
+      return;
+    }
+    if (!nombreSuggestionsOpen || nombreMatches.length === 0) return;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setNombreActiveIndex((i) => (i + 1) % nombreMatches.length);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setNombreActiveIndex((i) => (i <= 0 ? nombreMatches.length - 1 : i - 1));
+    } else if (e.key === 'Enter') {
+      if (nombreActiveIndex >= 0 && nombreActiveIndex < nombreMatches.length) {
+        e.preventDefault();
+        setNombreFactura(nombreMatches[nombreActiveIndex]);
+        setNombreActiveIndex(-1);
+        setNombreSuggestionsOpen(false);
+      }
+      // No active index: let Enter submit the form as usual.
+    }
+  };
+
+  // Part A root cause: totalRecibido used to be REQUIRED here, so leaving
+  // "Total Recibido" empty (a common case) permanently disabled the Cargar
+  // Venta button. It is now OPTIONAL — the server defaults it to 0. In
+  // exchange, dniCuit/codigoPostal/localidad/provincia/nombreFactura are
+  // required (validated on both ends).
   const invalid =
     !producto.trim() ||
     !fecha ||
     !fechaFactura ||
     !nombreApellido.trim() ||
+    !nombreFactura.trim() ||
+    !dniCuit.trim() ||
+    !codigoPostal.trim() ||
+    !localidad.trim() ||
+    !provincia.trim() ||
     cantidad < 1 ||
-    !isPositive(precioVenta) ||
-    !isPositive(totalRecibido);
+    !isPositive(precioVenta);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -191,7 +251,7 @@ export default function AgregarVentaForm({ onAddVenta, productosExistentes }: Ag
         envioFlex: parseFloat(envioFlex) || 0,
         descuento: parseFloat(descuento) || 0,
         retenciones: parseFloat(retenciones) || 0,
-        totalRecibido: parseFloat(totalRecibido),
+        totalRecibido: parseFloat(totalRecibido) || 0,
         fechaFactura,
         jurisdiccion: {
           codigoPostal: codigoPostal.trim(),
@@ -200,6 +260,7 @@ export default function AgregarVentaForm({ onAddVenta, productosExistentes }: Ag
         },
         dniCuit: dniCuit.trim(),
         nombreApellido: nombreApellido.trim(),
+        nombreFactura: nombreFactura.trim(),
         link: link.trim(),
       });
 
@@ -224,11 +285,14 @@ export default function AgregarVentaForm({ onAddVenta, productosExistentes }: Ag
         setFechaFactura(todayISO());
         setDniCuit('');
         setNombreApellido('');
+        setNombreFactura('');
         setCodigoPostal('');
         setLocalidad('');
         setProvincia('');
         setSuggestionsOpen(false);
         setActiveIndex(-1);
+        setNombreSuggestionsOpen(false);
+        setNombreActiveIndex(-1);
       }, 2000);
     } catch (err) {
       // Keep the draft intact so the user can fix and retry.
@@ -328,7 +392,6 @@ export default function AgregarVentaForm({ onAddVenta, productosExistentes }: Ag
               value={totalRecibido}
               onChange={setTotalRecibido}
               placeholder="0.00"
-              required
             />
             <Field
               label="Link de la Venta"
@@ -390,6 +453,56 @@ export default function AgregarVentaForm({ onAddVenta, productosExistentes }: Ag
         <div className="space-y-4">
           <SectionLabel icon="receipt_long">Datos de facturación</SectionLabel>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Factura a nombre de — who the invoice is issued for. Same
+                autocomplete as the product field, but with NO minimum chars:
+                the distinct names are few, so show them on focus and narrow
+                as the user types. */}
+            <div className="space-y-2">
+              <label className="font-label-caps text-on-surface-variant uppercase">
+                Nombre de quien factura
+              </label>
+              <div className="relative">
+                <input
+                  type="text"
+                  value={nombreFactura}
+                  onChange={(e) => {
+                    setNombreFactura(e.target.value);
+                    setNombreSuggestionsOpen(true);
+                  }}
+                  onFocus={() => setNombreSuggestionsOpen(true)}
+                  onBlur={() => setNombreSuggestionsOpen(false)}
+                  onKeyDown={handleNombreKeyDown}
+                  placeholder="Ej: Almendra"
+                  required
+                  className="w-full h-12 px-4 border border-outline-variant rounded-xl focus:ring-2 focus:ring-secondary outline-none transition-all"
+                />
+                {nombreSuggestionsOpen && nombreMatches.length > 0 && (
+                  <ul className="absolute z-10 mt-1 w-full bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden shadow-lg">
+                    {nombreMatches.map((name, index) => (
+                      <li key={name}>
+                        <button
+                          type="button"
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            setNombreFactura(name);
+                            setNombreActiveIndex(-1);
+                            setNombreSuggestionsOpen(false);
+                          }}
+                          onMouseEnter={() => setNombreActiveIndex(index)}
+                          className={`w-full text-left px-4 py-2.5 transition-colors ${
+                            index === nombreActiveIndex
+                              ? 'bg-surface-container text-on-surface'
+                              : 'text-on-surface-variant hover:bg-surface-container'
+                          }`}
+                        >
+                          {name}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
             <Field
               label="Fecha de Factura"
               type="date"
@@ -397,7 +510,13 @@ export default function AgregarVentaForm({ onAddVenta, productosExistentes }: Ag
               onChange={setFechaFactura}
               required
             />
-            <Field label="DNI / CUIT" value={dniCuit} onChange={setDniCuit} placeholder="20-12345678-9" />
+            <Field
+              label="DNI / CUIT"
+              value={dniCuit}
+              onChange={setDniCuit}
+              placeholder="20-12345678-9"
+              required
+            />
             <Field
               label="Nombre Apellido"
               value={nombreApellido}
@@ -416,9 +535,22 @@ export default function AgregarVentaForm({ onAddVenta, productosExistentes }: Ag
               value={codigoPostal}
               onChange={setCodigoPostal}
               placeholder="Ej: 1640"
+              required
             />
-            <Field label="Localidad" value={localidad} onChange={setLocalidad} placeholder="Localidad" />
-            <Field label="Provincia" value={provincia} onChange={setProvincia} placeholder="Provincia" />
+            <Field
+              label="Localidad"
+              value={localidad}
+              onChange={setLocalidad}
+              placeholder="Localidad"
+              required
+            />
+            <Field
+              label="Provincia"
+              value={provincia}
+              onChange={setProvincia}
+              placeholder="Provincia"
+              required
+            />
           </div>
         </div>
 
