@@ -319,9 +319,11 @@ export interface VentaFacturacion {
 }
 
 // Draft payload shape (camelCase, same as the form model); the backend assigns
-// id, numero, nro_factura AND importe (importe is forced from precio_venta
-// server-side — the client never sends it).
+// id, nro_factura AND importe (importe is forced from precio_venta server-side
+// — the client never sends it). numero (ID de venta) is OPTIONAL: a typed
+// value is stored as-is; ''/undefined falls back to the auto V-#### derivation.
 export interface VentaFacturacionDraft {
+  numero: string;
   producto: string;
   fecha: string;
   cantidad: number;
@@ -368,6 +370,9 @@ export async function listVentasFacturacion(): Promise<VentaFacturacion[]> {
 
 export async function createVentaFacturacion(draft: VentaFacturacionDraft): Promise<VentaFacturacion> {
   const data = await request<VentaFacturacion>('POST', '/facturacion-ventas', {
+    // undefined keys are dropped by JSON.stringify, so an empty numero is
+    // simply absent and the backend falls back to the auto V-####.
+    numero: draft.numero.trim() || undefined,
     producto: draft.producto,
     fecha: draft.fecha,
     cantidad: draft.cantidad,
@@ -389,6 +394,10 @@ export async function createVentaFacturacion(draft: VentaFacturacionDraft): Prom
     link: draft.link,
   });
   return normalizeVentaFacturacion(data);
+}
+
+export async function deleteVentaFacturacion(id: number): Promise<void> {
+  return request<void>('DELETE', `/facturacion-ventas/${id}`);
 }
 
 

@@ -2,12 +2,14 @@
 // The three tabs (Ventas, Facturas, Comisiones y Retenciones) are projections
 // of the SAME sale record — fields with equal names across tables are the same
 // data. Sales are entered through the Agregar Venta tab and persisted to the
-// backend (ventas_facturacion); id, numero and nro_factura are assigned
-// server-side on creation.
+// backend (ventas_facturacion); id and nro_factura are assigned server-side on
+// creation. numero (ID de venta) is OPTIONAL on input: a typed value is stored
+// as-is, an empty one falls back to the auto-derived V-#### (the backend's
+// COALESCE guarantees a non-empty numero on every read).
 
 export interface Venta {
   id: number;
-  numero: string; // ID de venta, auto: V-0001, V-0002...
+  numero: string; // ID de venta: manual o auto (V-0001, V-0002...)
   producto: string; // Producto Vendido
   fecha: string; // Fecha (venta), YYYY-MM-DD
   cantidad: number;

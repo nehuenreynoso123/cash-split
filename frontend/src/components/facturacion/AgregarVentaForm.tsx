@@ -3,7 +3,7 @@ import { todayISO } from '../../lib/data';
 import type { Venta } from './ventas';
 
 interface AgregarVentaFormProps {
-  onAddVenta: (draft: Omit<Venta, 'id' | 'numero' | 'nroFactura' | 'importe'>) => Promise<void>;
+  onAddVenta: (draft: Omit<Venta, 'id' | 'nroFactura' | 'importe'>) => Promise<void>;
   productosExistentes: string[];
   nombresExistentes: string[];
 }
@@ -18,10 +18,12 @@ interface FieldProps {
   step?: string;
   required?: boolean;
   placeholder?: string;
+  helper?: string;
 }
 
 // Labeled field with the shared input shell; `money` adds the $ prefix and the
-// mono font used by every monetary input in the form.
+// mono font used by every monetary input in the form. `helper` renders a small
+// hint below the input (e.g. to mark an optional field).
 function Field({
   label,
   value,
@@ -32,6 +34,7 @@ function Field({
   step,
   required,
   placeholder,
+  helper,
 }: FieldProps) {
   const inputClass = [
     'w-full h-12 border border-outline-variant rounded-xl focus:ring-2 focus:ring-secondary outline-none transition-all',
@@ -64,6 +67,7 @@ function Field({
       ) : (
         input
       )}
+      {helper && <p className="text-on-surface-variant font-body-sm">{helper}</p>}
     </div>
   );
 }
@@ -83,6 +87,7 @@ export default function AgregarVentaForm({
   nombresExistentes,
 }: AgregarVentaFormProps) {
   // Datos de la venta
+  const [numero, setNumero] = useState('');
   const [producto, setProducto] = useState('');
   // Dates start EMPTY to avoid a hydration mismatch (the static build bakes the
   // build-time clock into SSR output); they are filled after mount below.
@@ -241,6 +246,7 @@ export default function AgregarVentaForm({
     setSubmitting(true);
     try {
       await onAddVenta({
+        numero: numero.trim(),
         producto: producto.trim(),
         fecha,
         cantidad,
@@ -270,6 +276,7 @@ export default function AgregarVentaForm({
       // Brief "¡Venta Cargada!" feedback, then reset to defaults.
       setTimeout(() => {
         setDone(false);
+        setNumero('');
         setProducto('');
         setFecha(todayISO());
         setCantidad(1);
@@ -316,6 +323,15 @@ export default function AgregarVentaForm({
         <div className="space-y-4">
           <SectionLabel icon="point_of_sale">Datos de la venta</SectionLabel>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* ID de venta OPTIONAL: a typed value is stored as-is; left empty
+                the backend derives V-#### from the row id automatically. */}
+            <Field
+              label="ID de venta"
+              value={numero}
+              onChange={setNumero}
+              placeholder="V-0001"
+              helper="Déjalo vacío para generarlo automáticamente"
+            />
             {/* Producto Vendido with autocomplete: suggestions show for 3+
                 typed chars and are selected with onMouseDown so the click wins
                 the race against the input's onBlur. */}

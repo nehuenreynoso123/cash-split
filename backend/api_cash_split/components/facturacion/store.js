@@ -6,9 +6,12 @@ import sql from "../../../store/database.js";
 // would show "Invalid Date". The ::text cast keeps the YYYY-MM-DD round-trip.
 
 // Column list shared by list() and the INSERT RETURNING so both shapes match.
+// numero is the manually-typed ID de venta when the user provided one (numero
+// column); COALESCE falls back to the auto V-#### derivation from the row id
+// so rows without a manual value keep their historical rendering.
 const FACTURACION_COLUMNS = `
     id,
-    'V-' || LPAD(id::text, 4, '0') AS numero,
+    COALESCE(numero, 'V-' || LPAD(id::text, 4, '0')) AS numero,
     producto,
     fecha::text AS fecha,
     cantidad,
@@ -34,8 +37,9 @@ const FACTURACION_COLUMNS = `
 `;
 
 export async function list() {
-  // numero (V-0001, V-0002...) is derived from the row id — never stored as a
-  // column, so it is recomputed on every read.
+  // numero is the manual ID de venta when the user typed one, else the auto
+  // V-0001-style derivation from the row id (COALESCE in the shared column
+  // list above keeps both paths in one shape).
   return await sql`
         SELECT ${sql.unsafe(FACTURACION_COLUMNS)}
         FROM ventas_facturacion
@@ -43,7 +47,18 @@ export async function list() {
     `;
 }
 
+export async function del(id) {
+  // Deletes the row and returns it; null means no row matched the id.
+  const [row] = await sql`
+        DELETE FROM ventas_facturacion
+        WHERE id = ${id}
+        RETURNING id
+    `;
+  return row ?? null;
+}
+
 export async function add({
+  numero,
   producto,
   fecha,
   cantidad,
@@ -79,6 +94,21 @@ export async function add({
   // ones. The INSERT below keeps the display name exactly as sent (trimmed,
   // original casing): display is preserved, only the series key is folded.
   return await sql.begin(async (tx) => {
+    // Manual ID de venta (numero) is unique when provided — the partial unique
+    // index on the DB enforces it too; the pre-check turns the raw index
+    // violation into a user-safe 409 message. Empty/null falls back to the
+    // auto V-#### derivation in the SELECT.
+    if (numero) {
+      const [dup] = await tx`
+        SELECT 1 FROM ventas_facturacion WHERE numero = ${numero}
+      `;
+      if (dup) {
+        const err = new Error("Ya existe una venta con ese ID de venta");
+        err.statusCode = 409;
+        throw err;
+      }
+    }
+
     await tx`SELECT pg_advisory_xact_lock(hashtext(lower(${nombre_factura}))::bigint)`;
 
     const [row] = await tx`
@@ -87,22 +117,36 @@ export async function add({
         WHERE lower(nombre_factura) = lower(${nombre_factura})
     `;
 
-    const [venta] = await tx`
-        INSERT INTO ventas_facturacion (
-            producto, fecha, cantidad, precio_venta, comision_venta, comision_cuota,
-            envio_ml, envio_flex, descuento, retenciones, total_recibido, importe,
-            nro_factura, fecha_factura, codigo_postal, localidad, provincia,
-            dni_cuit, nombre_apellido, nombre_factura, link
-        )
-        VALUES (
-            ${producto}, ${fecha}, ${cantidad}, ${precio_venta}, ${comision_venta}, ${comision_cuota},
-            ${envio_ml}, ${envio_flex}, ${descuento}, ${retenciones}, ${total_recibido}, ${importe},
-            ${row.next}, ${fecha_factura},
-            ${codigo_postal || null}, ${localidad || null}, ${provincia || null},
-            ${dni_cuit || null}, ${nombre_apellido || null}, ${nombre_factura}, ${link || null}
-        )
-        RETURNING ${sql.unsafe(FACTURACION_COLUMNS)}
-    `;
+    // The partial unique index on numero is the REAL guarantee; the pre-check
+    // above is only the fast path. A concurrent insert with the same numero
+    // can slip past the SELECT and surface here as a unique-violation (23505)
+    // — translate it into the same user-safe 409 instead of leaking PG text.
+    let venta;
+    try {
+      [venta] = await tx`
+          INSERT INTO ventas_facturacion (
+              numero, producto, fecha, cantidad, precio_venta, comision_venta, comision_cuota,
+              envio_ml, envio_flex, descuento, retenciones, total_recibido, importe,
+              nro_factura, fecha_factura, codigo_postal, localidad, provincia,
+              dni_cuit, nombre_apellido, nombre_factura, link
+          )
+          VALUES (
+              ${numero || null}, ${producto}, ${fecha}, ${cantidad}, ${precio_venta}, ${comision_venta}, ${comision_cuota},
+              ${envio_ml}, ${envio_flex}, ${descuento}, ${retenciones}, ${total_recibido}, ${importe},
+              ${row.next}, ${fecha_factura},
+              ${codigo_postal || null}, ${localidad || null}, ${provincia || null},
+              ${dni_cuit || null}, ${nombre_apellido || null}, ${nombre_factura}, ${link || null}
+          )
+          RETURNING ${sql.unsafe(FACTURACION_COLUMNS)}
+      `;
+    } catch (err) {
+      if (err?.code === "23505") {
+        const conflict = new Error("Ya existe una venta con ese ID de venta");
+        conflict.statusCode = 409;
+        throw conflict;
+      }
+      throw err;
+    }
 
     return venta;
   });

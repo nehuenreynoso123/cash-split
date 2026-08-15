@@ -82,6 +82,14 @@ const MIGRATIONS = [
     CREATE UNIQUE INDEX IF NOT EXISTS ventas_facturacion_nombre_nro_key
       ON ventas_facturacion (lower(nombre_factura), nro_factura);
   END $$`,
+  // Manual ID de venta (numero): user-typed label stored as TEXT. NULL means
+  // "auto-derive V-#### from the row id in the store SELECT", so the partial
+  // unique index below only guards manually-entered values — unlimited NULLs
+  // are allowed while duplicates of a typed value become impossible. The
+  // pre-check in store.js turns the raw index violation into a user-safe 409.
+  "ALTER TABLE ventas_facturacion ADD COLUMN IF NOT EXISTS numero TEXT",
+  `CREATE UNIQUE INDEX IF NOT EXISTS ventas_facturacion_numero_key
+    ON ventas_facturacion (numero) WHERE numero IS NOT NULL`,
 ];
 
 export async function runMigrations() {

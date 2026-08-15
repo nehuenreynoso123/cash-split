@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useAuthRedirect } from '../../hooks/useAuthRedirect';
-import { createVentaFacturacion, listVentasFacturacion, type VentaFacturacion } from '../../lib/api';
+import { createVentaFacturacion, deleteVentaFacturacion, listVentasFacturacion, type VentaFacturacion } from '../../lib/api';
 import VentasTable from './VentasTable';
 import FacturasTable from './FacturasTable';
 import AgregarVentaForm from './AgregarVentaForm';
@@ -73,6 +73,7 @@ export default function FacturacionTabs() {
   const [ventas, setVentas] = useState<Venta[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
+  const [deleteError, setDeleteError] = useState('');
 
   useEffect(() => {
     let cancelled = false;
@@ -97,10 +98,34 @@ export default function FacturacionTabs() {
     };
   }, []);
 
-  const handleAddVenta = async (draft: Omit<Venta, 'id' | 'numero' | 'nroFactura' | 'importe'>) => {
+  const handleAddVenta = async (draft: Omit<Venta, 'id' | 'nroFactura' | 'importe'>) => {
     const row = await createVentaFacturacion(draft);
     // Backend returns rows ordered by id ASC, so appending keeps that order.
     setVentas((prev) => [...prev, toVenta(row)]);
+  };
+
+  // Sequential delete keeps state consistent: each successful call drops its
+  // row from state and the first failure aborts the batch, surfacing the
+  // backend's message above the tables (the table clears its selection after
+  // the batch; on failure the remaining rows stay listed so they can be
+  // reselected and retried — rows already deleted server-side are gone here).
+  const handleDelete = async (ids: number[]) => {
+    setDeleteError('');
+    const deleted: number[] = [];
+    for (const id of ids) {
+      try {
+        await deleteVentaFacturacion(id);
+        deleted.push(id);
+      } catch (err) {
+        setDeleteError(
+          err instanceof Error ? err.message : 'No se pudo borrar la venta seleccionada.'
+        );
+        break;
+      }
+    }
+    if (deleted.length > 0) {
+      setVentas((prev) => prev.filter((v) => !deleted.includes(v.id)));
+    }
   };
 
   // Unique, trimmed product names already present — feeds the form autocomplete.
@@ -140,6 +165,12 @@ export default function FacturacionTabs() {
       ) : (
         loadError && <p className="text-error font-body-sm">{loadError}</p>
       )}
+      {deleteError && (
+        <p role="alert" className="text-error font-body-sm flex items-center gap-2">
+          <span className="material-symbols-outlined text-[18px]">error</span>
+          {deleteError}
+        </p>
+      )}
 
       {/* All tabs stay mounted — visibility toggles with `hidden` so the
           Agregar Venta form draft and the ventas list survive tab switches. */}
@@ -147,7 +178,7 @@ export default function FacturacionTabs() {
         <VentasTable ventas={ventas} />
       </div>
       <div className={activeTab === 'facturacion' ? '' : 'hidden'}>
-        <FacturasTable ventas={ventas} />
+        <FacturasTable ventas={ventas} onDelete={handleDelete} />
       </div>
       <div className={activeTab === 'comisionesRetenciones' ? '' : 'hidden'}>
         <ComisionesRetencionesTable ventas={ventas} />

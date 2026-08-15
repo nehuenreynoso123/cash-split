@@ -4,6 +4,7 @@ import type { Venta } from './ventas';
 
 interface FacturasTableProps {
   ventas: Venta[];
+  onDelete: (ids: number[]) => Promise<void>;
 }
 
 const COLUMNS: { label: string; align?: 'right' }[] = [
@@ -51,7 +52,7 @@ function buildClipboardText(ventas: Venta[]): string {
     .join('\r\n');
 }
 
-export default function FacturasTable({ ventas }: FacturasTableProps) {
+export default function FacturasTable({ ventas, onDelete }: FacturasTableProps) {
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'error'>('idle');
 
@@ -72,6 +73,22 @@ export default function FacturasTable({ ventas }: FacturasTableProps) {
       setCopyState('error');
     }
     setTimeout(() => setCopyState('idle'), 2000);
+  };
+
+  // Destructive action: the user must confirm before the rows are deleted.
+  // Errors are surfaced by the parent (FacturacionTabs) — onDelete never
+  // rejects, so the selection is always cleared once the batch ran.
+  const handleDelete = async () => {
+    const count = selectedVentas.length;
+    if (count === 0) return;
+    const confirmed = window.confirm(
+      count === 1
+        ? '¿Borrar 1 venta? Esta acción no se puede deshacer.'
+        : `¿Borrar ${count} ventas? Esta acción no se puede deshacer.`,
+    );
+    if (!confirmed) return;
+    await onDelete(selectedIds);
+    setSelectedIds([]);
   };
 
   return (
@@ -101,6 +118,15 @@ export default function FacturasTable({ ventas }: FacturasTableProps) {
                   ? 'Error'
                   : `Copiar (${selectedVentas.length})`}
             </span>
+          </button>
+          <button
+            type="button"
+            onClick={handleDelete}
+            disabled={selectedVentas.length === 0}
+            className="inline-flex items-center gap-2 h-10 px-4 rounded-full bg-error text-on-error font-label-lg shadow-sm hover:bg-error/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+          >
+            <span className="material-symbols-outlined text-lg">delete</span>
+            <span>Borrar ({selectedVentas.length})</span>
           </button>
         </div>
       </div>

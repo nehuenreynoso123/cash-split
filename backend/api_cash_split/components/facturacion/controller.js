@@ -1,4 +1,4 @@
-import { add, list } from "./store.js";
+import { add, del, list } from "./store.js";
 
 // Schema-aligned max lengths for free-text fields (mirror store/init.sql).
 const MAX_LENGTHS = {
@@ -10,6 +10,7 @@ const MAX_LENGTHS = {
   provincia: 100,
   dni_cuit: 50,
   codigo_postal: 20,
+  numero: 50,
 };
 
 // Invoice numbering starts per name: almendra → 202, nehuen → 8, any other
@@ -43,6 +44,8 @@ const FIELD_LABELS = {
   provincia: "Provincia",
   dni_cuit: "DNI/CUIT",
   link: "Link de la venta",
+  numero: "ID de venta",
+  numero_reservado: "ID de venta reservado para numeración automática",
   comision_venta: "Comisión por venta",
   comision_cuota: "Comisión por cuota",
   envio_ml: "Envío ML",
@@ -115,6 +118,20 @@ const addVenta = async (body) => {
     }
   }
 
+  // Optional manual ID de venta (numero): typed by the user and stored as-is
+  // (max 50 chars); empty/absent falls back to the auto V-#### derivation in
+  // the store's SELECT. A manual value is NOT free-form text — it labels the
+  // sale — but it still cannot exceed the column's VARCHAR(50).
+  const numero = typeof body.numero === "string" ? body.numero.trim() : "";
+  if (numero.length > MAX_LENGTHS.numero) invalid.push("numero");
+
+  // The V-#### shape is RESERVED for auto-derived numeros: the derivation
+  // ('V-' || LPAD(id::text, 4, '0')) is computed in the SELECT and NEVER
+  // stored, so the unique index on numero cannot see a collision with a
+  // manually-typed 'V-0001'. Reject the reserved pattern outright so a manual
+  // value can never shadow an auto-derived display value.
+  if (numero && /^V-\d{4}$/i.test(numero)) invalid.push("numero_reservado");
+
   // Link, when present, must be a parseable http(s) URL (defense in depth —
   // the frontend already guards rendering, but data should be safe at rest).
   const link = typeof body.link === "string" ? body.link.trim() : "";
@@ -160,6 +177,7 @@ const addVenta = async (body) => {
   // the client can never send a different one.
   const nombreFactura = body.nombre_factura.trim();
   const payload = {
+    numero,
     producto: body.producto.trim(),
     fecha: body.fecha,
     cantidad,
@@ -191,7 +209,28 @@ const listVenta = async () => {
   return listVentas;
 };
 
+const deleteVenta = async (idParam) => {
+  // The id comes from the URL as a string; reject anything that is not a
+  // positive integer before hitting the DB (user-safe 400, no SQL details).
+  const id = Number(idParam);
+  if (!Number.isInteger(id) || id <= 0) {
+    const err = new Error("Datos inválidos: ID de venta");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const deleted = await del(id);
+  if (!deleted) {
+    const err = new Error("Venta no encontrada");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  return deleted;
+};
+
 export default {
   addVenta,
   listVenta,
+  deleteVenta,
 };

@@ -39,18 +39,22 @@ CREATE TABLE IF NOT EXISTS ventas (
 );
 
 -- Facturación de ventas (sección /facturacion del frontend).
--- `numero` (V-0001...) se deriva del id en cada query; `nro_factura` se calcula
--- POR NOMBRE en store.js: cada nombre numera sus propias facturas desde su base
--- (Almendra desde 202, Nehuen desde 8, cualquier otro desde 1) dentro de una
--- transacción con advisory lock — MAX+1 por nombre, seguro bajo escrituras
--- concurrentes del mismo nombre. La serie se keyea en lower(nombre_factura)
--- (mismo casing que el lookup de bases y el índice único), así "Almendra" y
--- "ALMENDRA" son UNA sola serie.
+-- `numero` (V-0001...) es el ID de venta: si el usuario tipeó uno se guarda en
+-- la columna `numero`; si está NULL la query lo deriva del id ('V-' || LPAD...)
+-- vía COALESCE — las filas viejas siguen mostrando el derivado. `nro_factura`
+-- se calcula POR NOMBRE en store.js: cada nombre numera sus propias facturas
+-- desde su base (Almendra desde 202, Nehuen desde 8, cualquier otro desde 1)
+-- dentro de una transacción con advisory lock — MAX+1 por nombre, seguro bajo
+-- escrituras concurrentes del mismo nombre. La serie se keyea en
+-- lower(nombre_factura) (mismo casing que el lookup de bases y el índice
+-- único), así "Almendra" y "ALMENDRA" son UNA sola serie.
 -- UNICIDAD: no hay CONSTRAINT a nivel columna; el índice único funcional
--- (lower(nombre_factura), nro_factura) se crea en migrate.js en cada boot
--- (única fuente de la garantía, antes de que sirvan las rutas).
+-- (lower(nombre_factura), nro_factura) y el parcial sobre `numero` (solo
+-- valores manuales, los NULL no chocan) se crean en migrate.js en cada boot
+-- (única fuente de las garantías, antes de que sirvan las rutas).
 CREATE TABLE IF NOT EXISTS ventas_facturacion (
     id SERIAL PRIMARY KEY,
+    numero TEXT,
     producto VARCHAR(200) NOT NULL,
     fecha DATE NOT NULL,
     cantidad INTEGER NOT NULL,
