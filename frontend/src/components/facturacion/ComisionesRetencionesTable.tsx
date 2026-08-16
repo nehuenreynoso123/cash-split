@@ -1,3 +1,4 @@
+import { useMemo, useState } from 'react';
 import { formatCurrency, formatLocalDate } from '../../lib/data';
 import type { Venta } from './ventas';
 
@@ -5,9 +6,9 @@ interface ComisionesRetencionesTableProps {
   ventas: Venta[];
 }
 
-const COLUMNS: { label: string; align?: 'right' }[] = [
+const COLUMNS: { label: string; align?: 'right'; sortKey?: 'fecha' }[] = [
   { label: 'ID de venta' },
-  { label: 'Fecha' },
+  { label: 'Fecha', sortKey: 'fecha' },
   { label: 'Cantidad' },
   { label: 'Precio de Venta', align: 'right' },
   { label: 'Comisión por Venta', align: 'right' },
@@ -24,6 +25,26 @@ const COLUMNS: { label: string; align?: 'right' }[] = [
 const moneyCell = 'px-6 py-4 text-right font-data-mono whitespace-nowrap';
 
 export default function ComisionesRetencionesTable({ ventas }: ComisionesRetencionesTableProps) {
+  const [sort, setSort] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
+
+  // Display order: the original (API id ASC) order until the user clicks a
+  // sortable header. ISO date strings compare lexicographically, which equals
+  // chronological order.
+  const sortedVentas = useMemo(() => {
+    if (!sort) return ventas;
+    const factor = sort.direction === 'asc' ? 1 : -1;
+    return [...ventas].sort((a, b) => a.fecha.localeCompare(b.fecha) * factor);
+  }, [ventas, sort]);
+
+  // Clicking a sortable header cycles asc -> desc -> asc; switching to a
+  // different column restarts at asc.
+  const toggleSort = (key: string) => {
+    setSort((prev) => {
+      if (!prev || prev.key !== key) return { key, direction: 'asc' };
+      return { key, direction: prev.direction === 'asc' ? 'desc' : 'asc' };
+    });
+  };
+
   return (
     <section className="bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden shadow-sm">
       <div className="p-6 border-b border-outline-variant bg-surface-container-low flex justify-between items-center">
@@ -40,16 +61,50 @@ export default function ComisionesRetencionesTable({ ventas }: ComisionesRetenci
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="bg-surface-bright border-b border-outline-variant">
-              {COLUMNS.map((c) => (
-                <th
-                  key={c.label}
-                  className={`px-6 py-4 font-label-caps text-on-surface-variant uppercase tracking-wider whitespace-nowrap ${
-                    c.align === 'right' ? 'text-right' : ''
-                  }`}
-                >
-                  {c.label}
-                </th>
-              ))}
+              {COLUMNS.map((c) => {
+                const sortKey = c.sortKey;
+                return (
+                  <th
+                    key={c.label}
+                    aria-sort={
+                      sort && sortKey && sort.key === sortKey
+                        ? sort.direction === 'asc'
+                          ? 'ascending'
+                          : 'descending'
+                        : undefined
+                    }
+                    className={`px-6 py-4 font-label-caps text-on-surface-variant uppercase tracking-wider whitespace-nowrap ${
+                      c.align === 'right' ? 'text-right' : ''
+                    }`}
+                  >
+                    {sortKey ? (
+                      <button
+                        type="button"
+                        onClick={() => toggleSort(sortKey)}
+                        title={`Ordenar por ${c.label}`}
+                        aria-label={`Ordenar por ${c.label}`}
+                        className="inline-flex items-center gap-1 whitespace-nowrap cursor-pointer"
+                      >
+                        {c.label}
+                        <span
+                          aria-hidden="true"
+                          className={`material-symbols-outlined text-base leading-none ${
+                            sort && sort.key === sortKey ? 'text-primary' : 'text-on-surface-variant'
+                          }`}
+                        >
+                          {sort && sort.key === sortKey
+                            ? sort.direction === 'asc'
+                              ? 'arrow_upward'
+                              : 'arrow_downward'
+                            : 'unfold_more'}
+                        </span>
+                      </button>
+                    ) : (
+                      c.label
+                    )}
+                  </th>
+                );
+              })}
             </tr>
           </thead>
           <tbody className="divide-y divide-outline-variant/30">
@@ -60,7 +115,7 @@ export default function ComisionesRetencionesTable({ ventas }: ComisionesRetenci
                 </td>
               </tr>
             ) : (
-              ventas.map((v) => (
+              sortedVentas.map((v) => (
                 <tr key={v.id} className="hover:bg-surface-container-lowest transition-colors group">
                   <td className="px-6 py-4 font-data-mono text-on-surface-variant whitespace-nowrap">
                     {v.numero}
