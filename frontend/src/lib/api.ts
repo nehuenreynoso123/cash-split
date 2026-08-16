@@ -20,6 +20,7 @@ export function isAuthenticated(): boolean {
 
 export function clearUser(): void {
   localStorage.removeItem('cs_user');
+  localStorage.removeItem('cs_token');
 }
 
 export async function signout(): Promise<void> {
@@ -45,9 +46,13 @@ export function getStoredUser(): User | null {
 
 // ── Generic request helper ─────────────────────────────────────
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('cs_token') : null;
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+
   const res = await fetch(`${API_BASE}${path}`, {
     method,
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     credentials: 'include',
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
@@ -71,17 +76,20 @@ export interface User {
 
 export interface AuthResult {
   user: User;
+  token: string;
 }
 
 export async function signin(email: string, password: string): Promise<AuthResult> {
   const result = await request<AuthResult>('POST', '/signin', { email, password });
   localStorage.setItem('cs_user', JSON.stringify(result.user));
+  localStorage.setItem('cs_token', result.token);
   return result;
 }
 
 export async function signup(nombre: string, email: string, password: string): Promise<AuthResult> {
   const result = await request<AuthResult>('POST', '/signup', { nombre, email, password });
   localStorage.setItem('cs_user', JSON.stringify(result.user));
+  localStorage.setItem('cs_token', result.token);
   return result;
 }
 

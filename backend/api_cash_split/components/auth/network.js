@@ -22,7 +22,7 @@ function signup(req, resp, next) {
     .signup(req.body)
     .then((data) => {
       resp.cookie("cs_token", data.token, COOKIE_OPTIONS);
-      response.success(req, resp, { user: data.user }, 201);
+      response.success(req, resp, { user: data.user, token: data.token }, 201);
     })
     .catch(next);
 }
@@ -32,7 +32,7 @@ function signin(req, resp, next) {
     .signin(req.body)
     .then((data) => {
       resp.cookie("cs_token", data.token, COOKIE_OPTIONS);
-      response.success(req, resp, { user: data.user }, 200);
+      response.success(req, resp, { user: data.user, token: data.token }, 200);
     })
     .catch(next);
 }

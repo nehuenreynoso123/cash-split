@@ -2,9 +2,20 @@ import jwt from "jsonwebtoken";
 import config from "../../config.js";
 
 const SECRET = config.jwt.SECRET;
+const TOKEN_PREFIX = "Bearer ";
+
+// A JWT has three dot-separated segments (header.payload.signature).
+function looksLikeJwt(value) {
+  return typeof value === "string" && value.split(".").length === 3;
+}
 
 export function verifyToken(req, resp, next) {
-  const token = req.cookies?.cs_token;
+  const authHeader = req.headers?.authorization;
+  const headerToken =
+    authHeader?.startsWith(TOKEN_PREFIX) && looksLikeJwt(authHeader.slice(TOKEN_PREFIX.length))
+      ? authHeader.slice(TOKEN_PREFIX.length)
+      : undefined;
+  const token = headerToken || req.cookies?.cs_token;
 
   if (!token) {
     const err = new Error("Token no proporcionado");
