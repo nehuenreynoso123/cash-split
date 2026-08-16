@@ -15,6 +15,7 @@ const COLUMNS: { label: string; align?: 'right' }[] = [
   { label: 'Envío ML', align: 'right' },
   { label: 'Envío Flex', align: 'right' },
   { label: 'Descuento', align: 'right' },
+  { label: '% Descuento', align: 'right' },
   { label: 'Retenciones', align: 'right' },
   { label: 'Total Recibido', align: 'right' },
   { label: 'Producto Vendido' },
@@ -71,12 +72,19 @@ export default function ComisionesRetencionesTable({ ventas }: ComisionesRetenci
                   <td className={`${moneyCell} text-primary font-semibold`}>
                     {formatCurrency(v.precioVenta)}
                   </td>
-                  <td className={moneyCell}>{formatCurrency(v.comisionVenta)}</td>
-                  <td className={moneyCell}>{formatCurrency(v.comisionCuota)}</td>
-                  <td className={moneyCell}>{formatCurrency(v.envioML)}</td>
-                  <td className={moneyCell}>{formatCurrency(v.envioFlex)}</td>
-                  <td className={`${moneyCell} text-error`}>{formatCurrency(v.descuento)}</td>
-                  <td className={`${moneyCell} text-error`}>{formatCurrency(v.retenciones)}</td>
+                  <td className={`${moneyCell} text-error`}>-{formatCurrency(v.comisionVenta)}</td>
+                  <td className={`${moneyCell} text-error`}>-{formatCurrency(v.comisionCuota)}</td>
+                  <td className={`${moneyCell} text-error`}>-{formatCurrency(v.envioML)}</td>
+                  <td className={`${moneyCell} text-green-600`}>{formatCurrency(v.envioFlex)}</td>
+                  <td className={`${moneyCell} text-error`}>-{formatCurrency(v.descuento)}</td>
+                  <td className={`${moneyCell} text-error`}>
+                    {v.precioVenta > 0
+                      ? `${((v.descuento / v.precioVenta) * 100).toLocaleString('es-AR', {
+                          maximumFractionDigits: 2,
+                        })}%`
+                      : '—'}
+                  </td>
+                  <td className={`${moneyCell} text-error`}>-{formatCurrency(v.retenciones)}</td>
                   <td className={`${moneyCell} text-primary font-semibold`}>
                     {formatCurrency(v.totalRecibido)}
                   </td>
