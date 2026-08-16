@@ -9,9 +9,12 @@ import {
   type LumixCliente,
 } from '../../lib/api';
 import Modal from '../ui/Modal';
+import Badge from '../ui/Badge';
 import { formatLocalDate, todayISO } from '../../lib/data';
+import { clienteEstado, parseSuscripcionText, type EstadoCliente } from '../../lib/lumix';
 
 const COLUMNS = [
+  'Estado',
   'Usuario',
   'Contraseña',
   'Vencimiento',
@@ -20,6 +23,15 @@ const COLUMNS = [
   'Vendedor',
   '',
 ];
+
+// Estado del cliente → shared Badge mapping. The shared Badge (already used by
+// ProductTable and RotacionClient) is the project's established status badge;
+// reusing it keeps the Lumix table visually consistent with the other sections.
+const ESTADO_BADGE: Record<EstadoCliente, { variant: 'success' | 'warning' | 'error'; label: string }> = {
+  activo: { variant: 'success', label: 'Activo' },
+  vence_pronto: { variant: 'warning', label: 'Vence pronto' },
+  vencido: { variant: 'error', label: 'Vencido' },
+};
 
 interface FieldProps {
   label: string;
@@ -77,6 +89,14 @@ export default function LumixClientes() {
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
+  // "Pegar datos" flow: the manual-textarea fallback plus the paste feedback
+  // line (auto-cleared, mirroring the submit "done" flash pattern).
+  const [pasteFallbackOpen, setPasteFallbackOpen] = useState(false);
+  const [pasteText, setPasteText] = useState('');
+  const [pasteMessage, setPasteMessage] = useState<{ type: 'ok' | 'error'; text: string } | null>(
+    null,
+  );
+
   // Renovar: the target cliente plus the selected months drive the modal.
   const [renewTarget, setRenewTarget] = useState<LumixCliente | null>(null);
   const [renewMeses, setRenewMeses] = useState(12);
@@ -117,6 +137,9 @@ export default function LumixClientes() {
   useEffect(() => {
     setVencimiento(todayISO());
   }, []);
+
+  // Local today (same convention as the vencimiento inputs / data.ts todayISO).
+  const hoy = todayISO();
 
   // Distinct seller names already loaded — feeds the vendedor autocomplete,
   // deduped. Shows on focus, no minimum chars (same reasoning as facturación's
@@ -217,6 +240,67 @@ export default function LumixClientes() {
       setSubmitting(false);
     }
   };
+
+  // "Pegar datos": reads the clipboard (secure contexts only) and fills the
+  // form from the pasted subscription text. On any failure — insecure context,
+  // permission denied, empty text — it opens the manual textarea fallback
+  // instead of failing silently.
+  const handlePasteClick = async () => {
+    try {
+      if (typeof navigator === 'undefined' || !navigator.clipboard || !window.isSecureContext) {
+        throw new Error('clipboard unavailable');
+      }
+      const text = await navigator.clipboard.readText();
+      if (!text || !text.trim()) {
+        setPasteFallbackOpen(true);
+        setPasteMessage({ type: 'error', text: 'El portapapeles está vacío.' });
+        return;
+      }
+      aplicarDatosPegados(text);
+    } catch {
+      setPasteFallbackOpen(true);
+      setPasteMessage({ type: 'error', text: 'No se pudo leer el portapapeles.' });
+    }
+  };
+
+  // Applies parsed subscription data to the form. Only the fields the text
+  // actually contains are filled; the rest of the form keeps its values.
+  const aplicarDatosPegados = (text: string) => {
+    const datos = parseSuscripcionText(text);
+    const reconocido =
+      datos.usuario !== undefined ||
+      datos.contrasena !== undefined ||
+      datos.vencimiento !== undefined ||
+      datos.vencimientoError !== undefined;
+    if (!reconocido) {
+      setPasteMessage({ type: 'error', text: 'No se pudieron reconocer los datos pegados.' });
+      return;
+    }
+    if (datos.usuario !== undefined) setUsuario(datos.usuario);
+    if (datos.contrasena !== undefined) setContrasena(datos.contrasena);
+    if (datos.vencimiento !== undefined) setVencimiento(datos.vencimiento);
+    if (datos.vencimientoError) {
+      // Partial fill: credentials were recognized but the date was malformed.
+      setPasteMessage({
+        type: 'error',
+        text: 'La fecha de vencimiento del texto no se pudo interpretar.',
+      });
+    } else {
+      setPasteMessage({ type: 'ok', text: 'Datos cargados desde el portapapeles.' });
+      // Clear the manual textarea so reopening the fallback never re-applies
+      // stale credentials from a previous paste.
+      setPasteText('');
+      setPasteFallbackOpen(false);
+    }
+  };
+
+  // Auto-clear the paste feedback line (same timing pattern as the submit
+  // "¡Cliente Cargado!" flash).
+  useEffect(() => {
+    if (!pasteMessage) return;
+    const timer = setTimeout(() => setPasteMessage(null), 4000);
+    return () => clearTimeout(timer);
+  }, [pasteMessage]);
 
   // Destructive action: the user must confirm before the row is deleted.
   const handleDelete = async (id: number) => {
@@ -344,11 +428,22 @@ export default function LumixClientes() {
                     </td>
                   </tr>
                 ) : (
-                  clientes.map((c) => (
-                    <tr key={c.id} className="hover:bg-surface-container-lowest transition-colors group">
-                      <td className="px-6 py-4 font-data-mono text-on-surface-variant whitespace-nowrap">
-                        {c.usuario}
-                      </td>
+                  clientes.map((c) => {
+                    const estado = clienteEstado(c.vencimiento, hoy);
+                    return (
+                      <tr key={c.id} className="hover:bg-surface-container-lowest transition-colors group">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          {estado ? (
+                            <Badge variant={ESTADO_BADGE[estado].variant}>
+                              {ESTADO_BADGE[estado].label}
+                            </Badge>
+                          ) : (
+                            '—'
+                          )}
+                        </td>
+                        <td className="px-6 py-4 font-data-mono text-on-surface-variant whitespace-nowrap">
+                          {c.usuario}
+                        </td>
                       <td className="px-6 py-4 font-data-mono text-on-surface-variant whitespace-nowrap">
                         {c.contrasena}
                       </td>
@@ -423,8 +518,8 @@ export default function LumixClientes() {
                         </div>
                       </td>
                     </tr>
-                  ))
-                )}
+                  );
+                }))}
               </tbody>
             </table>
           </div>
@@ -452,8 +547,56 @@ export default function LumixClientes() {
             <span className="material-symbols-outlined text-secondary">add_circle</span>
             <h3 className="font-headline-md text-headline-md text-primary">Cargar Cliente</h3>
           </div>
-          <span className="text-on-surface-variant font-body-sm">Datos en el servidor</span>
+          <div className="flex items-center gap-3">
+            <span className="text-on-surface-variant font-body-sm">Datos en el servidor</span>
+            <button
+              type="button"
+              onClick={handlePasteClick}
+              title="Pegar los datos de la suscripción desde el portapapeles"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-body-sm font-semibold text-on-surface-variant border border-outline-variant rounded-lg hover:bg-surface-container-low hover:text-secondary transition-all active:scale-95"
+            >
+              <span className="material-symbols-outlined text-[18px]">content_paste</span>
+              Pegar datos
+            </button>
+          </div>
         </div>
+
+        {pasteMessage && (
+          <p
+            role={pasteMessage.type === 'error' ? 'alert' : 'status'}
+            className={`px-8 pt-4 font-body-sm flex items-center gap-2 ${
+              pasteMessage.type === 'error' ? 'text-error' : 'text-on-surface-variant'
+            }`}
+          >
+            <span className="material-symbols-outlined text-[18px]">
+              {pasteMessage.type === 'error' ? 'error' : 'check_circle'}
+            </span>
+            {pasteMessage.text}
+          </p>
+        )}
+
+        {pasteFallbackOpen && (
+          <div className="px-8 pt-4 space-y-3" role="group" aria-label="Pegar texto manualmente">
+            <p className="text-on-surface-variant font-body-sm">
+              El portapapeles no está disponible. Pegue el texto de la suscripción aquí:
+            </p>
+            <textarea
+              value={pasteText}
+              onChange={(e) => setPasteText(e.target.value)}
+              rows={4}
+              placeholder="Texto de la suscripción…"
+              className="w-full p-3 border border-outline-variant rounded-xl focus:ring-2 focus:ring-secondary outline-none font-body-sm"
+            />
+            <button
+              type="button"
+              onClick={() => aplicarDatosPegados(pasteText)}
+              className="flex items-center gap-1.5 px-4 py-2 text-body-sm font-semibold bg-secondary text-on-secondary rounded-lg hover:bg-secondary-container transition-all active:scale-95"
+            >
+              <span className="material-symbols-outlined text-[18px]">done</span>
+              Aplicar
+            </button>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="p-8 space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
