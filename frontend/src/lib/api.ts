@@ -400,4 +400,46 @@ export async function deleteVentaFacturacion(id: number): Promise<void> {
   return request<void>('DELETE', `/facturacion-ventas/${id}`);
 }
 
+// ── Lumix (clientes de la app de TV) ───────────────────────────
+// Backend rows come back snake_case; vencimiento is a date-only string
+// (DATE cast to text by the backend, same round-trip as facturación).
+export interface LumixCliente {
+  id: number;
+  usuario: string;
+  contrasena: string;
+  vencimiento: string; // YYYY-MM-DD
+  nombre_cliente: string;
+  whatsapp: string | null;
+  dueno: string | null; // "de quién es el cliente" (vendedor/revendedor)
+  created_at: string;
+}
 
+// Draft payload shape (camelCase, same as the form model); the backend assigns
+// id and created_at. whatsapp and dueno are OPTIONAL (empty string → NULL).
+export interface LumixClienteDraft {
+  usuario: string;
+  contrasena: string;
+  vencimiento: string;
+  nombreCliente: string;
+  whatsapp: string;
+  dueno: string;
+}
+
+export async function listLumixClientes(): Promise<LumixCliente[]> {
+  return request<LumixCliente[]>('GET', '/lumix-clientes');
+}
+
+export async function createLumixCliente(draft: LumixClienteDraft): Promise<LumixCliente> {
+  return request<LumixCliente>('POST', '/lumix-clientes', {
+    usuario: draft.usuario,
+    contrasena: draft.contrasena,
+    vencimiento: draft.vencimiento,
+    nombre_cliente: draft.nombreCliente,
+    whatsapp: draft.whatsapp,
+    dueno: draft.dueno,
+  });
+}
+
+export async function deleteLumixCliente(id: number): Promise<void> {
+  return request<void>('DELETE', `/lumix-clientes/${id}`);
+}

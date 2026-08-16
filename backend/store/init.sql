@@ -104,3 +104,17 @@ CREATE TABLE IF NOT EXISTS deudores (
 
 -- Migración: agregar fecha_cobro a ventas (si la tabla ya existe)
 -- ALTER TABLE ventas ADD COLUMN IF NOT EXISTS fecha_cobro DATE;
+
+-- Clientes de la app de TV (sección /lumix del frontend).
+-- `contrasena` se guarda tal cual (texto plano) por decisión del usuario: la
+-- UI siempre la muestra. `whatsapp` y `dueno` son opcionales.
+CREATE TABLE IF NOT EXISTS clientes_lumix (
+    id SERIAL PRIMARY KEY,
+    usuario VARCHAR(100) NOT NULL,
+    contrasena VARCHAR(100) NOT NULL,
+    vencimiento DATE NOT NULL,
+    nombre_cliente VARCHAR(200) NOT NULL,
+    whatsapp VARCHAR(30),
+    dueno VARCHAR(100),
+    created_at TIMESTAMP NOT NULL DEFAULT NOW()
+);

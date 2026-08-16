@@ -20,6 +20,7 @@ const navItems: NavItem[] = [
   { id: 'liquidez', label: 'Liquidez', icon: 'account_balance_wallet', href: '/liquidez' },
   { id: 'gastos', label: 'Gastos', icon: 'receipt_long', href: '/gastos' },
   { id: 'deudores', label: 'Deudores', icon: 'group_remove', href: '/deudores' },
+  { id: 'lumix', label: 'Lumix', icon: 'live_tv', href: '/lumix' },
   { id: 'flujo-fondos', label: 'Flujo de Fondos', icon: 'currency_exchange', href: '/flujo-fondos' },
   { id: 'calculadora', label: 'Calculadora', icon: 'calculate', href: '/calculadora' },
 ];

@@ -1,0 +1,12 @@
+---
+import AppLayout from '../layouts/AppLayout.astro';
+import LumixClientes from '../components/lumix/LumixClientes';
+---
+
+<AppLayout
+  currentPage="lumix"
+  pageTitle="Lumix"
+  pageSubtitle="Clientes de la app de TV"
+>
+  <LumixClientes client:load />
+</AppLayout>

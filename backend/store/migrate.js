@@ -90,6 +90,20 @@ const MIGRATIONS = [
   "ALTER TABLE ventas_facturacion ADD COLUMN IF NOT EXISTS numero TEXT",
   `CREATE UNIQUE INDEX IF NOT EXISTS ventas_facturacion_numero_key
     ON ventas_facturacion (numero) WHERE numero IS NOT NULL`,
+  // Clientes de la app de TV (sección /lumix del frontend). contrasena is
+  // stored as plaintext per user request (always visible in the UI); whatsapp
+  // and dueno are optional. Recreated idempotently for DBs that were
+  // initialized before this feature shipped.
+  `CREATE TABLE IF NOT EXISTS clientes_lumix (
+    id SERIAL PRIMARY KEY,
+    usuario VARCHAR(100) NOT NULL,
+    contrasena VARCHAR(100) NOT NULL,
+    vencimiento DATE NOT NULL,
+    nombre_cliente VARCHAR(200) NOT NULL,
+    whatsapp VARCHAR(30),
+    dueno VARCHAR(100),
+    created_at TIMESTAMP NOT NULL DEFAULT NOW()
+  )`,
 ];
 
 export async function runMigrations() {
