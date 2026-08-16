@@ -6,6 +6,8 @@ import sql from "../../../store/database.js";
 // would show "Invalid Date". The ::text cast keeps the YYYY-MM-DD round-trip.
 
 // Column list shared by list() and the INSERT RETURNING so both shapes match.
+// precio is NUMERIC: postgres.js returns it as a string (same wire shape as
+// productos/ventas money), and the frontend api layer normalizes to number.
 const LUMIX_CLIENTES_COLUMNS = `
     id,
     usuario,
@@ -14,6 +16,7 @@ const LUMIX_CLIENTES_COLUMNS = `
     nombre_cliente,
     whatsapp,
     dueno,
+    precio,
     created_at
 `;
 
@@ -50,6 +53,18 @@ export async function updateVencimiento(id, vencimiento) {
   const [row] = await sql`
         UPDATE clientes_lumix
         SET vencimiento = ${vencimiento}
+        WHERE id = ${id}
+        RETURNING ${sql.unsafe(LUMIX_CLIENTES_COLUMNS)}
+    `;
+  return row ?? null;
+}
+
+// Persists a new precio (null clears it) and returns the updated row; null
+// means no row matched the id.
+export async function updatePrecio(id, precio) {
+  const [row] = await sql`
+        UPDATE clientes_lumix
+        SET precio = ${precio}
         WHERE id = ${id}
         RETURNING ${sql.unsafe(LUMIX_CLIENTES_COLUMNS)}
     `;
@@ -106,16 +121,19 @@ export async function add({
   nombre_cliente,
   whatsapp,
   dueno,
+  precio,
 }) {
   // whatsapp/dueno are optional: empty strings are stored as NULL so "absent"
-  // is a single shape on read (the frontend renders '—' for null).
+  // is a single shape on read (the frontend renders '—' for null). precio is
+  // optional too: the controller normalizes it to null when absent; the ??
+  // guard keeps the store safe against undefined callers.
   const [row] = await sql`
         INSERT INTO clientes_lumix (
-            usuario, contrasena, vencimiento, nombre_cliente, whatsapp, dueno
+            usuario, contrasena, vencimiento, nombre_cliente, whatsapp, dueno, precio
         )
         VALUES (
             ${usuario}, ${contrasena}, ${vencimiento}, ${nombre_cliente},
-            ${whatsapp || null}, ${dueno || null}
+            ${whatsapp || null}, ${dueno || null}, ${precio ?? null}
         )
         RETURNING ${sql.unsafe(LUMIX_CLIENTES_COLUMNS)}
     `;

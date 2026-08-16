@@ -5,19 +5,28 @@ import {
   deleteLumixCliente,
   listLumixClientes,
   renovarLumixCliente,
+  updateLumixClientePrecio,
   updateLumixClienteVencimiento,
   type LumixCliente,
 } from '../../lib/api';
 import Modal from '../ui/Modal';
 import Badge from '../ui/Badge';
-import { formatLocalDate, todayISO } from '../../lib/data';
-import { clienteEstado, parseSuscripcionText, type EstadoCliente } from '../../lib/lumix';
+import { formatCurrency, formatLocalDate, todayISO } from '../../lib/data';
+import {
+  clienteEstado,
+  construirMensajeRenovacion,
+  parsePrecioInput,
+  parseSuscripcionText,
+  sanitizarWhatsapp,
+  type EstadoCliente,
+} from '../../lib/lumix';
 
 const COLUMNS = [
   'Estado',
   'Usuario',
   'Contraseña',
   'Vencimiento',
+  'Precio',
   'Nombre del Cliente',
   'Nro de WhatsApp',
   'Vendedor',
@@ -37,14 +46,15 @@ interface FieldProps {
   label: string;
   value: string;
   onChange: (value: string) => void;
-  type?: 'text' | 'date';
+  type?: 'text' | 'date' | 'number';
   required?: boolean;
   placeholder?: string;
   helper?: string;
+  step?: string;
 }
 
 // Labeled field with the shared input shell used by every form input.
-function Field({ label, value, onChange, type = 'text', required, placeholder, helper }: FieldProps) {
+function Field({ label, value, onChange, type = 'text', required, placeholder, helper, step }: FieldProps) {
   return (
     <div className="space-y-2">
       <label className="font-label-caps text-on-surface-variant uppercase">{label}</label>
@@ -54,6 +64,7 @@ function Field({ label, value, onChange, type = 'text', required, placeholder, h
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         required={required}
+        step={step}
         className="w-full h-12 px-4 border border-outline-variant rounded-xl focus:ring-2 focus:ring-secondary outline-none transition-all"
       />
       {helper && <p className="text-on-surface-variant font-body-sm">{helper}</p>}
@@ -81,6 +92,9 @@ export default function LumixClientes() {
   const [whatsapp, setWhatsapp] = useState('');
   // "Vendedor" in the UI; the backend field and DB column keep the name dueno.
   const [dueno, setDueno] = useState('');
+  // Optional price, kept as a string in the form (same as every other field);
+  // '' means "no price" and is sent as null.
+  const [precio, setPrecio] = useState('');
   // Vendedor autocomplete (fed by the dueno values already loaded).
   const [suggestionsOpen, setSuggestionsOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
@@ -110,7 +124,19 @@ export default function LumixClientes() {
   // True after Escape: the pending blur (the input is unmounted by closing the
   // editor) must discard the draft instead of saving it.
   const [vencimientoEditCancelled, setVencimientoEditCancelled] = useState(false);
+  // Inline precio editing: same pattern as the vencimiento editor, with its own
+  // state so the two never collide.
+  const [editingPrecioId, setEditingPrecioId] = useState<number | null>(null);
+  const [precioDraft, setPrecioDraft] = useState('');
+  const [precioSavingId, setPrecioSavingId] = useState<number | null>(null);
+  const [precioEditCancelled, setPrecioEditCancelled] = useState(false);
   const [rowError, setRowError] = useState('');
+
+  // "Consultar renovación" copy feedback, per row: which row the feedback
+  // belongs to plus the ok/error message (auto-cleared like pasteMessage).
+  const [copyMessage, setCopyMessage] = useState<{ id: number; type: 'ok' | 'error'; text: string } | null>(
+    null,
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -189,8 +215,15 @@ export default function LumixClientes() {
   };
 
   // whatsapp and dueno are OPTIONAL (validated on the backend too); the four
-  // required fields gate the submit button.
-  const invalid = !usuario.trim() || !contrasena.trim() || !vencimiento || !nombreCliente.trim();
+  // required fields gate the submit button. precio is optional too, but when
+  // filled it must parse as a positive es-AR number.
+  const precioValido = precio.trim() === '' || parsePrecioInput(precio) !== null;
+  const invalid =
+    !usuario.trim() ||
+    !contrasena.trim() ||
+    !vencimiento ||
+    !nombreCliente.trim() ||
+    !precioValido;
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -205,6 +238,9 @@ export default function LumixClientes() {
         nombreCliente: nombreCliente.trim(),
         whatsapp: whatsapp.trim(),
         dueno: dueno.trim(),
+        // '' (no price) is sent as null, matching the nullable backend column;
+        // otherwise parse the es-AR value ("15.000" → 15000).
+        precio: parsePrecioInput(precio),
       });
 
       // Backend lists rows ordered by nombre_cliente ASC — append the created
@@ -228,6 +264,7 @@ export default function LumixClientes() {
         setNombreCliente('');
         setWhatsapp('');
         setDueno('');
+        setPrecio('');
         setSuggestionsOpen(false);
         setActiveIndex(-1);
       }, 2000);
@@ -302,6 +339,14 @@ export default function LumixClientes() {
     return () => clearTimeout(timer);
   }, [pasteMessage]);
 
+  // Auto-clear the "consultar renovación" copy feedback (same timing as the
+  // paste feedback line).
+  useEffect(() => {
+    if (!copyMessage) return;
+    const timer = setTimeout(() => setCopyMessage(null), 4000);
+    return () => clearTimeout(timer);
+  }, [copyMessage]);
+
   // Destructive action: the user must confirm before the row is deleted.
   const handleDelete = async (id: number) => {
     const confirmed = window.confirm('¿Borrar este cliente? Esta acción no se puede deshacer.');
@@ -344,6 +389,78 @@ export default function LumixClientes() {
       setRowError(err instanceof Error ? err.message : 'No se pudo actualizar el vencimiento.');
     } finally {
       setVencimientoSavingId(null);
+    }
+  };
+
+  // Inline precio editor: same lifecycle as the vencimiento editor (save on
+  // blur/Enter, Escape cancels, re-entrancy guard, rowError on failure). One
+  // deliberate difference: an empty draft means "clear the price" (null),
+  // because — unlike vencimiento — the column IS nullable and clearing is a
+  // legitimate edit.
+  const startEditPrecio = (c: LumixCliente) => {
+    setEditingPrecioId(c.id);
+    setPrecioDraft(c.precio !== null ? String(c.precio) : '');
+    setPrecioEditCancelled(false);
+    setRowError('');
+  };
+
+  const savePrecio = async (c: LumixCliente) => {
+    const raw = precioDraft.trim();
+    setEditingPrecioId(null);
+    // Escape cancelled the edit: discard the draft instead of saving it.
+    if (precioEditCancelled) return;
+    // Empty → null (clears the price); otherwise must parse as a positive
+    // es-AR number ("15.000" → 15000, "15000,50" → 15000.5).
+    const target = parsePrecioInput(raw);
+    if (raw !== '' && target === null) {
+      setRowError('Precio inválido: debe ser un número mayor que 0.');
+      return;
+    }
+    // Unchanged: nothing to persist.
+    if (target === c.precio) return;
+    // Re-entrancy guard: Enter unmounts the input, which fires a second blur
+    // with the same draft; only one PUT should go out.
+    if (precioSavingId === c.id) return;
+    setPrecioSavingId(c.id);
+    setRowError('');
+    try {
+      const updated = await updateLumixClientePrecio(c.id, target);
+      // The backend returns the row with its new precio; replace in place.
+      setClientes((prev) => prev.map((row) => (row.id === updated.id ? updated : row)));
+    } catch (err) {
+      setRowError(err instanceof Error ? err.message : 'No se pudo actualizar el precio.');
+    } finally {
+      setPrecioSavingId(null);
+    }
+  };
+
+  // "Consultar renovación": opens WhatsApp with the prefilled renewal message
+  // in a new tab. Rows without a whatsapp number fall back to copying the
+  // message so the consult never dead-ends silently.
+  const handleConsultarRenovacion = (c: LumixCliente) => {
+    const numero = sanitizarWhatsapp(c.whatsapp);
+    if (!numero) {
+      handleCopiarMensaje(c);
+      return;
+    }
+    const mensaje = construirMensajeRenovacion(c);
+    window.open(
+      `https://wa.me/${numero}?text=${encodeURIComponent(mensaje)}`,
+      '_blank',
+      'noopener,noreferrer',
+    );
+  };
+
+  const handleCopiarMensaje = async (c: LumixCliente) => {
+    try {
+      // Secure contexts only, same guard as the "Pegar datos" flow.
+      if (typeof navigator === 'undefined' || !navigator.clipboard || !window.isSecureContext) {
+        throw new Error('clipboard unavailable');
+      }
+      await navigator.clipboard.writeText(construirMensajeRenovacion(c));
+      setCopyMessage({ id: c.id, type: 'ok', text: 'Mensaje copiado' });
+    } catch {
+      setCopyMessage({ id: c.id, type: 'error', text: 'No se pudo copiar el mensaje' });
     }
   };
 
@@ -479,6 +596,38 @@ export default function LumixClientes() {
                           </button>
                         )}
                       </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {editingPrecioId === c.id ? (
+                          <input
+                            type="number"
+                            autoFocus
+                            value={precioDraft}
+                            onChange={(e) => setPrecioDraft(e.target.value)}
+                            onBlur={() => savePrecio(c)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Escape') {
+                                setPrecioEditCancelled(true);
+                                setEditingPrecioId(null);
+                              } else if (e.key === 'Enter') savePrecio(c);
+                            }}
+                            aria-label={`Nuevo precio de ${c.usuario}`}
+                            className="w-32 px-2 py-1 font-data-mono text-on-surface bg-surface-container-lowest border border-outline-variant rounded-lg focus:ring-2 focus:ring-secondary outline-none"
+                          />
+                        ) : precioSavingId === c.id ? (
+                          <span className="font-data-mono text-on-surface-variant">Guardando…</span>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => startEditPrecio(c)}
+                            title="Editar precio"
+                            aria-label={`Editar precio de ${c.usuario}`}
+                            className="flex items-center gap-1.5 font-data-mono text-on-surface-variant hover:text-primary transition-colors"
+                          >
+                            {c.precio !== null ? formatCurrency(c.precio) : '—'}
+                            <span className="material-symbols-outlined text-[16px]">payments</span>
+                          </button>
+                        )}
+                      </td>
                       <td className="px-6 py-4 text-on-surface-variant">{c.nombre_cliente}</td>
                       <td className="px-6 py-4 font-data-mono text-on-surface-variant whitespace-nowrap">
                         {c.whatsapp || '—'}
@@ -488,6 +637,25 @@ export default function LumixClientes() {
                       </td>
                       <td className="px-6 py-4 text-right">
                         <div className="flex items-center justify-end gap-1">
+                          <button
+                            type="button"
+                            onClick={() => handleConsultarRenovacion(c)}
+                            aria-label={`Consultar renovación de ${c.usuario} por WhatsApp`}
+                            title="Consultar renovación por WhatsApp"
+                            className="p-2 text-on-surface-variant hover:text-secondary hover:bg-secondary/5 rounded-lg transition-all"
+                          >
+                            <span className="material-symbols-outlined">chat</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleCopiarMensaje(c)}
+                            aria-label={`Copiar mensaje de renovación de ${c.usuario}`}
+                            title="Copiar mensaje de renovación"
+                            className="p-2 text-on-surface-variant hover:text-secondary hover:bg-secondary/5 rounded-lg transition-all"
+                          >
+                            <span className="material-symbols-outlined">content_copy</span>
+                          </button>
+                          <div className="w-px h-6 mx-1 bg-outline-variant/50" />
                           <button
                             type="button"
                             onClick={() => openRenew(c)}
@@ -516,6 +684,19 @@ export default function LumixClientes() {
                             <span className="material-symbols-outlined">delete</span>
                           </button>
                         </div>
+                        {copyMessage?.id === c.id && (
+                          <p
+                            role={copyMessage.type === 'error' ? 'alert' : 'status'}
+                            className={`font-body-sm flex items-center justify-end gap-1 ${
+                              copyMessage.type === 'error' ? 'text-error' : 'text-on-surface-variant'
+                            }`}
+                          >
+                            <span className="material-symbols-outlined text-[14px]">
+                              {copyMessage.type === 'error' ? 'error' : 'check_circle'}
+                            </span>
+                            {copyMessage.text}
+                          </p>
+                        )}
                       </td>
                     </tr>
                   );
@@ -620,6 +801,15 @@ export default function LumixClientes() {
               value={vencimiento}
               onChange={setVencimiento}
               required
+            />
+            <Field
+              label="Precio"
+              type="number"
+              value={precio}
+              onChange={setPrecio}
+              placeholder="Ej: 15000"
+              helper="Opcional. Precio de la suscripción"
+              step="0.01"
             />
             <Field
               label="Nombre del Cliente"

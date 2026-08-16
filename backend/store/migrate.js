@@ -102,8 +102,13 @@ const MIGRATIONS = [
     nombre_cliente VARCHAR(200) NOT NULL,
     whatsapp VARCHAR(30),
     dueno VARCHAR(100),
+    precio NUMERIC(10,2),
     created_at TIMESTAMP NOT NULL DEFAULT NOW()
   )`,
+  // Precio por cliente (nullable NUMERIC): pre-existing rows keep NULL and the
+  // UI shows '—' until a price is set. No-ops on fresh tables (the CREATE
+  // above already carries the column).
+  "ALTER TABLE clientes_lumix ADD COLUMN IF NOT EXISTS precio NUMERIC(10,2)",
 ];
 
 export async function runMigrations() {

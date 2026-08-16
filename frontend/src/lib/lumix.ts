@@ -2,6 +2,9 @@
 // parsing utilities used by the Lumix section UI. Kept separate from the
 // component so the logic stays unit-testable and the component stays lean.
 
+import type { LumixCliente } from './api';
+import { formatCurrency, formatLocalDate } from './data';
+
 // ── Estado del cliente ────────────────────────────────────────────────────────
 
 // Clients expiring within this many days of today are flagged "Vence pronto"
@@ -105,4 +108,75 @@ export function parseSuscripcionText(texto: string): DatosSuscripcionPegados {
     }
   }
   return datos;
+}
+
+// ── Precio ────────────────────────────────────────────────────────────────────
+
+// Parses an es-AR price string into a positive number (rounded to cents), or
+// null when the input is empty or unusable. es-AR formats: thousands separator
+// is ".", decimal separator is "," — so "15.000" means fifteen thousand and
+// "15000,50" means fifteen thousand and fifty cents. A bare "." with fewer
+// than three trailing digits is treated as a decimal point for leniency
+// ("15000.5" → 15000.5). This mirrors the backend NUMERIC(10,2) validation so
+// the form can never submit what the API would reject.
+export function parsePrecioInput(raw: string): number | null {
+  const text = raw.trim();
+  if (text === '') return null;
+  // Strip thousands dots ("15.000" → "15000") and map decimal comma → dot.
+  const normalized = text
+    .replace(/\.(?=\d{3}(,|$))/g, '')
+    .replace(',', '.');
+  const n = Number(normalized);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  return Math.round(n * 100) / 100;
+}
+
+// ── Consulta de renovación (mensaje de WhatsApp) ─────────────────────────────
+
+// Vendedor → alias de transferencia. The dueno column is free text, so the
+// match is case-insensitive and tolerant of extra words ("Nehuen Reynoso"
+// still maps to nehuen); any other value yields null and the caller omits the
+// line instead of inventing an alias.
+const ALIASES_DUENO: Array<{ clave: string; alias: string }> = [
+  { clave: 'almendra', alias: 'almendramicol.mp' },
+  { clave: 'nehuen', alias: 'nehuenreynoso.mp' },
+];
+
+export function aliasDeDueno(dueno: string | null | undefined): string | null {
+  // NFD-strip accents so "Nehuén" (accented, the canonical spelling) still
+  // matches the unaccented key "nehuen".
+  const nombre = (dueno ?? '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+  const match = ALIASES_DUENO.find(({ clave }) => nombre.includes(clave));
+  return match?.alias ?? null;
+}
+
+// WhatsApp numbers: strip everything that is not a digit for the wa.me link
+// ("+54 9 11 1234-5678" → "5491112345678"). Returns '' when there is no number.
+export function sanitizarWhatsapp(whatsapp: string | null | undefined): string {
+  return (whatsapp ?? '').replace(/\D/g, '');
+}
+
+// Short, attractive renewal pitch in Spanish (emojis welcome here — the user
+// asked for an appealing message; the rest of the UI stays emoji-free). Parts
+// that depend on data the row does not have (price, seller alias) are omitted,
+// never invented: the message always says when the subscription expires and
+// asks about renewing, and adds price/alias lines only when known.
+export function construirMensajeRenovacion(cliente: LumixCliente): string {
+  const partes = [
+    `¡Hola! 😊 ¿Cómo andás? Te escribo porque tu suscripción vence el ${formatLocalDate(cliente.vencimiento)} 📅`,
+    '¿Te interesa renovar? 🚀',
+  ];
+  if (cliente.precio !== null && cliente.precio !== undefined) {
+    partes.push(`El precio es ${formatCurrency(cliente.precio)}.`);
+  }
+  const alias = aliasDeDueno(cliente.dueno);
+  if (alias) {
+    partes.push(`Te dejo mi alias para transferencia: ${alias} 🙌`);
+  }
+  partes.push('¡Gracias!');
+  return partes.join(' ');
 }

@@ -10,6 +10,7 @@ router.post("/lumix-clientes", [verifyToken], addCliente);
 router.delete("/lumix-clientes/:id", [verifyToken], deleteCliente);
 router.put("/lumix-clientes/:id/renovar", [verifyToken], renovarCliente);
 router.put("/lumix-clientes/:id/vencimiento", [verifyToken], updateVencimientoCliente);
+router.put("/lumix-clientes/:id/precio", [verifyToken], updatePrecioCliente);
 
 function listClientes(req, resp, next) {
   controller
@@ -42,6 +43,13 @@ function renovarCliente(req, resp, next) {
 function updateVencimientoCliente(req, resp, next) {
   controller
     .updateVencimientoCliente(req.params.id, req.body)
+    .then((data) => response.success(req, resp, data, 200))
+    .catch(next);
+}
+
+function updatePrecioCliente(req, resp, next) {
+  controller
+    .updatePrecioCliente(req.params.id, req.body)
     .then((data) => response.success(req, resp, data, 200))
     .catch(next);
 }

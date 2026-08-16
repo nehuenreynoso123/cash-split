@@ -1,4 +1,4 @@
-import { add, del, list, renovar, updateVencimiento } from "./store.js";
+import { add, del, list, renovar, updatePrecio, updateVencimiento } from "./store.js";
 
 // Schema-aligned max lengths for free-text fields (mirror store/init.sql and
 // store/migrate.js).
@@ -19,6 +19,7 @@ const FIELD_LABELS = {
   whatsapp: "Nro de WhatsApp",
   // "Vendedor" in the UI; the backend field and DB column keep the name dueno.
   dueno: "Vendedor",
+  precio: "Precio",
 };
 
 // Dates must be real calendar dates in ISO format ('YYYY-MM-DD'). The form
@@ -39,6 +40,25 @@ const fail = (invalid) => {
   err.statusCode = 400;
   throw err;
 };
+
+// Optional price (column NUMERIC(10,2), nullable): absent/null/'' → null;
+// otherwise a finite positive number rounded to cents, within column capacity.
+// Numeric strings are accepted (same leniency as meses) and es-AR formats are
+// normalized: "15.000" (thousands dot) → 15000, "15000,50" (decimal comma) →
+// 15000.5. Pushes "precio" into invalid and returns null when unusable.
+const PRECIO_MAX = 99_999_999.99; // NUMERIC(10,2) ceiling
+function parsePrecio(value, invalid) {
+  if (value === undefined || value === null || value === "") return null;
+  const precio =
+    typeof value === "string"
+      ? Number(value.replace(/\.(?=\d{3}(,|$))/g, "").replace(",", "."))
+      : Number(value);
+  if (!Number.isFinite(precio) || precio <= 0 || precio > PRECIO_MAX) {
+    invalid.push("precio");
+    return null;
+  }
+  return Math.round(precio * 100) / 100;
+}
 
 const addCliente = async (body) => {
   // Express leaves req.body undefined when no JSON body was sent.
@@ -63,6 +83,9 @@ const addCliente = async (body) => {
     }
   }
 
+  // Optional price: validated when present (empty/null allowed).
+  const precio = parsePrecio(body.precio, invalid);
+
   // Required date: a real calendar date in ISO format.
   if (!isValidDate(body.vencimiento)) invalid.push("vencimiento");
 
@@ -76,6 +99,7 @@ const addCliente = async (body) => {
     nombre_cliente: body.nombre_cliente.trim(),
     whatsapp: typeof body.whatsapp === "string" ? body.whatsapp.trim() : "",
     dueno: typeof body.dueno === "string" ? body.dueno.trim() : "",
+    precio,
   };
 
   return await add(payload);
@@ -159,10 +183,32 @@ const renovarCliente = async (idParam, body) => {
   return updated;
 };
 
+// Precio is optional and nullable: null clears it, a value must be a finite
+// positive number within column capacity (validated by parsePrecio).
+const updatePrecioCliente = async (idParam, body) => {
+  const id = parseId(idParam);
+  // Express leaves req.body undefined when no JSON body was sent.
+  body = body ?? {};
+
+  const invalid = [];
+  const precio = parsePrecio(body.precio, invalid);
+  if (invalid.length > 0) fail(invalid);
+
+  const updated = await updatePrecio(id, precio);
+  if (!updated) {
+    const err = new Error("Cliente no encontrado");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  return updated;
+};
+
 export default {
   addCliente,
   listClientes,
   deleteCliente,
   updateVencimientoCliente,
   renovarCliente,
+  updatePrecioCliente,
 };

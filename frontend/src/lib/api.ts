@@ -410,7 +410,9 @@ export async function deleteVentaFacturacion(id: number): Promise<void> {
 
 // ── Lumix (clientes de la app de TV) ───────────────────────────
 // Backend rows come back snake_case; vencimiento is a date-only string
-// (DATE cast to text by the backend, same round-trip as facturación).
+// (DATE cast to text by the backend, same round-trip as facturación). precio
+// is NUMERIC money (string on the wire) and nullable: null means the client
+// never had a price set (legacy rows), never a zero price.
 export interface LumixCliente {
   id: number;
   usuario: string;
@@ -419,11 +421,13 @@ export interface LumixCliente {
   nombre_cliente: string;
   whatsapp: string | null;
   dueno: string | null; // "Vendedor" in the UI; the backend field/DB column keep the name dueno
+  precio: number | null;
   created_at: string;
 }
 
 // Draft payload shape (camelCase, same as the form model); the backend assigns
-// id and created_at. whatsapp and dueno are OPTIONAL (empty string → NULL).
+// id and created_at. whatsapp and dueno are OPTIONAL (empty string → NULL);
+// precio is optional too (null → NULL, meaning "no price set").
 export interface LumixClienteDraft {
   usuario: string;
   contrasena: string;
@@ -431,21 +435,33 @@ export interface LumixClienteDraft {
   nombreCliente: string;
   whatsapp: string;
   dueno: string;
+  precio: number | null;
+}
+
+// NUMERIC money comes back as a string (same wire shape as productos/ventas);
+// normalize to number, keeping null so the UI can tell "no price set" apart
+// from a zero price.
+function normalizeLumixCliente(c: LumixCliente): LumixCliente {
+  return { ...c, precio: c.precio == null ? null : Number(c.precio) };
 }
 
 export async function listLumixClientes(): Promise<LumixCliente[]> {
-  return request<LumixCliente[]>('GET', '/lumix-clientes');
+  const data = await request<LumixCliente[]>('GET', '/lumix-clientes');
+  return data.map(normalizeLumixCliente);
 }
 
 export async function createLumixCliente(draft: LumixClienteDraft): Promise<LumixCliente> {
-  return request<LumixCliente>('POST', '/lumix-clientes', {
-    usuario: draft.usuario,
-    contrasena: draft.contrasena,
-    vencimiento: draft.vencimiento,
-    nombre_cliente: draft.nombreCliente,
-    whatsapp: draft.whatsapp,
-    dueno: draft.dueno,
-  });
+  return normalizeLumixCliente(
+    await request<LumixCliente>('POST', '/lumix-clientes', {
+      usuario: draft.usuario,
+      contrasena: draft.contrasena,
+      vencimiento: draft.vencimiento,
+      nombre_cliente: draft.nombreCliente,
+      whatsapp: draft.whatsapp,
+      dueno: draft.dueno,
+      precio: draft.precio,
+    }),
+  );
 }
 
 export async function deleteLumixCliente(id: number): Promise<void> {
@@ -456,10 +472,22 @@ export async function deleteLumixCliente(id: number): Promise<void> {
 // server-side (current vencimiento + meses, clamped to the destination month's
 // last day) and returns the updated row.
 export async function renovarLumixCliente(id: number, meses: number): Promise<LumixCliente> {
-  return request<LumixCliente>('PUT', `/lumix-clientes/${id}/renovar`, { meses });
+  return normalizeLumixCliente(
+    await request<LumixCliente>('PUT', `/lumix-clientes/${id}/renovar`, { meses }),
+  );
 }
 
 // Directly overwrites a client's vencimiento; returns the updated row.
 export async function updateLumixClienteVencimiento(id: number, vencimiento: string): Promise<LumixCliente> {
-  return request<LumixCliente>('PUT', `/lumix-clientes/${id}/vencimiento`, { vencimiento });
+  return normalizeLumixCliente(
+    await request<LumixCliente>('PUT', `/lumix-clientes/${id}/vencimiento`, { vencimiento }),
+  );
+}
+
+// Directly overwrites a client's precio (null clears it); returns the updated
+// row.
+export async function updateLumixClientePrecio(id: number, precio: number | null): Promise<LumixCliente> {
+  return normalizeLumixCliente(
+    await request<LumixCliente>('PUT', `/lumix-clientes/${id}/precio`, { precio }),
+  );
 }
