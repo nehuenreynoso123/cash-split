@@ -19,11 +19,33 @@ interface FieldProps {
   required?: boolean;
   placeholder?: string;
   helper?: string;
+  /** When provided, renders a small copy button next to the label. */
+  onCopy?: () => void;
+  /** Shows the "¡Copiado!" state on the copy button. */
+  copied?: boolean;
+}
+
+// Small icon button that copies a single form field to the clipboard. Shows
+// a brief "¡Copiado!" state via the `copied` prop and is disabled while the
+// field has nothing to copy.
+function CopyButton({ copied, onClick, label }: { copied: boolean; onClick: () => void; label: string }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={`Copiar ${label}`}
+      className="inline-flex items-center gap-1 h-7 px-2 rounded-full bg-surface-container text-on-surface-variant hover:bg-surface-container-high text-xs font-medium transition-all"
+    >
+      <span className="material-symbols-outlined text-[14px]">{copied ? 'check' : 'content_copy'}</span>
+      {copied ? '¡Copiado!' : 'Copiar'}
+    </button>
+  );
 }
 
 // Labeled field with the shared input shell; `money` adds the $ prefix and the
 // mono font used by every monetary input in the form. `helper` renders a small
-// hint below the input (e.g. to mark an optional field).
+// hint below the input (e.g. to mark an optional field). `onCopy` adds a small
+// copy button next to the label that copies the current field value.
 function Field({
   label,
   value,
@@ -35,6 +57,8 @@ function Field({
   required,
   placeholder,
   helper,
+  onCopy,
+  copied = false,
 }: FieldProps) {
   const inputClass = [
     'w-full h-12 border border-outline-variant rounded-xl focus:ring-2 focus:ring-secondary outline-none transition-all',
@@ -56,7 +80,10 @@ function Field({
 
   return (
     <div className="space-y-2">
-      <label className="font-label-caps text-on-surface-variant uppercase">{label}</label>
+      <div className="flex items-center justify-between gap-2">
+        <label className="font-label-caps text-on-surface-variant uppercase">{label}</label>
+        {onCopy && <CopyButton copied={copied} onClick={onCopy} label={label} />}
+      </div>
       {money ? (
         <div className="relative">
           <span className="absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant font-data-mono">
@@ -123,6 +150,22 @@ export default function AgregarVentaForm({
   const [done, setDone] = useState(false);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  // Which field just copied its value (label used as key), to show the
+  // "¡Copiado!" state briefly on the right copy button.
+  const [copiedField, setCopiedField] = useState<string | null>(null);
+
+  // Copy a field value to the clipboard and flash the button's copied state.
+  const copyField = async (fieldKey: string, value: string) => {
+    if (!value) return;
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopiedField(fieldKey);
+      setTimeout(() => setCopiedField((current) => (current === fieldKey ? null : current)), 1500);
+    } catch {
+      // Clipboard unavailable (e.g. non-secure context): silently ignore; the
+      // user can still select and copy the text manually.
+    }
+  };
 
   // Default the date inputs to today, client-side only.
   useEffect(() => {
@@ -336,9 +379,16 @@ export default function AgregarVentaForm({
                 typed chars and are selected with onMouseDown so the click wins
                 the race against the input's onBlur. */}
             <div className="space-y-2">
-              <label className="font-label-caps text-on-surface-variant uppercase">
-                Producto Vendido
-              </label>
+              <div className="flex items-center justify-between gap-2">
+                <label className="font-label-caps text-on-surface-variant uppercase">
+                  Producto Vendido
+                </label>
+                <CopyButton
+                  copied={copiedField === 'producto'}
+                  onClick={() => copyField('producto', producto)}
+                  label="Producto Vendido"
+                />
+              </div>
               <div className="relative">
                 <input
                   type="text"
@@ -399,6 +449,8 @@ export default function AgregarVentaForm({
               onChange={setPrecioVenta}
               placeholder="0.00"
               required
+              onCopy={() => copyField('precioVenta', precioVenta)}
+              copied={copiedField === 'precioVenta'}
             />
             <Field
               label="Total Recibido"
@@ -454,6 +506,8 @@ export default function AgregarVentaForm({
               step="0.01"
               value={descuento}
               onChange={setDescuento}
+              onCopy={() => copyField('descuento', descuento)}
+              copied={copiedField === 'descuento'}
             />
             <Field
               label="Retenciones"
@@ -532,6 +586,8 @@ export default function AgregarVentaForm({
               onChange={setDniCuit}
               placeholder="20-12345678-9"
               required
+              onCopy={() => copyField('dniCuit', dniCuit)}
+              copied={copiedField === 'dniCuit'}
             />
             <Field
               label="Nombre Apellido"
