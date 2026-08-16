@@ -8,6 +8,8 @@ const router = express.Router();
 router.get("/lumix-clientes", [verifyToken], listClientes);
 router.post("/lumix-clientes", [verifyToken], addCliente);
 router.delete("/lumix-clientes/:id", [verifyToken], deleteCliente);
+router.put("/lumix-clientes/:id/renovar", [verifyToken], renovarCliente);
+router.put("/lumix-clientes/:id/vencimiento", [verifyToken], updateVencimientoCliente);
 
 function listClientes(req, resp, next) {
   controller
@@ -26,6 +28,20 @@ function addCliente(req, resp, next) {
 function deleteCliente(req, resp, next) {
   controller
     .deleteCliente(req.params.id)
+    .then((data) => response.success(req, resp, data, 200))
+    .catch(next);
+}
+
+function renovarCliente(req, resp, next) {
+  controller
+    .renovarCliente(req.params.id, req.body)
+    .then((data) => response.success(req, resp, data, 200))
+    .catch(next);
+}
+
+function updateVencimientoCliente(req, resp, next) {
+  controller
+    .updateVencimientoCliente(req.params.id, req.body)
     .then((data) => response.success(req, resp, data, 200))
     .catch(next);
 }

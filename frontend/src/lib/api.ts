@@ -418,7 +418,7 @@ export interface LumixCliente {
   vencimiento: string; // YYYY-MM-DD
   nombre_cliente: string;
   whatsapp: string | null;
-  dueno: string | null; // "de quién es el cliente" (vendedor/revendedor)
+  dueno: string | null; // "Vendedor" in the UI; the backend field/DB column keep the name dueno
   created_at: string;
 }
 
@@ -450,4 +450,16 @@ export async function createLumixCliente(draft: LumixClienteDraft): Promise<Lumi
 
 export async function deleteLumixCliente(id: number): Promise<void> {
   return request<void>('DELETE', `/lumix-clientes/${id}`);
+}
+
+// Renews a client's subscription: the backend computes the new vencimiento
+// server-side (current vencimiento + meses, clamped to the destination month's
+// last day) and returns the updated row.
+export async function renovarLumixCliente(id: number, meses: number): Promise<LumixCliente> {
+  return request<LumixCliente>('PUT', `/lumix-clientes/${id}/renovar`, { meses });
+}
+
+// Directly overwrites a client's vencimiento; returns the updated row.
+export async function updateLumixClienteVencimiento(id: number, vencimiento: string): Promise<LumixCliente> {
+  return request<LumixCliente>('PUT', `/lumix-clientes/${id}/vencimiento`, { vencimiento });
 }

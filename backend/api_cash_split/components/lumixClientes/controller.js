@@ -1,4 +1,4 @@
-import { add, del, list } from "./store.js";
+import { add, del, list, renovar, updateVencimiento } from "./store.js";
 
 // Schema-aligned max lengths for free-text fields (mirror store/init.sql and
 // store/migrate.js).
@@ -17,7 +17,8 @@ const FIELD_LABELS = {
   vencimiento: "Vencimiento",
   nombre_cliente: "Nombre del cliente",
   whatsapp: "Nro de WhatsApp",
-  dueno: "De quién es el cliente",
+  // "Vendedor" in the UI; the backend field and DB column keep the name dueno.
+  dueno: "Vendedor",
 };
 
 // Dates must be real calendar dates in ISO format ('YYYY-MM-DD'). The form
@@ -84,15 +85,20 @@ const listClientes = async () => {
   return await list();
 };
 
-const deleteCliente = async (idParam) => {
-  // The id comes from the URL as a string; reject anything that is not a
-  // positive integer before hitting the DB (user-safe 400, no SQL details).
+// The id comes from the URL as a string; reject anything that is not a
+// positive integer before hitting the DB (user-safe 400, no SQL details).
+const parseId = (idParam) => {
   const id = Number(idParam);
   if (!Number.isInteger(id) || id <= 0) {
     const err = new Error("Datos inválidos: ID de cliente");
     err.statusCode = 400;
     throw err;
   }
+  return id;
+};
+
+const deleteCliente = async (idParam) => {
+  const id = parseId(idParam);
 
   const deleted = await del(id);
   if (!deleted) {
@@ -104,8 +110,59 @@ const deleteCliente = async (idParam) => {
   return deleted;
 };
 
+const updateVencimientoCliente = async (idParam, body) => {
+  const id = parseId(idParam);
+  // Express leaves req.body undefined when no JSON body was sent.
+  body = body ?? {};
+
+  // Required date: a real calendar date in ISO format.
+  if (!isValidDate(body.vencimiento)) {
+    const err = new Error("Datos inválidos: Vencimiento");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const updated = await updateVencimiento(id, body.vencimiento);
+  if (!updated) {
+    const err = new Error("Cliente no encontrado");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  return updated;
+};
+
+const renovarCliente = async (idParam, body) => {
+  const id = parseId(idParam);
+  // Express leaves req.body undefined when no JSON body was sent.
+  body = body ?? {};
+
+  // meses must be a whole number between 1 and 12 (Number() also accepts the
+  // string "3", which is fine — the wire format is JSON but the number of
+  // months is an integer by nature).
+  const meses = Number(body.meses);
+  if (!Number.isInteger(meses) || meses < 1 || meses > 12) {
+    const err = new Error(
+      "Datos inválidos: Meses debe ser un número entero entre 1 y 12",
+    );
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const updated = await renovar(id, meses);
+  if (!updated) {
+    const err = new Error("Cliente no encontrado");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  return updated;
+};
+
 export default {
   addCliente,
   listClientes,
   deleteCliente,
+  updateVencimientoCliente,
+  renovarCliente,
 };

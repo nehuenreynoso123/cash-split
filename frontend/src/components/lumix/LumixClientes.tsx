@@ -4,8 +4,11 @@ import {
   createLumixCliente,
   deleteLumixCliente,
   listLumixClientes,
+  renovarLumixCliente,
+  updateLumixClienteVencimiento,
   type LumixCliente,
 } from '../../lib/api';
+import Modal from '../ui/Modal';
 import { formatLocalDate, todayISO } from '../../lib/data';
 
 const COLUMNS = [
@@ -14,7 +17,7 @@ const COLUMNS = [
   'Vencimiento',
   'Nombre del Cliente',
   'Nro de WhatsApp',
-  'De quién es',
+  'Vendedor',
   '',
 ];
 
@@ -64,14 +67,30 @@ export default function LumixClientes() {
   const [vencimiento, setVencimiento] = useState('');
   const [nombreCliente, setNombreCliente] = useState('');
   const [whatsapp, setWhatsapp] = useState('');
+  // "Vendedor" in the UI; the backend field and DB column keep the name dueno.
   const [dueno, setDueno] = useState('');
-  // Autocomplete de "de quién es el cliente"
+  // Vendedor autocomplete (fed by the dueno values already loaded).
   const [suggestionsOpen, setSuggestionsOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
   // Feedback
   const [done, setDone] = useState(false);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  // Renovar: the target cliente plus the selected months drive the modal.
+  const [renewTarget, setRenewTarget] = useState<LumixCliente | null>(null);
+  const [renewMeses, setRenewMeses] = useState(12);
+  const [renewing, setRenewing] = useState(false);
+  const [renewError, setRenewError] = useState('');
+
+  // Inline vencimiento editing: which row is being edited and its draft value.
+  const [editingVencimientoId, setEditingVencimientoId] = useState<number | null>(null);
+  const [vencimientoDraft, setVencimientoDraft] = useState('');
+  const [vencimientoSavingId, setVencimientoSavingId] = useState<number | null>(null);
+  // True after Escape: the pending blur (the input is unmounted by closing the
+  // editor) must discard the draft instead of saving it.
+  const [vencimientoEditCancelled, setVencimientoEditCancelled] = useState(false);
+  const [rowError, setRowError] = useState('');
 
   useEffect(() => {
     let cancelled = false;
@@ -99,9 +118,9 @@ export default function LumixClientes() {
     setVencimiento(todayISO());
   }, []);
 
-  // Distinct owner names already loaded ("de quién es el cliente") — feeds the
-  // form autocomplete, deduped. Shows on focus, no minimum chars (same
-  // reasoning as facturación's issuer-name autocomplete: the names are few).
+  // Distinct seller names already loaded — feeds the vendedor autocomplete,
+  // deduped. Shows on focus, no minimum chars (same reasoning as facturación's
+  // issuer-name autocomplete: the names are few).
   const duenosExistentes = Array.from(
     new Set(clientes.map((c) => (c.dueno ?? '').trim()).filter((d) => d.length > 0)),
   );
@@ -212,6 +231,67 @@ export default function LumixClientes() {
     }
   };
 
+  // Inline vencimiento editor: opens on the date cell, saves on blur/Enter,
+  // Escape cancels. Only calls the API when the date actually changed.
+  const startEditVencimiento = (c: LumixCliente) => {
+    setEditingVencimientoId(c.id);
+    setVencimientoDraft(c.vencimiento);
+    setVencimientoEditCancelled(false);
+    setRowError('');
+  };
+
+  const saveVencimiento = async (c: LumixCliente) => {
+    const newDate = vencimientoDraft;
+    setEditingVencimientoId(null);
+    // Escape cancelled the edit: discard the draft instead of saving it.
+    if (vencimientoEditCancelled) return;
+    // Empty (cleared picker) or unchanged: nothing to persist.
+    if (!newDate || newDate === c.vencimiento) return;
+    // Re-entrancy guard: Enter unmounts the input, which fires a second blur
+    // with the same draft; only one PUT should go out.
+    if (vencimientoSavingId === c.id) return;
+    setVencimientoSavingId(c.id);
+    setRowError('');
+    try {
+      const updated = await updateLumixClienteVencimiento(c.id, newDate);
+      // The backend returns the row with its new vencimiento; replace in place.
+      setClientes((prev) => prev.map((row) => (row.id === updated.id ? updated : row)));
+    } catch (err) {
+      setRowError(err instanceof Error ? err.message : 'No se pudo actualizar el vencimiento.');
+    } finally {
+      setVencimientoSavingId(null);
+    }
+  };
+
+  // Renovar: opens the modal with a default of 12 months (a full year).
+  const openRenew = (c: LumixCliente) => {
+    setRenewTarget(c);
+    setRenewMeses(12);
+    setRenewError('');
+  };
+
+  const closeRenew = () => {
+    setRenewTarget(null);
+    setRenewError('');
+  };
+
+  const handleRenewSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!renewTarget) return;
+    setRenewing(true);
+    setRenewError('');
+    try {
+      const updated = await renovarLumixCliente(renewTarget.id, renewMeses);
+      // The new vencimiento was computed server-side; replace the row in place.
+      setClientes((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
+      setRenewTarget(null);
+    } catch (err) {
+      setRenewError(err instanceof Error ? err.message : 'No se pudo renovar la suscripción.');
+    } finally {
+      setRenewing(false);
+    }
+  };
+
   return (
     <div className="space-y-gutter">
       {/* Clientes table */}
@@ -272,8 +352,37 @@ export default function LumixClientes() {
                       <td className="px-6 py-4 font-data-mono text-on-surface-variant whitespace-nowrap">
                         {c.contrasena}
                       </td>
-                      <td className="px-6 py-4 text-on-surface-variant whitespace-nowrap">
-                        {formatLocalDate(c.vencimiento)}
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {editingVencimientoId === c.id ? (
+                          <input
+                            type="date"
+                            autoFocus
+                            value={vencimientoDraft}
+                            onChange={(e) => setVencimientoDraft(e.target.value)}
+                            onBlur={() => saveVencimiento(c)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Escape') {
+                                setVencimientoEditCancelled(true);
+                                setEditingVencimientoId(null);
+                              } else if (e.key === 'Enter') saveVencimiento(c);
+                            }}
+                            aria-label={`Nuevo vencimiento de ${c.usuario}`}
+                            className="w-40 px-2 py-1 font-data-mono text-on-surface bg-surface-container-lowest border border-outline-variant rounded-lg focus:ring-2 focus:ring-secondary outline-none"
+                          />
+                        ) : vencimientoSavingId === c.id ? (
+                          <span className="font-data-mono text-on-surface-variant">Guardando…</span>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => startEditVencimiento(c)}
+                            title="Editar vencimiento"
+                            aria-label={`Editar vencimiento de ${c.usuario}`}
+                            className="flex items-center gap-1.5 font-data-mono text-on-surface-variant hover:text-primary transition-colors"
+                          >
+                            {formatLocalDate(c.vencimiento)}
+                            <span className="material-symbols-outlined text-[16px]">edit_calendar</span>
+                          </button>
+                        )}
                       </td>
                       <td className="px-6 py-4 text-on-surface-variant">{c.nombre_cliente}</td>
                       <td className="px-6 py-4 font-data-mono text-on-surface-variant whitespace-nowrap">
@@ -283,15 +392,35 @@ export default function LumixClientes() {
                         {c.dueno || '—'}
                       </td>
                       <td className="px-6 py-4 text-right">
-                        <button
-                          type="button"
-                          onClick={() => handleDelete(c.id)}
-                          aria-label={`Borrar cliente ${c.usuario}`}
-                          title="Borrar cliente"
-                          className="p-2 text-on-surface-variant hover:text-error hover:bg-error/5 rounded-lg transition-all"
-                        >
-                          <span className="material-symbols-outlined">delete</span>
-                        </button>
+                        <div className="flex items-center justify-end gap-1">
+                          <button
+                            type="button"
+                            onClick={() => openRenew(c)}
+                            aria-label={`Renovar suscripción de ${c.usuario}`}
+                            title="Renovar"
+                            className="p-2 text-on-surface-variant hover:text-primary hover:bg-primary/5 rounded-lg transition-all"
+                          >
+                            <span className="material-symbols-outlined">autorenew</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => startEditVencimiento(c)}
+                            aria-label={`Editar vencimiento de ${c.usuario}`}
+                            title="Editar vencimiento"
+                            className="p-2 text-on-surface-variant hover:text-secondary hover:bg-secondary/5 rounded-lg transition-all"
+                          >
+                            <span className="material-symbols-outlined">edit_calendar</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDelete(c.id)}
+                            aria-label={`Borrar cliente ${c.usuario}`}
+                            title="Borrar cliente"
+                            className="p-2 text-on-surface-variant hover:text-error hover:bg-error/5 rounded-lg transition-all"
+                          >
+                            <span className="material-symbols-outlined">delete</span>
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))
@@ -306,6 +435,13 @@ export default function LumixClientes() {
         <p role="alert" className="text-error font-body-sm flex items-center gap-2">
           <span className="material-symbols-outlined text-[18px]">error</span>
           {deleteError}
+        </p>
+      )}
+
+      {rowError && (
+        <p role="alert" className="text-error font-body-sm flex items-center gap-2">
+          <span className="material-symbols-outlined text-[18px]">error</span>
+          {rowError}
         </p>
       )}
 
@@ -356,11 +492,13 @@ export default function LumixClientes() {
               placeholder="Ej: 5491112345678"
               helper="Opcional"
             />
-            {/* De quién es el cliente — autocomplete over the owners already
-                loaded: shows on focus, no minimum chars. */}
+            {/* Vendedor — the UI label for the "de quién es el cliente" field;
+                the backend field and DB column keep the original name dueno.
+                Autocomplete over the sellers already loaded: shows on focus,
+                no minimum chars. */}
             <div className="space-y-2">
               <label className="font-label-caps text-on-surface-variant uppercase">
-                De quién es el cliente
+                Vendedor
               </label>
               <div className="relative">
                 <input
@@ -436,6 +574,80 @@ export default function LumixClientes() {
           </button>
         </form>
       </section>
+
+      {/* Renovar suscripción: the new vencimiento is computed server-side from
+          the current one (or from today if it expired) plus the chosen months. */}
+      <Modal open={renewTarget !== null} onClose={closeRenew} title="Renovar suscripción">
+        <form onSubmit={handleRenewSubmit} className="p-8 space-y-6">
+          {renewTarget && (
+            <div className="text-on-surface-variant font-body-sm space-y-1">
+              <p>
+                Cliente: <span className="font-data-mono text-on-surface">{renewTarget.usuario}</span>
+              </p>
+              <p>
+                Vencimiento actual:{' '}
+                <span className="font-data-mono text-on-surface">{formatLocalDate(renewTarget.vencimiento)}</span>
+              </p>
+            </div>
+          )}
+          <div className="space-y-2">
+            <label
+              htmlFor="renew-meses"
+              className="block font-label-caps text-label-caps text-on-surface-variant uppercase"
+            >
+              Meses
+            </label>
+            <select
+              id="renew-meses"
+              value={renewMeses}
+              onChange={(e) => setRenewMeses(Number(e.target.value))}
+              className="w-full h-12 px-4 bg-surface-container-lowest border border-outline-variant rounded-xl focus:ring-2 focus:ring-secondary outline-none transition-all"
+            >
+              {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
+                <option key={m} value={m}>
+                  {m} {m === 1 ? 'mes' : 'meses'}
+                </option>
+              ))}
+            </select>
+            <p className="text-on-surface-variant font-body-sm">
+              El nuevo vencimiento se calcula desde el vencimiento actual (o desde hoy si ya venció).
+            </p>
+          </div>
+
+          {renewError && (
+            <div role="alert" className="bg-error-container text-on-error-container text-body-sm rounded-lg px-4 py-2">
+              {renewError}
+            </div>
+          )}
+
+          <div className="pt-4 flex gap-3">
+            <button
+              type="button"
+              onClick={closeRenew}
+              className="flex-1 px-6 py-3 border border-outline-variant text-on-surface-variant font-semibold rounded-lg hover:bg-surface-container-low transition-all"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              disabled={renewing}
+              className="flex-1 px-6 py-3 bg-secondary text-on-secondary font-semibold rounded-lg hover:bg-secondary-container transition-all shadow-md active:scale-95 disabled:opacity-60 flex items-center justify-center gap-2"
+            >
+              {renewing ? (
+                <>
+                  <span className="material-symbols-outlined">autorenew</span>
+                  Renovando…
+                </>
+              ) : (
+                <>
+                  <span className="material-symbols-outlined">check_circle</span>
+                  Renovar
+                </>
+              )}
+            </button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }

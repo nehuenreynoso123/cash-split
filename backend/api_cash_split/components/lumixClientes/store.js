@@ -25,6 +25,15 @@ export async function list() {
     `;
 }
 
+export async function getById(id) {
+  const [row] = await sql`
+        SELECT ${sql.unsafe(LUMIX_CLIENTES_COLUMNS)}
+        FROM clientes_lumix
+        WHERE id = ${id}
+    `;
+  return row ?? null;
+}
+
 export async function del(id) {
   // Deletes the row and returns it; null means no row matched the id.
   const [row] = await sql`
@@ -33,6 +42,61 @@ export async function del(id) {
         RETURNING id
     `;
   return row ?? null;
+}
+
+// Persists a new vencimiento and returns the updated row; null means no row
+// matched the id.
+export async function updateVencimiento(id, vencimiento) {
+  const [row] = await sql`
+        UPDATE clientes_lumix
+        SET vencimiento = ${vencimiento}
+        WHERE id = ${id}
+        RETURNING ${sql.unsafe(LUMIX_CLIENTES_COLUMNS)}
+    `;
+  return row ?? null;
+}
+
+// Renewal business rule (server-side): the client only sends how many months
+// to add. Base date is the current vencimiento while it is still valid
+// (>= today), otherwise today. The computed date is clamped to the
+// destination month's last day and persisted, then the updated row is
+// returned; null means no row matched the id.
+export async function renovar(id, meses) {
+  const row = await getById(id);
+  if (!row) return null;
+
+  const today = localTodayISO();
+  const base = row.vencimiento >= today ? row.vencimiento : today;
+
+  return await updateVencimiento(id, addMonthsClamped(base, meses));
+}
+
+// Today as a local 'YYYY-MM-DD' string (same convention as the frontend's
+// todayISO): subtract the UTC offset so the date does not shift to the
+// previous day in negative-offset timezones.
+function localTodayISO() {
+  const now = new Date();
+  return new Date(now.getTime() - now.getTimezoneOffset() * 60000)
+    .toISOString()
+    .split("T")[0];
+}
+
+// Adds N months to a date-only string ('YYYY-MM-DD'), clamping the result to
+// the destination month's last day: 31 Jan + 1 month -> 28 Feb (29 in leap
+// years), 31 Aug + 1 month -> 30 Sep. A naive setMonth() would overflow into
+// the following month because JS Date rolls 31 Jan + 1 month into 3 Mar.
+// Built on local Date parts so the result is the calendar date regardless of
+// the server timezone.
+function addMonthsClamped(dateStr, months) {
+  const [year, month, day] = dateStr.split("-").map(Number);
+  const targetMonthIndex = month - 1 + months;
+  const resultYear = year + Math.floor(targetMonthIndex / 12);
+  const resultMonthIndex = ((targetMonthIndex % 12) + 12) % 12;
+  // Day 0 of the following month is the last day of the destination month
+  // (JS Date handles February/leap years natively).
+  const lastDay = new Date(resultYear, resultMonthIndex + 1, 0).getDate();
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${resultYear}-${pad(resultMonthIndex + 1)}-${pad(Math.min(day, lastDay))}`;
 }
 
 export async function add({
