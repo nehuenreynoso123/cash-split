@@ -3,16 +3,19 @@ import { useAuthRedirect } from '../../hooks/useAuthRedirect';
 import {
   createLumixCliente,
   deleteLumixCliente,
+  getMensajeRenovacion,
   listLumixClientes,
   renovarLumixCliente,
   updateLumixClientePrecio,
   updateLumixClienteVencimiento,
+  updateMensajeRenovacion,
   type LumixCliente,
 } from '../../lib/api';
 import Modal from '../ui/Modal';
 import Badge from '../ui/Badge';
 import { formatCurrency, formatLocalDate, todayISO } from '../../lib/data';
 import {
+  MENSAJE_RENOVACION_DEFAULT,
   clienteEstado,
   construirMensajeRenovacion,
   parsePrecioInput,
@@ -23,11 +26,11 @@ import {
 
 const COLUMNS = [
   'Estado',
+  'Nombre del Cliente',
   'Usuario',
   'Contraseña',
   'Vencimiento',
   'Precio',
-  'Nombre del Cliente',
   'Nro de WhatsApp',
   'Vendedor',
   '',
@@ -137,6 +140,39 @@ export default function LumixClientes() {
   const [copyMessage, setCopyMessage] = useState<{ id: number; type: 'ok' | 'error'; text: string } | null>(
     null,
   );
+
+  // Renewal message template: loaded from the settings endpoint on mount and
+  // used by the WhatsApp consult/copy flows. Loaded independently of the
+  // clientes list so the table never blocks on it; a failure keeps the
+  // frontend default.
+  const [mensajeRenovacion, setMensajeRenovacion] = useState<string>(MENSAJE_RENOVACION_DEFAULT);
+  // True when the saved template could not be loaded. Saving must then be
+  // blocked: the draft would overwrite a server-side template we never saw.
+  const [mensajeLoadFailed, setMensajeLoadFailed] = useState(false);
+  // Template editing modal state.
+  const [mensajeModalOpen, setMensajeModalOpen] = useState(false);
+  const [mensajeDraft, setMensajeDraft] = useState('');
+  const [mensajeSaving, setMensajeSaving] = useState(false);
+  const [mensajeError, setMensajeError] = useState('');
+  const [mensajeSaved, setMensajeSaved] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    getMensajeRenovacion()
+      .then((mensaje) => {
+        if (!cancelled) setMensajeRenovacion(mensaje);
+      })
+      .catch(() => {
+        // Real failure only: the GET endpoint falls back to the default with
+        // 200 when no row exists, so a catch means 401/network. Keep the
+        // frontend default but flag it so saving cannot clobber an unseen
+        // server-side template.
+        if (!cancelled) setMensajeLoadFailed(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -347,6 +383,17 @@ export default function LumixClientes() {
     return () => clearTimeout(timer);
   }, [copyMessage]);
 
+  // Brief "Mensaje guardado" flash inside the template modal, then close. The
+  // cleanup keeps a pending timer from force-closing a freshly reopened modal.
+  useEffect(() => {
+    if (!mensajeSaved) return;
+    const timer = setTimeout(() => {
+      setMensajeModalOpen(false);
+      setMensajeSaved(false);
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, [mensajeSaved]);
+
   // Destructive action: the user must confirm before the row is deleted.
   const handleDelete = async (id: number) => {
     const confirmed = window.confirm('¿Borrar este cliente? Esta acción no se puede deshacer.');
@@ -435,15 +482,16 @@ export default function LumixClientes() {
   };
 
   // "Consultar renovación": opens WhatsApp with the prefilled renewal message
-  // in a new tab. Rows without a whatsapp number fall back to copying the
-  // message so the consult never dead-ends silently.
+  // (built from the editable, server-persisted template) in a new tab. Rows
+  // without a whatsapp number fall back to copying the message so the consult
+  // never dead-ends silently.
   const handleConsultarRenovacion = (c: LumixCliente) => {
     const numero = sanitizarWhatsapp(c.whatsapp);
     if (!numero) {
       handleCopiarMensaje(c);
       return;
     }
-    const mensaje = construirMensajeRenovacion(c);
+    const mensaje = construirMensajeRenovacion(c, mensajeRenovacion);
     window.open(
       `https://wa.me/${numero}?text=${encodeURIComponent(mensaje)}`,
       '_blank',
@@ -457,7 +505,7 @@ export default function LumixClientes() {
       if (typeof navigator === 'undefined' || !navigator.clipboard || !window.isSecureContext) {
         throw new Error('clipboard unavailable');
       }
-      await navigator.clipboard.writeText(construirMensajeRenovacion(c));
+      await navigator.clipboard.writeText(construirMensajeRenovacion(c, mensajeRenovacion));
       setCopyMessage({ id: c.id, type: 'ok', text: 'Mensaje copiado' });
     } catch {
       setCopyMessage({ id: c.id, type: 'error', text: 'No se pudo copiar el mensaje' });
@@ -493,6 +541,51 @@ export default function LumixClientes() {
     }
   };
 
+  // Template editing modal: the draft always starts from the currently loaded
+  // template (saved or default).
+  const openMensajeModal = () => {
+    setMensajeDraft(mensajeRenovacion);
+    setMensajeError('');
+    setMensajeSaved(false);
+    setMensajeModalOpen(true);
+  };
+
+  const closeMensajeModal = () => {
+    setMensajeModalOpen(false);
+    setMensajeError('');
+    setMensajeSaved(false);
+  };
+
+  const handleMensajeSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (mensajeLoadFailed) {
+      // Never save blind: a failed GET means we do not know what the server
+      // holds, so saving could silently replace a custom template with the
+      // frontend default. Reload the page to retry the fetch.
+      setMensajeError('No se pudo cargar el mensaje guardado. Recargá la página y volvé a intentar.');
+      return;
+    }
+    const texto = mensajeDraft.trim();
+    if (!texto) {
+      setMensajeError('El mensaje no puede estar vacío.');
+      return;
+    }
+    setMensajeSaving(true);
+    setMensajeError('');
+    try {
+      const guardado = await updateMensajeRenovacion(texto);
+      setMensajeRenovacion(guardado);
+      // The effect below closes the modal after a brief "Mensaje guardado"
+      // flash (same timing pattern as the submit "¡Cliente Cargado!" flash).
+      setMensajeSaved(true);
+    } catch (err) {
+      // Keep the draft intact so the user can fix and retry.
+      setMensajeError(err instanceof Error ? err.message : 'No se pudo guardar el mensaje.');
+    } finally {
+      setMensajeSaving(false);
+    }
+  };
+
   return (
     <div className="space-y-gutter">
       {/* Clientes table */}
@@ -503,9 +596,20 @@ export default function LumixClientes() {
             <h3 className="font-headline-md text-headline-md text-primary">Clientes Lumix</h3>
           </div>
           {!loading && !loadError && (
-            <span className="text-on-surface-variant font-body-sm">
-              {clientes.length} {clientes.length === 1 ? 'cliente' : 'clientes'}
-            </span>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={openMensajeModal}
+                title="Editar el texto del mensaje de renovación por WhatsApp"
+                className="flex items-center gap-1.5 px-3 py-1.5 text-body-sm font-semibold text-on-surface-variant border border-outline-variant rounded-lg hover:bg-surface-container-low hover:text-secondary transition-all active:scale-95"
+              >
+                <span className="material-symbols-outlined text-[18px]">edit_note</span>
+                Mensaje de renovación
+              </button>
+              <span className="text-on-surface-variant font-body-sm">
+                {clientes.length} {clientes.length === 1 ? 'cliente' : 'clientes'}
+              </span>
+            </div>
           )}
         </div>
 
@@ -558,6 +662,7 @@ export default function LumixClientes() {
                             '—'
                           )}
                         </td>
+                        <td className="px-6 py-4 text-on-surface-variant">{c.nombre_cliente}</td>
                         <td className="px-6 py-4 font-data-mono text-on-surface-variant whitespace-nowrap">
                           {c.usuario}
                         </td>
@@ -628,7 +733,6 @@ export default function LumixClientes() {
                           </button>
                         )}
                       </td>
-                      <td className="px-6 py-4 text-on-surface-variant">{c.nombre_cliente}</td>
                       <td className="px-6 py-4 font-data-mono text-on-surface-variant whitespace-nowrap">
                         {c.whatsapp || '—'}
                       </td>
@@ -975,6 +1079,89 @@ export default function LumixClientes() {
                 <>
                   <span className="material-symbols-outlined">check_circle</span>
                   Renovar
+                </>
+              )}
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Mensaje de renovación: the WhatsApp message template is editable and
+          persisted server-side; {fecha}/{precio}/{alias} are replaced per
+          client, and [corchetes] mark parts omitted when the client lacks the
+          data. */}
+      <Modal
+        open={mensajeModalOpen}
+        onClose={closeMensajeModal}
+        title="Mensaje de renovación"
+      >
+        <form onSubmit={handleMensajeSubmit} className="p-8 space-y-6">
+          <div className="space-y-2">
+            <label
+              htmlFor="mensaje-renovacion"
+              className="block font-label-caps text-label-caps text-on-surface-variant uppercase"
+            >
+              Mensaje
+            </label>
+            <textarea
+              id="mensaje-renovacion"
+              rows={6}
+              maxLength={1000}
+              value={mensajeDraft}
+              onChange={(e) => setMensajeDraft(e.target.value)}
+              placeholder={MENSAJE_RENOVACION_DEFAULT}
+              className="w-full p-3 border border-outline-variant rounded-xl focus:ring-2 focus:ring-secondary outline-none font-body-sm"
+            />
+            <p className="text-on-surface-variant font-body-sm">
+              Usa {'{fecha}'}, {'{precio}'} y {'{alias}'} para insertar la fecha de
+              vencimiento, el precio y el alias del vendedor.
+            </p>
+            <p className="text-on-surface-variant font-body-sm">
+              Las partes entre [corchetes] se omiten cuando el cliente no tiene ese dato.
+            </p>
+          </div>
+
+          {mensajeError && (
+            <div
+              role="alert"
+              className="bg-error-container text-on-error-container text-body-sm rounded-lg px-4 py-2"
+            >
+              {mensajeError}
+            </div>
+          )}
+
+          {mensajeSaved && (
+            <p
+              role="status"
+              className="text-on-surface-variant font-body-sm flex items-center gap-2"
+            >
+              <span className="material-symbols-outlined text-[18px]">check_circle</span>
+              Mensaje guardado
+            </p>
+          )}
+
+          <div className="pt-4 flex gap-3">
+            <button
+              type="button"
+              onClick={closeMensajeModal}
+              className="flex-1 px-6 py-3 border border-outline-variant text-on-surface-variant font-semibold rounded-lg hover:bg-surface-container-low transition-all"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              disabled={mensajeSaving}
+              className="flex-1 px-6 py-3 bg-secondary text-on-secondary font-semibold rounded-lg hover:bg-secondary-container transition-all shadow-md active:scale-95 disabled:opacity-60 flex items-center justify-center gap-2"
+            >
+              {mensajeSaving ? (
+                <>
+                  <span className="material-symbols-outlined">autorenew</span>
+                  Guardando…
+                </>
+              ) : (
+                <>
+                  <span className="material-symbols-outlined">check_circle</span>
+                  Guardar
                 </>
               )}
             </button>

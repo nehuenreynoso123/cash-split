@@ -491,3 +491,20 @@ export async function updateLumixClientePrecio(id: number, precio: number | null
     await request<LumixCliente>('PUT', `/lumix-clientes/${id}/precio`, { precio }),
   );
 }
+
+// ── Settings ───────────────────────────────────────────────────
+// The WhatsApp renewal message template is persisted server-side (settings
+// table) so edits survive across browsers; GET falls back to the frontend
+// default (frontend/src/lib/lumix.ts) when no row exists yet.
+export async function getMensajeRenovacion(): Promise<string> {
+  const data = await request<{ mensaje: string }>('GET', '/settings/lumix-mensaje-renovacion');
+  return data.mensaje;
+}
+
+// Upserts the template and returns the persisted value (trimmed server-side).
+export async function updateMensajeRenovacion(mensaje: string): Promise<string> {
+  const data = await request<{ mensaje: string }>('PUT', '/settings/lumix-mensaje-renovacion', {
+    mensaje,
+  });
+  return data.mensaje;
+}

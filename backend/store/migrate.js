@@ -1,4 +1,5 @@
 import sql from "./database.js";
+import { MENSAJE_RENOVACION_DEFAULT } from "../api_cash_split/components/settings/controller.js";
 
 // Idempotent DDL migrations for already-initialized databases.
 // The base schema lives in store/init.sql and only runs when a DB is first
@@ -109,6 +110,19 @@ const MIGRATIONS = [
   // UI shows '—' until a price is set. No-ops on fresh tables (the CREATE
   // above already carries the column).
   "ALTER TABLE clientes_lumix ADD COLUMN IF NOT EXISTS precio NUMERIC(10,2)",
+  // settings: tiny key/value store for UI-editable persisted settings. Today it
+  // only holds the WhatsApp renewal message template (lumix_mensaje_renovacion).
+  `CREATE TABLE IF NOT EXISTS settings (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+  )`,
+  // Seed for the renewal message. ON CONFLICT DO NOTHING fills the row only when
+  // it does not exist — a user-edited message is never overwritten on later
+  // boots. The string comes from the backend single-source constant (settings
+  // controller.js); keep IT in sync with the frontend MENSAJE_RENOVACION_DEFAULT
+  // when the wording changes. [corchetes] mark parts omitted when the client has
+  // no price/alias.
+  `INSERT INTO settings (key, value) VALUES ('lumix_mensaje_renovacion', '${MENSAJE_RENOVACION_DEFAULT}') ON CONFLICT (key) DO NOTHING`,
 ];
 
 export async function runMigrations() {

@@ -126,3 +126,12 @@ CREATE TABLE IF NOT EXISTS clientes_lumix (
 -- Idempotente, mismo patrón que fecha_carga en productos: no-op si la columna
 -- ya existe, para que la tabla se cree igual en bases nuevas y viejas.
 ALTER TABLE clientes_lumix ADD COLUMN IF NOT EXISTS precio NUMERIC(10,2);
+
+-- settings: almacén chico clave/valor para configuraciones editables desde la
+-- UI. Hoy guarda el template del mensaje de renovación de WhatsApp. El seed del
+-- valor por defecto vive en store/migrate.js (que corre en cada boot, incluido
+-- el primer arranque sobre una base recién creada) — no duplicar el string acá.
+CREATE TABLE IF NOT EXISTS settings (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+);

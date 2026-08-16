@@ -9,6 +9,7 @@ import totalCajasNetwork from "./components/dashboard/network.js";
 import flujoFondosNetwork from "./components/flujoFondos/network.js";
 import authNetwork from "./components/auth/network.js";
 import lumixClientesNetwork from "./components/lumixClientes/network.js";
+import settingsNetwork from "./components/settings/network.js";
 
 export default (server) => {
   server.use("/api", statusNetwork);
@@ -22,4 +23,5 @@ export default (server) => {
   server.use("/api", flujoFondosNetwork);
   server.use("/api", authNetwork);
   server.use("/api", lumixClientesNetwork);
+  server.use("/api", settingsNetwork);
 };

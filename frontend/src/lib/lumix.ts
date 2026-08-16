@@ -160,23 +160,56 @@ export function sanitizarWhatsapp(whatsapp: string | null | undefined): string {
   return (whatsapp ?? '').replace(/\D/g, '');
 }
 
+// WhatsApp renewal message template: {fecha} / {precio} / {alias} are replaced
+// per client; parts wrapped in [corchetes] are kept only when every placeholder
+// inside them has a value — so the default omits the price/alias clauses for
+// rows without that data, never leaving a dangling "El precio es .". The same
+// string is seeded server-side (settings table) so both sides agree; keep the
+// backend copy (api_cash_split/components/settings/controller.js — imported by
+// the migrate.js seed) in sync when the wording changes.
+export const MENSAJE_RENOVACION_DEFAULT =
+  '¡Hola! 😊 ¿Cómo andás? Te escribo porque tu suscripción vence el {fecha} 📅 ¿Te interesa renovar? 🚀 [El precio es {precio}.] [Te dejo mi alias para transferencia: {alias} 🙌] ¡Gracias!';
+
+const PLACEHOLDER_RE = /\{(fecha|precio|alias)\}/g;
+
 // Short, attractive renewal pitch in Spanish (emojis welcome here — the user
-// asked for an appealing message; the rest of the UI stays emoji-free). Parts
-// that depend on data the row does not have (price, seller alias) are omitted,
-// never invented: the message always says when the subscription expires and
-// asks about renewing, and adds price/alias lines only when known.
-export function construirMensajeRenovacion(cliente: LumixCliente): string {
-  const partes = [
-    `¡Hola! 😊 ¿Cómo andás? Te escribo porque tu suscripción vence el ${formatLocalDate(cliente.vencimiento)} 📅`,
-    '¿Te interesa renovar? 🚀',
-  ];
-  if (cliente.precio !== null && cliente.precio !== undefined) {
-    partes.push(`El precio es ${formatCurrency(cliente.precio)}.`);
-  }
-  const alias = aliasDeDueno(cliente.dueno);
-  if (alias) {
-    partes.push(`Te dejo mi alias para transferencia: ${alias} 🙌`);
-  }
-  partes.push('¡Gracias!');
-  return partes.join(' ');
+// asked for an appealing message; the rest of the UI stays emoji-free). The
+// template is editable from the UI and persisted server-side; this function
+// only substitutes the per-client data:
+//   - {fecha}  → formatLocalDate(vencimiento)
+//   - {precio} → formatCurrency(precio), or '' when the row has no price
+//   - {alias}  → aliasDeDueno(dueno), or '' when the seller is unknown
+// Optional segments: "[text {placeholder} text]" stays only when every
+// placeholder inside it has a value; otherwise the whole segment (brackets
+// included) is dropped. Brackets without a placeholder inside are literal
+// text. Unknown {placeholders} are left untouched. Falls back to the default
+// template when the caller passes nothing.
+export function construirMensajeRenovacion(
+  cliente: LumixCliente,
+  template: string = MENSAJE_RENOVACION_DEFAULT,
+): string {
+  const valores: Record<string, string> = {
+    fecha: formatLocalDate(cliente.vencimiento),
+    precio:
+      cliente.precio !== null && cliente.precio !== undefined
+        ? formatCurrency(cliente.precio)
+        : '',
+    alias: aliasDeDueno(cliente.dueno) ?? '',
+  };
+
+  // First resolve optional segments (on the raw template, before substitution),
+  // then substitute the surviving placeholders.
+  return template
+    .replace(/\[([^[\]]*)\]/g, (segmento, contenido) => {
+      const usados = contenido.match(PLACEHOLDER_RE);
+      if (!usados) return segmento; // literal brackets, not an optional marker
+      const algunoVacio = usados.some((ph) => valores[ph.slice(1, -1)] === '');
+      return algunoVacio ? '' : contenido;
+    })
+    .replace(PLACEHOLDER_RE, (ph) => valores[ph.slice(1, -1)])
+    // A dropped segment can leave two spaces behind ("🚀  ¡Gracias!"); collapse
+    // runs of spaces/tabs globally so user-authored templates stay tidy too
+    // (intentional double spacing in a custom template would also be collapsed).
+    .replace(/[ \t]{2,}/g, ' ')
+    .trim();
 }
