@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent, type KeyboardEvent } from 'react';
+import { useEffect, useMemo, useState, type FormEvent, type KeyboardEvent } from 'react';
 import { useAuthRedirect } from '../../hooks/useAuthRedirect';
 import {
   createLumixCliente,
@@ -35,6 +35,10 @@ const COLUMNS = [
   'Vendedor',
   '',
 ];
+
+// Rows per page for the client-side table pagination (filters + pagination
+// operate on the full loaded list; nothing is fetched per page).
+const PAGE_SIZE = 10;
 
 // Estado del cliente → shared Badge mapping. The shared Badge (already used by
 // ProductTable and RotacionClient) is the project's established status badge;
@@ -156,6 +160,15 @@ export default function LumixClientes() {
   const [mensajeError, setMensajeError] = useState('');
   const [mensajeSaved, setMensajeSaved] = useState(false);
 
+  // Table filters + pagination, all client-side over the loaded list. The
+  // empty string is the "Todos" sentinel for the estado/vendedor selects.
+  const [filtroEstado, setFiltroEstado] = useState<EstadoCliente | ''>('');
+  const [filtroNombre, setFiltroNombre] = useState('');
+  const [filtroDesde, setFiltroDesde] = useState('');
+  const [filtroHasta, setFiltroHasta] = useState('');
+  const [filtroVendedor, setFiltroVendedor] = useState('');
+  const [paginaActual, setPaginaActual] = useState(1);
+
   useEffect(() => {
     let cancelled = false;
     getMensajeRenovacion()
@@ -209,6 +222,62 @@ export default function LumixClientes() {
   const duenosExistentes = Array.from(
     new Set(clientes.map((c) => (c.dueno ?? '').trim()).filter((d) => d.length > 0)),
   );
+
+  // ── Table filters + pagination ─────────────────────────────────────────────
+  // Any filter with a value marks the row set as filtered (Nombre trims so a
+  // whitespace-only input counts as inactive).
+  const hayFiltrosActivos =
+    filtroEstado !== '' ||
+    filtroNombre.trim() !== '' ||
+    filtroDesde !== '' ||
+    filtroHasta !== '' ||
+    filtroVendedor !== '';
+
+  // Filter first, then paginate. Estado reuses the same classification as the
+  // badge column; the vencimiento bounds compare the YYYY-MM-DD strings
+  // directly (same shape, so lexicographic order equals chronological order).
+  // Each filter is applied only when set; an unset bound is skipped.
+  const filteredClientes = useMemo(() => {
+    const nombreQuery = filtroNombre.trim().toLowerCase();
+    return clientes.filter((c) => {
+      if (filtroEstado) {
+        const estado = clienteEstado(c.vencimiento, hoy);
+        if (estado !== filtroEstado) return false;
+      }
+      if (nombreQuery) {
+        const enNombre = c.nombre_cliente.toLowerCase().includes(nombreQuery);
+        const enUsuario = c.usuario.toLowerCase().includes(nombreQuery);
+        if (!enNombre && !enUsuario) return false;
+      }
+      if (filtroDesde && c.vencimiento < filtroDesde) return false;
+      if (filtroHasta && c.vencimiento > filtroHasta) return false;
+      if (filtroVendedor && (c.dueno ?? '').trim() !== filtroVendedor) return false;
+      return true;
+    });
+  }, [clientes, filtroEstado, filtroNombre, filtroDesde, filtroHasta, filtroVendedor, hoy]);
+
+  const totalPaginas = Math.max(1, Math.ceil(filteredClientes.length / PAGE_SIZE));
+  // The page actually rendered: clamped so a shrinking result set (e.g. rows
+  // deleted while on the last page) never produces an empty page with rows
+  // still available. Keeps page, totalPages and the slice consistent.
+  const paginaSegura = Math.min(paginaActual, totalPaginas);
+  const paginatedClientes = filteredClientes.slice(
+    (paginaSegura - 1) * PAGE_SIZE,
+    paginaSegura * PAGE_SIZE,
+  );
+
+  // A change in any filter resets the table to the first page (the classic
+  // "3 of 24, filter to 5 rows → back to page 1" rule).
+  useEffect(() => {
+    setPaginaActual(1);
+  }, [filtroEstado, filtroNombre, filtroDesde, filtroHasta, filtroVendedor]);
+
+  // Guard: keep the page state in range when the result set shrinks without a
+  // filter change. The derived clamp above already prevents any flash of an
+  // empty table; this effect keeps the state itself tidy.
+  useEffect(() => {
+    setPaginaActual((p) => Math.min(p, Math.max(1, totalPaginas)));
+  }, [totalPaginas]);
 
   const duenoQuery = dueno.trim().toLowerCase();
   const duenoMatches = duenoQuery
@@ -607,7 +676,9 @@ export default function LumixClientes() {
                 Mensaje de renovación
               </button>
               <span className="text-on-surface-variant font-body-sm">
-                {clientes.length} {clientes.length === 1 ? 'cliente' : 'clientes'}
+                {hayFiltrosActivos
+                  ? `${filteredClientes.length} de ${clientes.length} ${clientes.length === 1 ? 'cliente' : 'clientes'}`
+                  : `${clientes.length} ${clientes.length === 1 ? 'cliente' : 'clientes'}`}
               </span>
             </div>
           )}
@@ -622,6 +693,106 @@ export default function LumixClientes() {
             {loadError}
           </p>
         ) : (
+          <>
+          {/* ── Filter bar ─────────────────────────────────────────────── */}
+          <div className="px-6 py-4 border-b border-outline-variant bg-surface-container-low/50 flex flex-wrap gap-4 items-end">
+            {/* Estado */}
+            <div className="flex flex-col gap-1 min-w-[140px]">
+              <label className="font-label-caps text-on-surface-variant uppercase text-xs">Estado</label>
+              <select
+                value={filtroEstado}
+                onChange={(e) => setFiltroEstado(e.target.value as EstadoCliente | '')}
+                className="h-10 px-3 bg-surface-container-lowest border border-outline-variant rounded-lg text-body-sm focus:ring-2 focus:ring-secondary outline-none transition-all"
+              >
+                <option value="">Todos</option>
+                <option value="activo">Activo</option>
+                <option value="vence_pronto">Vence pronto</option>
+                <option value="vencido">Vencido</option>
+              </select>
+            </div>
+
+            {/* Nombre / Usuario */}
+            <div className="flex flex-col gap-1 min-w-[180px] flex-1">
+              <label className="font-label-caps text-on-surface-variant uppercase text-xs">Buscar</label>
+              <div className="relative">
+                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-[18px]">
+                  search
+                </span>
+                <input
+                  type="text"
+                  value={filtroNombre}
+                  onChange={(e) => setFiltroNombre(e.target.value)}
+                  placeholder="Nombre o usuario…"
+                  className="w-full h-10 pl-9 pr-3 bg-surface-container-lowest border border-outline-variant rounded-lg text-body-sm focus:ring-2 focus:ring-secondary outline-none transition-all"
+                />
+              </div>
+            </div>
+
+            {/* Vencimiento desde */}
+            <div className="flex flex-col gap-1 min-w-[140px]">
+              <label className="font-label-caps text-on-surface-variant uppercase text-xs">Vence desde</label>
+              <input
+                type="date"
+                value={filtroDesde}
+                onChange={(e) => setFiltroDesde(e.target.value)}
+                className="h-10 px-3 bg-surface-container-lowest border border-outline-variant rounded-lg text-body-sm focus:ring-2 focus:ring-secondary outline-none transition-all"
+              />
+            </div>
+
+            {/* Vencimiento hasta */}
+            <div className="flex flex-col gap-1 min-w-[140px]">
+              <label className="font-label-caps text-on-surface-variant uppercase text-xs">Vence hasta</label>
+              <input
+                type="date"
+                value={filtroHasta}
+                onChange={(e) => setFiltroHasta(e.target.value)}
+                className="h-10 px-3 bg-surface-container-lowest border border-outline-variant rounded-lg text-body-sm focus:ring-2 focus:ring-secondary outline-none transition-all"
+              />
+            </div>
+
+            {/* Vendedor */}
+            <div className="flex flex-col gap-1 min-w-[140px]">
+              <label className="font-label-caps text-on-surface-variant uppercase text-xs">Vendedor</label>
+              <select
+                value={filtroVendedor}
+                onChange={(e) => setFiltroVendedor(e.target.value)}
+                className="h-10 px-3 bg-surface-container-lowest border border-outline-variant rounded-lg text-body-sm focus:ring-2 focus:ring-secondary outline-none transition-all"
+              >
+                <option value="">Todos</option>
+                {duenosExistentes.map((d) => (
+                  <option key={d} value={d}>{d}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Clear filters */}
+            {hayFiltrosActivos && (
+              <button
+                type="button"
+                onClick={() => {
+                  setFiltroEstado('');
+                  setFiltroNombre('');
+                  setFiltroDesde('');
+                  setFiltroHasta('');
+                  setFiltroVendedor('');
+                }}
+                className="h-10 px-3 flex items-center gap-1.5 text-body-sm font-semibold text-on-surface-variant border border-outline-variant rounded-lg hover:bg-surface-container-low hover:text-error transition-all active:scale-95"
+              >
+                <span className="material-symbols-outlined text-[16px]">filter_alt_off</span>
+                Limpiar
+              </button>
+            )}
+          </div>
+
+          {/* ── Results summary when filters active ─────────────────────── */}
+          {hayFiltrosActivos && (
+            <div className="px-6 py-2 border-b border-outline-variant/50 bg-surface-container-low/30 text-on-surface-variant font-body-sm">
+              {filteredClientes.length === 0
+                ? 'Sin resultados para los filtros seleccionados.'
+                : `${filteredClientes.length} ${filteredClientes.length === 1 ? 'resultado' : 'resultados'} — Página ${paginaSegura} de ${totalPaginas}`}
+            </div>
+          )}
+
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
@@ -639,17 +810,19 @@ export default function LumixClientes() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-outline-variant/30">
-                {clientes.length === 0 ? (
+                {filteredClientes.length === 0 ? (
                   <tr>
                     <td
                       colSpan={COLUMNS.length}
                       className="px-6 py-12 text-center text-on-surface-variant"
                     >
-                      No hay clientes cargados todavía.
+                      {hayFiltrosActivos
+                        ? 'No se encontraron clientes con esos filtros.'
+                        : 'No hay clientes cargados todavía.'}
                     </td>
                   </tr>
                 ) : (
-                  clientes.map((c) => {
+                  paginatedClientes.map((c) => {
                     const estado = clienteEstado(c.vencimiento, hoy);
                     return (
                       <tr key={c.id} className="hover:bg-surface-container-lowest transition-colors group">
@@ -808,6 +981,50 @@ export default function LumixClientes() {
               </tbody>
             </table>
           </div>
+
+          {/* ── Pagination controls ─────────────────────────────────────── */}
+          {filteredClientes.length > PAGE_SIZE && (
+            <div className="px-6 py-4 border-t border-outline-variant flex items-center justify-between">
+              <span className="text-on-surface-variant font-body-sm">
+                Mostrando {(paginaSegura - 1) * PAGE_SIZE + 1}–{Math.min(paginaSegura * PAGE_SIZE, filteredClientes.length)} de {filteredClientes.length}
+              </span>
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  disabled={paginaSegura <= 1}
+                  onClick={() => setPaginaActual((p) => Math.max(1, p - 1))}
+                  className="p-2 rounded-lg text-on-surface-variant hover:bg-surface-container-low hover:text-secondary disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                  aria-label="Página anterior"
+                >
+                  <span className="material-symbols-outlined">chevron_left</span>
+                </button>
+                {Array.from({ length: totalPaginas }, (_, i) => i + 1).map((pg) => (
+                  <button
+                    key={pg}
+                    type="button"
+                    onClick={() => setPaginaActual(pg)}
+                    className={`w-9 h-9 rounded-lg font-body-sm font-semibold transition-all ${
+                      pg === paginaSegura
+                        ? 'bg-secondary text-on-secondary shadow-sm'
+                        : 'text-on-surface-variant hover:bg-surface-container-low'
+                    }`}
+                  >
+                    {pg}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  disabled={paginaSegura >= totalPaginas}
+                  onClick={() => setPaginaActual((p) => Math.min(totalPaginas, p + 1))}
+                  className="p-2 rounded-lg text-on-surface-variant hover:bg-surface-container-low hover:text-secondary disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                  aria-label="Página siguiente"
+                >
+                  <span className="material-symbols-outlined">chevron_right</span>
+                </button>
+              </div>
+            </div>
+          )}
+          </>
         )}
       </section>
 
