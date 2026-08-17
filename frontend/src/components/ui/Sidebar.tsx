@@ -75,7 +75,7 @@ export default function Sidebar({ currentPage }: SidebarProps) {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 space-y-1">
+      <nav className="flex-1 space-y-1 overflow-y-auto">
         {navItems.map((item) => (
           <a
             key={item.id}
