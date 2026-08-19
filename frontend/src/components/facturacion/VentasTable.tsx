@@ -6,14 +6,6 @@ interface VentasTableProps {
   ventas: Venta[];
 }
 
-const COLUMNS: { label: string; align?: 'right'; sortKey?: 'fecha' }[] = [
-  { label: 'ID de venta' },
-  { label: 'Producto Vendido' },
-  { label: 'Fecha', sortKey: 'fecha' },
-  { label: 'Cantidad' },
-  { label: 'Total Recibido', align: 'right' },
-];
-
 // A sale link is rendered as a clickable anchor only when it is a non-empty,
 // parseable http(s) URL; anything else falls back to plain text.
 function isValidLink(value: string): boolean {
@@ -26,20 +18,57 @@ function isValidLink(value: string): boolean {
   }
 }
 
+// Group ventas by facturaId (legacy rows without facturaId group by their own id).
+interface GroupedVenta {
+  key: string;
+  numero: string;
+  fecha: string;
+  cantidad: number;
+  totalRecibido: number;
+  link: string;
+  productos: string[];
+}
+
+function groupVentas(ventas: Venta[]): GroupedVenta[] {
+  const map = new Map<string, GroupedVenta>();
+
+  for (const v of ventas) {
+    const key = v.facturaId || String(v.id);
+    const existing = map.get(key);
+
+    if (existing) {
+      existing.cantidad += v.cantidad;
+      existing.totalRecibido += v.totalRecibido;
+      if (v.producto.trim() && !existing.productos.includes(v.producto.trim())) {
+        existing.productos.push(v.producto.trim());
+      }
+    } else {
+      map.set(key, {
+        key,
+        numero: v.numero,
+        fecha: v.fecha,
+        cantidad: v.cantidad,
+        totalRecibido: v.totalRecibido,
+        link: v.link,
+        productos: [v.producto.trim()],
+      });
+    }
+  }
+
+  return Array.from(map.values());
+}
+
 export default function VentasTable({ ventas }: VentasTableProps) {
   const [sort, setSort] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
 
-  // Display order: the original (API id ASC) order until the user clicks a
-  // sortable header. ISO date strings compare lexicographically, which equals
-  // chronological order.
-  const sortedVentas = useMemo(() => {
-    if (!sort) return ventas;
-    const factor = sort.direction === 'asc' ? 1 : -1;
-    return [...ventas].sort((a, b) => a.fecha.localeCompare(b.fecha) * factor);
-  }, [ventas, sort]);
+  const grouped = useMemo(() => groupVentas(ventas), [ventas]);
 
-  // Clicking a sortable header cycles asc -> desc -> asc; switching to a
-  // different column restarts at asc.
+  const sorted = useMemo(() => {
+    if (!sort) return grouped;
+    const factor = sort.direction === 'asc' ? 1 : -1;
+    return [...grouped].sort((a, b) => a.fecha.localeCompare(b.fecha) * factor);
+  }, [grouped, sort]);
+
   const toggleSort = (key: string) => {
     setSort((prev) => {
       if (!prev || prev.key !== key) return { key, direction: 'asc' };
@@ -55,7 +84,7 @@ export default function VentasTable({ ventas }: VentasTableProps) {
           <h3 className="font-headline-md text-headline-md text-primary">Ventas Cargadas</h3>
         </div>
         <span className="text-on-surface-variant font-body-sm">
-          {ventas.length} {ventas.length === 1 ? 'venta' : 'ventas'}
+          {sorted.length} {sorted.length === 1 ? 'venta' : 'ventas'}
         </span>
       </div>
 
@@ -63,46 +92,33 @@ export default function VentasTable({ ventas }: VentasTableProps) {
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="bg-surface-bright border-b border-outline-variant">
-              {COLUMNS.map((c) => {
-                const sortKey = c.sortKey;
+              {['ID de venta', 'Productos', 'Fecha', 'Cant.', 'Total Recibido'].map((label) => {
+                const isSortable = label === 'Fecha';
                 return (
                   <th
-                    key={c.label}
-                    aria-sort={
-                      sort && sortKey && sort.key === sortKey
-                        ? sort.direction === 'asc'
-                          ? 'ascending'
-                          : 'descending'
-                        : undefined
-                    }
+                    key={label}
                     className={`px-6 py-4 font-label-caps text-on-surface-variant uppercase tracking-wider whitespace-nowrap ${
-                      c.align === 'right' ? 'text-right' : ''
+                      label === 'Cant.' || label === 'Total Recibido' ? 'text-right' : ''
                     }`}
                   >
-                    {sortKey ? (
+                    {isSortable ? (
                       <button
                         type="button"
-                        onClick={() => toggleSort(sortKey)}
-                        title={`Ordenar por ${c.label}`}
-                        aria-label={`Ordenar por ${c.label}`}
+                        onClick={() => toggleSort('fecha')}
+                        title="Ordenar por Fecha"
                         className="inline-flex items-center gap-1 whitespace-nowrap cursor-pointer"
                       >
-                        {c.label}
-                        <span
-                          aria-hidden="true"
-                          className={`material-symbols-outlined text-base leading-none ${
-                            sort && sort.key === sortKey ? 'text-primary' : 'text-on-surface-variant'
-                          }`}
-                        >
-                          {sort && sort.key === sortKey
-                            ? sort.direction === 'asc'
-                              ? 'arrow_upward'
-                              : 'arrow_downward'
+                        {label}
+                        <span className={`material-symbols-outlined text-base leading-none ${
+                          sort?.key === 'fecha' ? 'text-primary' : 'text-on-surface-variant'
+                        }`}>
+                          {sort?.key === 'fecha'
+                            ? sort.direction === 'asc' ? 'arrow_upward' : 'arrow_downward'
                             : 'unfold_more'}
                         </span>
                       </button>
                     ) : (
-                      c.label
+                      label
                     )}
                   </th>
                 );
@@ -110,36 +126,38 @@ export default function VentasTable({ ventas }: VentasTableProps) {
             </tr>
           </thead>
           <tbody className="divide-y divide-outline-variant/30">
-            {ventas.length === 0 ? (
+            {sorted.length === 0 ? (
               <tr>
-                <td colSpan={COLUMNS.length} className="px-6 py-12 text-center text-on-surface-variant">
-                  No hay ventas cargadas todavía. Usá la pestaña Agregar Venta para cargar datos.
+                <td colSpan={5} className="px-6 py-12 text-center text-on-surface-variant">
+                  No hay ventas cargadas todavia. Usa la pestana Agregar Venta para cargar datos.
                 </td>
               </tr>
             ) : (
-              sortedVentas.map((v) => (
-                <tr key={v.id} className="hover:bg-surface-container-lowest transition-colors group">
+              sorted.map((g) => (
+                <tr key={g.key} className="hover:bg-surface-container-lowest transition-colors group">
                   <td className="px-6 py-4 font-data-mono text-on-surface-variant whitespace-nowrap">
-                    {isValidLink(v.link) ? (
+                    {isValidLink(g.link) ? (
                       <a
-                        href={v.link.trim()}
+                        href={g.link.trim()}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-primary underline hover:text-on-primary-container"
                       >
-                        {v.numero}
+                        {g.numero}
                       </a>
                     ) : (
-                      v.numero
+                      g.numero
                     )}
                   </td>
-                  <td className="px-6 py-4 text-on-surface-variant">{v.producto}</td>
-                  <td className="px-6 py-4 text-on-surface-variant whitespace-nowrap">
-                    {formatLocalDate(v.fecha)}
+                  <td className="px-6 py-4 text-on-surface-variant">
+                    {g.productos.length === 1 ? g.productos[0] : g.productos.join(', ')}
                   </td>
-                  <td className="px-6 py-4 text-on-surface-variant">{v.cantidad}</td>
+                  <td className="px-6 py-4 text-on-surface-variant whitespace-nowrap">
+                    {formatLocalDate(g.fecha)}
+                  </td>
+                  <td className="px-6 py-4 text-right font-data-mono text-on-surface-variant">{g.cantidad}</td>
                   <td className="px-6 py-4 text-right font-data-mono text-primary font-semibold whitespace-nowrap">
-                    {formatCurrency(v.totalRecibido)}
+                    {formatCurrency(g.totalRecibido)}
                   </td>
                 </tr>
               ))

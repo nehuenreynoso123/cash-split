@@ -30,4 +30,12 @@ export interface Venta {
   nombreApellido: string; // Nombre Apellido
   nombreFactura: string; // Factura a nombre de (quién la emite), REQUIRED
   link: string; // Link de la venta (Mercado Libre, etc.), optional
+  facturaId: string | null; // Groups products in the same invoice
+}
+
+// Individual product within a multi-product invoice form.
+export interface VentaFormItem {
+  producto: string;
+  cantidad: number;
+  precioVenta: string;
 }

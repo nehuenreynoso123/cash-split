@@ -33,6 +33,7 @@ const FACTURACION_COLUMNS = `
     nombre_apellido,
     nombre_factura,
     link,
+    factura_id,
     created_at
 `;
 
@@ -149,5 +150,91 @@ export async function add({
     }
 
     return venta;
+  });
+}
+
+// ── Add multi-product factura (one row per product, same factura_id) ────
+// items: [{ producto, cantidad, precio_venta }]
+// Shared fields apply to ALL items in the factura.
+export async function addFactura({
+  items,
+  factura_id,
+  numero,
+  fecha,
+  comision_venta,
+  comision_cuota,
+  envio_ml,
+  envio_flex,
+  descuento,
+  retenciones,
+  total_recibido,
+  fecha_factura,
+  codigo_postal,
+  localidad,
+  provincia,
+  dni_cuit,
+  nombre_apellido,
+  nombre_factura,
+  nro_factura_base,
+  link,
+}) {
+  return await sql.begin(async (tx) => {
+    // Check manual numero uniqueness (only for the first item; shared across items)
+    if (numero) {
+      const [dup] = await tx`
+        SELECT 1 FROM ventas_facturacion WHERE numero = ${numero}
+      `;
+      if (dup) {
+        const err = new Error("Ya existe una venta con ese ID de venta");
+        err.statusCode = 409;
+        throw err;
+      }
+    }
+
+    await tx`SELECT pg_advisory_xact_lock(hashtext(lower(${nombre_factura}))::bigint)`;
+
+    const [row] = await tx`
+      SELECT COALESCE(MAX(nro_factura), ${nro_factura_base - 1}) + 1 AS next
+      FROM ventas_facturacion
+      WHERE lower(nombre_factura) = lower(${nombre_factura})
+    `;
+
+    const inserted = [];
+
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      // Only the first item gets the manual numero (or auto V-####).
+      // Subsequent items share the same factura_id but get null numero.
+      const itemNumero = i === 0 ? (numero || null) : null;
+
+      try {
+        const [venta] = await tx`
+          INSERT INTO ventas_facturacion (
+            numero, producto, fecha, cantidad, precio_venta, comision_venta, comision_cuota,
+            envio_ml, envio_flex, descuento, retenciones, total_recibido, importe,
+            nro_factura, fecha_factura, codigo_postal, localidad, provincia,
+            dni_cuit, nombre_apellido, nombre_factura, link, factura_id
+          )
+          VALUES (
+            ${itemNumero}, ${item.producto}, ${fecha}, ${item.cantidad}, ${item.precio_venta}, ${comision_venta}, ${comision_cuota},
+            ${envio_ml}, ${envio_flex}, ${descuento}, ${retenciones}, ${total_recibido}, ${item.precio_venta},
+            ${row.next}, ${fecha_factura},
+            ${codigo_postal || null}, ${localidad || null}, ${provincia || null},
+            ${dni_cuit || null}, ${nombre_apellido || null}, ${nombre_factura}, ${link || null}, ${factura_id}
+          )
+          RETURNING ${sql.unsafe(FACTURACION_COLUMNS)}
+        `;
+        inserted.push(venta);
+      } catch (err) {
+        if (err?.code === "23505") {
+          const conflict = new Error("Ya existe una venta con ese ID de venta");
+          conflict.statusCode = 409;
+          throw conflict;
+        }
+        throw err;
+      }
+    }
+
+    return inserted;
   });
 }

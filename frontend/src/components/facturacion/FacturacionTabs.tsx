@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useAuthRedirect } from '../../hooks/useAuthRedirect';
-import { createVentaFacturacion, deleteVentaFacturacion, listVentasFacturacion, type VentaFacturacion } from '../../lib/api';
+import { createVentaFacturacion, createFacturaFacturacion, deleteVentaFacturacion, listVentasFacturacion, type VentaFacturacion } from '../../lib/api';
 import VentasTable from './VentasTable';
 import FacturasTable from './FacturasTable';
 import AgregarVentaForm from './AgregarVentaForm';
 import ComisionesRetencionesTable from './ComisionesRetencionesTable';
-import type { Venta } from './ventas';
+import type { Venta, VentaFormItem } from './ventas';
 
 type TabId = 'ventas' | 'facturacion' | 'comisionesRetenciones' | 'agregarVenta';
 
@@ -35,8 +35,6 @@ function toVenta(row: VentaFacturacion): Venta {
     retenciones: Number(row.retenciones),
     totalRecibido: Number(row.total_recibido),
     importe: Number(row.importe),
-    // nro_factura is numbered per name (almendra → 202+, nehuen → 8+,
-    // other → 1+); pad to 2 digits so single-digit sequences render as 08, 01.
     nroFactura: String(row.nro_factura).padStart(2, '0'),
     fechaFactura: row.fecha_factura,
     jurisdiccion: {
@@ -48,6 +46,7 @@ function toVenta(row: VentaFacturacion): Venta {
     nombreApellido: row.nombre_apellido ?? '',
     nombreFactura: row.nombre_factura ?? '',
     link: row.link ?? '',
+    facturaId: row.factura_id ?? null,
   };
 }
 
@@ -98,10 +97,40 @@ export default function FacturacionTabs() {
     };
   }, []);
 
-  const handleAddVenta = async (draft: Omit<Venta, 'id' | 'nroFactura' | 'importe'>) => {
-    const row = await createVentaFacturacion(draft);
-    // Backend returns rows ordered by id ASC, so appending keeps that order.
-    setVentas((prev) => [...prev, toVenta(row)]);
+  const handleAddVenta = async (
+    draft: Omit<Venta, 'id' | 'nroFactura' | 'importe'>,
+    items?: VentaFormItem[],
+  ) => {
+    if (items && items.length > 0) {
+      // Multi-product invoice
+      const rows = await createFacturaFacturacion({
+        numero: draft.numero,
+        items: items.map((it) => ({
+          producto: it.producto,
+          cantidad: it.cantidad,
+          precio_venta: parseFloat(it.precioVenta) || 0,
+        })),
+        fecha: draft.fecha,
+        comisionVenta: draft.comisionVenta,
+        comisionCuota: draft.comisionCuota,
+        envioML: draft.envioML,
+        envioFlex: draft.envioFlex,
+        descuento: draft.descuento,
+        retenciones: draft.retenciones,
+        totalRecibido: draft.totalRecibido,
+        fechaFactura: draft.fechaFactura,
+        jurisdiccion: draft.jurisdiccion,
+        dniCuit: draft.dniCuit,
+        nombreApellido: draft.nombreApellido,
+        nombreFactura: draft.nombreFactura,
+        link: draft.link,
+      });
+      setVentas((prev) => [...prev, ...rows.map(toVenta)]);
+    } else {
+      // Single product (backward compat)
+      const row = await createVentaFacturacion(draft);
+      setVentas((prev) => [...prev, toVenta(row)]);
+    }
   };
 
   // Sequential delete keeps state consistent: each successful call drops its

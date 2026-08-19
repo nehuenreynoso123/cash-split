@@ -7,6 +7,7 @@ const router = express.Router();
 
 router.get("/facturacion-ventas", [verifyToken], listVentas);
 router.post("/facturacion-ventas", [verifyToken], addVenta);
+router.post("/facturacion-ventas/factura", [verifyToken], addFactura);
 router.delete("/facturacion-ventas/:id", [verifyToken], deleteVenta);
 
 function listVentas(req, resp, next) {
@@ -19,6 +20,13 @@ function listVentas(req, resp, next) {
 function addVenta(req, resp, next) {
   controller
     .addVenta(req.body)
+    .then((data) => response.success(req, resp, data, 201))
+    .catch(next);
+}
+
+function addFactura(req, resp, next) {
+  controller
+    .addFacturaVenta(req.body)
     .then((data) => response.success(req, resp, data, 201))
     .catch(next);
 }

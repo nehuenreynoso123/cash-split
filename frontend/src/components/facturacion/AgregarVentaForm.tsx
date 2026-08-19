@@ -1,9 +1,12 @@
 import { useEffect, useState, type FormEvent, type KeyboardEvent, type ReactNode } from 'react';
 import { todayISO } from '../../lib/data';
-import type { Venta } from './ventas';
+import type { Venta, VentaFormItem } from './ventas';
 
 interface AgregarVentaFormProps {
-  onAddVenta: (draft: Omit<Venta, 'id' | 'nroFactura' | 'importe'>) => Promise<void>;
+  onAddVenta: (
+    draft: Omit<Venta, 'id' | 'nroFactura' | 'importe'>,
+    items?: VentaFormItem[],
+  ) => Promise<void>;
   productosExistentes: string[];
   nombresExistentes: string[];
 }
@@ -19,15 +22,10 @@ interface FieldProps {
   required?: boolean;
   placeholder?: string;
   helper?: string;
-  /** When provided, renders a small copy button next to the label. */
   onCopy?: () => void;
-  /** Shows the "¡Copiado!" state on the copy button. */
   copied?: boolean;
 }
 
-// Small icon button that copies a single form field to the clipboard. Shows
-// a brief "¡Copiado!" state via the `copied` prop and is disabled while the
-// field has nothing to copy.
 function CopyButton({ copied, onClick, label }: { copied: boolean; onClick: () => void; label: string }) {
   return (
     <button
@@ -42,10 +40,6 @@ function CopyButton({ copied, onClick, label }: { copied: boolean; onClick: () =
   );
 }
 
-// Labeled field with the shared input shell; `money` adds the $ prefix and the
-// mono font used by every monetary input in the form. `helper` renders a small
-// hint below the input (e.g. to mark an optional field). `onCopy` adds a small
-// copy button next to the label that copies the current field value.
 function Field({
   label,
   value,
@@ -86,9 +80,7 @@ function Field({
       </div>
       {money ? (
         <div className="relative">
-          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant font-data-mono">
-            $
-          </span>
+          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant font-data-mono">$</span>
           {input}
         </div>
       ) : (
@@ -108,22 +100,23 @@ function SectionLabel({ icon, children }: { icon: string; children: ReactNode })
   );
 }
 
+const emptyFormItem = (): VentaFormItem => ({
+  producto: '',
+  cantidad: 1,
+  precioVenta: '',
+});
+
 export default function AgregarVentaForm({
   onAddVenta,
   productosExistentes,
   nombresExistentes,
 }: AgregarVentaFormProps) {
-  // Datos de la venta
+  // Shared sale fields
   const [numero, setNumero] = useState('');
-  const [producto, setProducto] = useState('');
-  // Dates start EMPTY to avoid a hydration mismatch (the static build bakes the
-  // build-time clock into SSR output); they are filled after mount below.
   const [fecha, setFecha] = useState('');
-  const [cantidad, setCantidad] = useState(1);
-  const [precioVenta, setPrecioVenta] = useState('');
   const [totalRecibido, setTotalRecibido] = useState('');
   const [link, setLink] = useState('');
-  // Comisiones, envíos y descuentos (default to 0)
+  // Comisiones, envíos y descuentos
   const [comisionVenta, setComisionVenta] = useState('0');
   const [comisionCuota, setComisionCuota] = useState('0');
   const [envioML, setEnvioML] = useState('0');
@@ -134,78 +127,71 @@ export default function AgregarVentaForm({
   const [fechaFactura, setFechaFactura] = useState('');
   const [dniCuit, setDniCuit] = useState('');
   const [nombreApellido, setNombreApellido] = useState('');
-  // A nombre de quién se factura (REQUIRED; numera sus propias facturas)
   const [nombreFactura, setNombreFactura] = useState('');
   // Jurisdicción
   const [codigoPostal, setCodigoPostal] = useState('');
   const [localidad, setLocalidad] = useState('');
   const [provincia, setProvincia] = useState('');
-  // Autocomplete de producto
+  // Product items (dynamic rows)
+  const [items, setItems] = useState<VentaFormItem[]>([emptyFormItem()]);
+  // Autocomplete states
+  const [activeItemIndex, setActiveItemIndex] = useState<number>(-1);
+  const [suggestionItemIdx, setSuggestionItemIdx] = useState<number>(-1);
   const [suggestionsOpen, setSuggestionsOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
-  // Autocomplete de nombre de factura
   const [nombreSuggestionsOpen, setNombreSuggestionsOpen] = useState(false);
   const [nombreActiveIndex, setNombreActiveIndex] = useState(-1);
   // Feedback
   const [done, setDone] = useState(false);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  // Which field just copied its value (label used as key), to show the
-  // "¡Copiado!" state briefly on the right copy button.
   const [copiedField, setCopiedField] = useState<string | null>(null);
 
-  // Copy a field value to the clipboard and flash the button's copied state.
   const copyField = async (fieldKey: string, value: string) => {
     if (!value) return;
     try {
       await navigator.clipboard.writeText(value);
       setCopiedField(fieldKey);
       setTimeout(() => setCopiedField((current) => (current === fieldKey ? null : current)), 1500);
-    } catch {
-      // Clipboard unavailable (e.g. non-secure context): silently ignore; the
-      // user can still select and copy the text manually.
-    }
+    } catch { /* Clipboard unavailable */ }
   };
 
-  // Default the date inputs to today, client-side only.
   useEffect(() => {
     setFecha(todayISO());
     setFechaFactura(todayISO());
   }, []);
 
-  // Money guards must reject empty/NaN input: parseFloat('') is NaN and
-  // `NaN <= 0` is false, so each check requires a finite positive number.
   const isPositive = (value: string) => {
     const n = parseFloat(value);
     return Number.isFinite(n) && n > 0;
   };
 
-  // Autocomplete suggestions: only when the trimmed query has 3+ chars;
-  // case-insensitive substring match over the products already loaded.
-  const productQuery = producto.trim().toLowerCase();
-  const matches =
-    productQuery.length >= 3
-      ? productosExistentes.filter((p) => p.toLowerCase().includes(productQuery))
-      : [];
+  // ── Product items helpers ─────────────────────────────────
+  const updateItem = (index: number, patch: Partial<VentaFormItem>) => {
+    setItems((prev) => prev.map((it, i) => (i === index ? { ...it, ...patch } : it)));
+  };
+  const addItem = () => setItems((prev) => [...prev, emptyFormItem()]);
+  const removeItem = (index: number) => setItems((prev) => prev.filter((_, i) => i !== index));
 
-  // A stale active index must never point at a different list: reset it on
-  // every query change (ArrowDown/ArrowUp navigate within the current list).
-  useEffect(() => {
-    setActiveIndex(-1);
-  }, [productQuery]);
+  // ── Product autocomplete per item ─────────────────────────
+  const getProductQuery = (idx: number) => items[idx]?.producto.trim().toLowerCase() ?? '';
+  const getProductMatches = (idx: number) => {
+    const q = getProductQuery(idx);
+    return q.length >= 3 ? productosExistentes.filter((p) => p.toLowerCase().includes(q)) : [];
+  };
 
-  // Keyboard navigation: ArrowDown/ArrowUp move the active suggestion, Enter
-  // selects it (preventDefault so the form does not submit), Escape closes.
-  const handleProductKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+  const handleProductKeyDown = (e: KeyboardEvent<HTMLInputElement>, idx: number) => {
+    const matches = getProductMatches(idx);
     if (e.key === 'Escape') {
-      if (suggestionsOpen) {
+      if (suggestionsOpen && suggestionItemIdx === idx) {
         e.preventDefault();
         setSuggestionsOpen(false);
         setActiveIndex(-1);
+        setSuggestionItemIdx(-1);
       }
       return;
     }
-    if (!suggestionsOpen || matches.length === 0) return;
+    if (!suggestionsOpen || suggestionItemIdx !== idx || matches.length === 0) return;
     if (e.key === 'ArrowDown') {
       e.preventDefault();
       setActiveIndex((i) => (i + 1) % matches.length);
@@ -215,24 +201,25 @@ export default function AgregarVentaForm({
     } else if (e.key === 'Enter') {
       if (activeIndex >= 0 && activeIndex < matches.length) {
         e.preventDefault();
-        setProducto(matches[activeIndex]);
+        updateItem(idx, { producto: matches[activeIndex] });
         setActiveIndex(-1);
         setSuggestionsOpen(false);
+        setSuggestionItemIdx(-1);
       }
-      // No active index: let Enter submit the form as usual.
     }
   };
 
-  // Name autocomplete: unlike products there is NO minimum char count — the
-  // distinct invoice names are few (Almendra, Nehuen...), so the list shows on
-  // focus and narrows as the user types. Same keyboard UX as the product field.
+  // Reset active index when product query changes
+  useEffect(() => {
+    setActiveIndex(-1);
+  }, [items.map((it) => it.producto).join('|')]);
+
+  // ── Nombre factura autocomplete ───────────────────────────
   const nombreQuery = nombreFactura.trim().toLowerCase();
   const nombreMatches = nombreQuery
     ? nombresExistentes.filter((n) => n.toLowerCase().includes(nombreQuery))
     : nombresExistentes;
 
-  // A stale active index must never point at a different list: reset it on
-  // every query change (same reasoning as the product autocomplete).
   useEffect(() => {
     setNombreActiveIndex(-1);
   }, [nombreQuery]);
@@ -260,17 +247,15 @@ export default function AgregarVentaForm({
         setNombreActiveIndex(-1);
         setNombreSuggestionsOpen(false);
       }
-      // No active index: let Enter submit the form as usual.
     }
   };
 
-  // Part A root cause: totalRecibido used to be REQUIRED here, so leaving
-  // "Total Recibido" empty (a common case) permanently disabled the Cargar
-  // Venta button. It is now OPTIONAL — the server defaults it to 0. In
-  // exchange, dniCuit/codigoPostal/localidad/provincia/nombreFactura are
-  // required (validated on both ends).
+  // ── Validation ────────────────────────────────────────────
+  const allItemsValid = items.every(
+    (it) => it.producto.trim() && it.cantidad >= 1 && isPositive(it.precioVenta),
+  );
+
   const invalid =
-    !producto.trim() ||
     !fecha ||
     !fechaFactura ||
     !nombreApellido.trim() ||
@@ -279,21 +264,22 @@ export default function AgregarVentaForm({
     !codigoPostal.trim() ||
     !localidad.trim() ||
     !provincia.trim() ||
-    cantidad < 1 ||
-    !isPositive(precioVenta);
+    items.length === 0 ||
+    !allItemsValid;
 
+  // ── Submit ────────────────────────────────────────────────
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (invalid) return;
 
     setSubmitting(true);
     try {
-      await onAddVenta({
+      const draft = {
         numero: numero.trim(),
-        producto: producto.trim(),
+        producto: items[0].producto.trim(),
         fecha,
-        cantidad,
-        precioVenta: parseFloat(precioVenta),
+        cantidad: items.reduce((sum, it) => sum + it.cantidad, 0),
+        precioVenta: items.reduce((sum, it) => sum + (parseFloat(it.precioVenta) || 0) * it.cantidad, 0),
         comisionVenta: parseFloat(comisionVenta) || 0,
         comisionCuota: parseFloat(comisionCuota) || 0,
         envioML: parseFloat(envioML) || 0,
@@ -311,19 +297,23 @@ export default function AgregarVentaForm({
         nombreApellido: nombreApellido.trim(),
         nombreFactura: nombreFactura.trim(),
         link: link.trim(),
-      });
+        facturaId: null as string | null,
+      };
+
+      if (items.length > 1) {
+        await onAddVenta(draft, items);
+      } else {
+        await onAddVenta(draft);
+      }
 
       setDone(true);
       setError('');
 
-      // Brief "¡Venta Cargada!" feedback, then reset to defaults.
       setTimeout(() => {
         setDone(false);
         setNumero('');
-        setProducto('');
         setFecha(todayISO());
-        setCantidad(1);
-        setPrecioVenta('');
+        setItems([emptyFormItem()]);
         setTotalRecibido('');
         setLink('');
         setComisionVenta('0');
@@ -341,11 +331,11 @@ export default function AgregarVentaForm({
         setProvincia('');
         setSuggestionsOpen(false);
         setActiveIndex(-1);
+        setSuggestionItemIdx(-1);
         setNombreSuggestionsOpen(false);
         setNombreActiveIndex(-1);
       }, 2000);
     } catch (err) {
-      // Keep the draft intact so the user can fix and retry.
       setError(err instanceof Error ? err.message : 'No se pudo cargar la venta. Inténtalo de nuevo.');
     } finally {
       setSubmitting(false);
@@ -363,11 +353,10 @@ export default function AgregarVentaForm({
       </div>
 
       <form onSubmit={handleSubmit} className="p-8 space-y-6">
+        {/* ── Datos de la venta ─────────────────────────────── */}
         <div className="space-y-4">
           <SectionLabel icon="point_of_sale">Datos de la venta</SectionLabel>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* ID de venta OPTIONAL: a typed value is stored as-is; left empty
-                the backend derives V-#### from the row id automatically. */}
             <Field
               label="ID de venta"
               value={numero}
@@ -375,83 +364,7 @@ export default function AgregarVentaForm({
               placeholder="V-0001"
               helper="Déjalo vacío para generarlo automáticamente"
             />
-            {/* Producto Vendido with autocomplete: suggestions show for 3+
-                typed chars and are selected with onMouseDown so the click wins
-                the race against the input's onBlur. */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between gap-2">
-                <label className="font-label-caps text-on-surface-variant uppercase">
-                  Producto Vendido
-                </label>
-                <CopyButton
-                  copied={copiedField === 'producto'}
-                  onClick={() => copyField('producto', producto)}
-                  label="Producto Vendido"
-                />
-              </div>
-              <div className="relative">
-                <input
-                  type="text"
-                  value={producto}
-                  onChange={(e) => {
-                    setProducto(e.target.value);
-                    setSuggestionsOpen(true);
-                  }}
-                  onFocus={() => setSuggestionsOpen(true)}
-                  onBlur={() => setSuggestionsOpen(false)}
-                  onKeyDown={handleProductKeyDown}
-                  placeholder="Producto de la venta"
-                  required
-                  className="w-full h-12 px-4 border border-outline-variant rounded-xl focus:ring-2 focus:ring-secondary outline-none transition-all"
-                />
-                {suggestionsOpen && matches.length > 0 && (
-                  <ul className="absolute z-10 mt-1 w-full bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden shadow-lg">
-                    {matches.map((name, index) => (
-                      <li key={name}>
-                        <button
-                          type="button"
-                          onMouseDown={(e) => {
-                            e.preventDefault();
-                            setProducto(name);
-                            setActiveIndex(-1);
-                            setSuggestionsOpen(false);
-                          }}
-                          onMouseEnter={() => setActiveIndex(index)}
-                          className={`w-full text-left px-4 py-2.5 transition-colors ${
-                            index === activeIndex
-                              ? 'bg-surface-container text-on-surface'
-                              : 'text-on-surface-variant hover:bg-surface-container'
-                          }`}
-                        >
-                          {name}
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            </div>
             <Field label="Fecha" type="date" value={fecha} onChange={setFecha} required />
-            <Field
-              label="Cantidad"
-              type="number"
-              min={1}
-              value={cantidad}
-              onChange={(v) => setCantidad(parseInt(v) || 0)}
-              required
-            />
-            <Field
-              label="Precio de Venta"
-              money
-              min={0}
-              step="0.01"
-              value={precioVenta}
-              onChange={setPrecioVenta}
-              placeholder="0.00"
-              required
-              onCopy={() => copyField('precioVenta', precioVenta)}
-              copied={copiedField === 'precioVenta'}
-            />
             <Field
               label="Total Recibido"
               money
@@ -471,39 +384,158 @@ export default function AgregarVentaForm({
           </div>
         </div>
 
+        {/* ── Productos vendidos (dynamic rows) ──────────────── */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <SectionLabel icon="shopping_cart">Productos vendidos</SectionLabel>
+            <span className="text-on-surface-variant font-body-sm">
+              {items.length} {items.length === 1 ? 'producto' : 'productos'}
+            </span>
+          </div>
+
+          {items.map((item, idx) => {
+            const matches = getProductMatches(idx);
+            const isOpen = suggestionsOpen && suggestionItemIdx === idx;
+
+            return (
+              <div
+                key={idx}
+                className="space-y-3 p-4 bg-surface-container rounded-xl border border-outline-variant/50"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="font-label-caps text-on-surface-variant uppercase text-xs">
+                    Producto {idx + 1}
+                  </span>
+                  {items.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => removeItem(idx)}
+                      className="text-on-surface-variant hover:text-error transition-colors"
+                    >
+                      <span className="material-symbols-outlined text-[18px]">delete</span>
+                    </button>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {/* Product name with autocomplete */}
+                  <div className="space-y-2">
+                    <label className="font-label-caps text-on-surface-variant uppercase">
+                      Producto Vendido
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={item.producto}
+                        onChange={(e) => {
+                          updateItem(idx, { producto: e.target.value });
+                          setSuggestionsOpen(true);
+                          setSuggestionItemIdx(idx);
+                        }}
+                        onFocus={() => {
+                          setSuggestionsOpen(true);
+                          setSuggestionItemIdx(idx);
+                        }}
+                        onBlur={() => {
+                          setTimeout(() => {
+                            setSuggestionsOpen(false);
+                            setSuggestionItemIdx(-1);
+                          }, 150);
+                        }}
+                        onKeyDown={(e) => handleProductKeyDown(e, idx)}
+                        placeholder="Producto de la venta"
+                        required
+                        className="w-full h-12 px-4 border border-outline-variant rounded-xl focus:ring-2 focus:ring-secondary outline-none transition-all"
+                      />
+                      {isOpen && matches.length > 0 && (
+                        <ul className="absolute z-10 mt-1 w-full bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden shadow-lg">
+                          {matches.map((name, index) => (
+                            <li key={name}>
+                              <button
+                                type="button"
+                                onMouseDown={(e) => {
+                                  e.preventDefault();
+                                  updateItem(idx, { producto: name });
+                                  setActiveIndex(-1);
+                                  setSuggestionsOpen(false);
+                                  setSuggestionItemIdx(-1);
+                                }}
+                                onMouseEnter={() => setActiveIndex(index)}
+                                className={`w-full text-left px-4 py-2.5 transition-colors ${
+                                  index === activeIndex
+                                    ? 'bg-surface-container text-on-surface'
+                                    : 'text-on-surface-variant hover:bg-surface-container'
+                                }`}
+                              >
+                                {name}
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  </div>
+
+                  <Field
+                    label="Cantidad"
+                    type="number"
+                    min={1}
+                    value={item.cantidad}
+                    onChange={(v) => updateItem(idx, { cantidad: parseInt(v) || 0 })}
+                    required
+                  />
+
+                  <Field
+                    label="Precio de Venta"
+                    money
+                    min={0}
+                    step="0.01"
+                    value={item.precioVenta}
+                    onChange={(v) => updateItem(idx, { precioVenta: v })}
+                    placeholder="0.00"
+                    required
+                  />
+                </div>
+              </div>
+            );
+          })}
+
+          <button
+            type="button"
+            onClick={addItem}
+            className="w-full h-12 border-2 border-dashed border-outline-variant rounded-xl flex items-center justify-center gap-2 text-on-surface-variant hover:border-secondary hover:text-secondary transition-all"
+          >
+            <span className="material-symbols-outlined text-[18px]">add</span>
+            Agregar otro producto
+          </button>
+        </div>
+
+        {/* ── Comisiones, envíos y descuentos ───────────────── */}
         <div className="space-y-4">
           <SectionLabel icon="percent">Comisiones, envíos y descuentos</SectionLabel>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Field
               label="Comisión por Venta"
-              money
-              min={0}
-              step="0.01"
+              money min={0} step="0.01"
               value={comisionVenta}
               onChange={setComisionVenta}
             />
             <Field
               label="Comisión por Cuota"
-              money
-              min={0}
-              step="0.01"
+              money min={0} step="0.01"
               value={comisionCuota}
               onChange={setComisionCuota}
             />
             <Field label="Envío ML" money min={0} step="0.01" value={envioML} onChange={setEnvioML} />
             <Field
               label="Envío Flex"
-              money
-              min={0}
-              step="0.01"
+              money min={0} step="0.01"
               value={envioFlex}
               onChange={setEnvioFlex}
             />
             <Field
               label="Descuento"
-              money
-              min={0}
-              step="0.01"
+              money min={0} step="0.01"
               value={descuento}
               onChange={setDescuento}
               onCopy={() => copyField('descuento', descuento)}
@@ -511,22 +543,17 @@ export default function AgregarVentaForm({
             />
             <Field
               label="Retenciones"
-              money
-              min={0}
-              step="0.01"
+              money min={0} step="0.01"
               value={retenciones}
               onChange={setRetenciones}
             />
           </div>
         </div>
 
+        {/* ── Datos de facturación ──────────────────────────── */}
         <div className="space-y-4">
           <SectionLabel icon="receipt_long">Datos de facturación</SectionLabel>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* Factura a nombre de — who the invoice is issued for. Same
-                autocomplete as the product field, but with NO minimum chars:
-                the distinct names are few, so show them on focus and narrow
-                as the user types. */}
             <div className="space-y-2">
               <label className="font-label-caps text-on-surface-variant uppercase">
                 Nombre en factura
@@ -599,6 +626,7 @@ export default function AgregarVentaForm({
           </div>
         </div>
 
+        {/* ── Jurisdicción ──────────────────────────────────── */}
         <div className="space-y-4">
           <SectionLabel icon="location_on">Jurisdicción</SectionLabel>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

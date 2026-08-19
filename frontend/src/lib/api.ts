@@ -349,6 +349,7 @@ export interface VentaFacturacion {
   nombre_apellido: string | null;
   nombre_factura: string;
   link: string | null;
+  factura_id: string | null;
 }
 
 // Draft payload shape (camelCase, same as the form model); the backend assigns
@@ -403,8 +404,6 @@ export async function listVentasFacturacion(): Promise<VentaFacturacion[]> {
 
 export async function createVentaFacturacion(draft: VentaFacturacionDraft): Promise<VentaFacturacion> {
   const data = await request<VentaFacturacion>('POST', '/facturacion-ventas', {
-    // undefined keys are dropped by JSON.stringify, so an empty numero is
-    // simply absent and the backend falls back to the auto V-####.
     numero: draft.numero.trim() || undefined,
     producto: draft.producto,
     fecha: draft.fecha,
@@ -427,6 +426,56 @@ export async function createVentaFacturacion(draft: VentaFacturacionDraft): Prom
     link: draft.link,
   });
   return normalizeVentaFacturacion(data);
+}
+
+export interface VentaFacturacionFacturaItem {
+  producto: string;
+  cantidad: number;
+  precio_venta: number;
+}
+
+export interface VentaFacturacionFacturaDraft {
+  numero: string;
+  items: VentaFacturacionFacturaItem[];
+  fecha: string;
+  comisionVenta: number;
+  comisionCuota: number;
+  envioML: number;
+  envioFlex: number;
+  descuento: number;
+  retenciones: number;
+  totalRecibido: number;
+  fechaFactura: string;
+  jurisdiccion: { codigoPostal: string; localidad: string; provincia: string };
+  dniCuit: string;
+  nombreApellido: string;
+  nombreFactura: string;
+  link: string;
+}
+
+export async function createFacturaFacturacion(draft: VentaFacturacionFacturaDraft): Promise<VentaFacturacion[]> {
+  const data = await request<VentaFacturacion[]>('POST', '/facturacion-ventas/factura', {
+    numero: draft.numero.trim() || undefined,
+    factura_id: crypto.randomUUID(),
+    items: draft.items,
+    fecha: draft.fecha,
+    comision_venta: draft.comisionVenta,
+    comision_cuota: draft.comisionCuota,
+    envio_ml: draft.envioML,
+    envio_flex: draft.envioFlex,
+    descuento: draft.descuento,
+    retenciones: draft.retenciones,
+    total_recibido: draft.totalRecibido,
+    fecha_factura: draft.fechaFactura,
+    codigo_postal: draft.jurisdiccion.codigoPostal,
+    localidad: draft.jurisdiccion.localidad,
+    provincia: draft.jurisdiccion.provincia,
+    dni_cuit: draft.dniCuit,
+    nombre_apellido: draft.nombreApellido,
+    nombre_factura: draft.nombreFactura,
+    link: draft.link,
+  });
+  return data.map(normalizeVentaFacturacion);
 }
 
 export async function deleteVentaFacturacion(id: number): Promise<void> {

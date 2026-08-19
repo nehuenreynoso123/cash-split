@@ -7,6 +7,22 @@ interface FacturasTableProps {
   onDelete: (ids: number[]) => Promise<void>;
 }
 
+interface GroupedFactura {
+  key: string;
+  rowIds: number[];
+  numero: string;
+  fecha: string;
+  cantidad: number;
+  nroFactura: string;
+  fechaFactura: string;
+  importe: number;
+  jurisdiccion: Venta['jurisdiccion'];
+  dniCuit: string;
+  nombreApellido: string;
+  productos: string[];
+  nombreFactura: string;
+}
+
 const COLUMNS: { label: string; align?: 'right'; sortKey?: 'fecha' | 'fechaFactura' | 'nroFactura' }[] = [
   { label: 'ID de venta' },
   { label: 'Fecha', sortKey: 'fecha' },
@@ -22,8 +38,6 @@ const COLUMNS: { label: string; align?: 'right'; sortKey?: 'fecha' | 'fechaFactu
   { label: '' },
 ];
 
-// Combine the jurisdiction parts following the "CP <cp> - <localidad>, <provincia>"
-// shape (e.g. "CP 7600 - Mar del Plata, Buenos Aires"), skipping empty parts.
 function jurisdiccionLabel(j: Venta['jurisdiccion']): string {
   const cp = j.codigoPostal.trim() ? `CP ${j.codigoPostal.trim()}` : '';
   const place = [j.localidad.trim(), j.provincia.trim()].filter(Boolean).join(', ');
@@ -31,42 +45,71 @@ function jurisdiccionLabel(j: Venta['jurisdiccion']): string {
   return label || '—';
 }
 
-// One row per invoice, semicolon-separated fields, CRLF line endings so the
-// clipboard pastes straight into Excel as rows and columns. The importe is
-// copied as a plain number (two decimals, no currency symbol) so Excel treats
-// it as a numeric cell. Field 8 is left empty on purpose (matches the column
-// layout the user pastes into).
-function buildClipboardText(ventas: Venta[]): string {
-  return ventas
-    .map((v) =>
+function groupFacturas(ventas: Venta[]): GroupedFactura[] {
+  const map = new Map<string, GroupedFactura>();
+
+  for (const v of ventas) {
+    const key = v.facturaId || String(v.id);
+    const existing = map.get(key);
+
+    if (existing) {
+      existing.rowIds.push(v.id);
+      existing.cantidad += v.cantidad;
+      existing.importe += v.importe;
+      if (v.producto.trim() && !existing.productos.includes(v.producto.trim())) {
+        existing.productos.push(v.producto.trim());
+      }
+    } else {
+      map.set(key, {
+        key,
+        rowIds: [v.id],
+        numero: v.numero,
+        fecha: v.fecha,
+        cantidad: v.cantidad,
+        nroFactura: v.nroFactura,
+        fechaFactura: v.fechaFactura,
+        importe: v.importe,
+        jurisdiccion: v.jurisdiccion,
+        dniCuit: v.dniCuit,
+        nombreApellido: v.nombreApellido,
+        productos: [v.producto.trim()],
+        nombreFactura: v.nombreFactura,
+      });
+    }
+  }
+
+  return Array.from(map.values());
+}
+
+function buildClipboardText(groups: GroupedFactura[]): string {
+  return groups
+    .map((g) =>
       [
-        v.numero,
-        formatLocalDate(v.fecha),
-        v.nroFactura,
-        formatLocalDate(v.fechaFactura),
-        v.importe.toFixed(2),
-        jurisdiccionLabel(v.jurisdiccion),
-        v.dniCuit || '',
+        g.numero,
+        formatLocalDate(g.fecha),
+        g.nroFactura,
+        formatLocalDate(g.fechaFactura),
+        g.importe.toFixed(2),
+        jurisdiccionLabel(g.jurisdiccion),
+        g.dniCuit || '',
         '',
-        v.producto,
+        g.productos.join(' / '),
       ].join(';'),
     )
     .join('\r\n');
 }
 
 export default function FacturasTable({ ventas, onDelete }: FacturasTableProps) {
-  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'error'>('idle');
   const [sort, setSort] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
 
-  // Display order: the original (API id ASC) order until the user clicks a
-  // sortable header. ISO date strings (Fecha, Fecha de Factura) compare
-  // lexicographically, which equals chronological order; Nro de Factura is a
-  // numeric string, so it is compared numerically to avoid "100" < "99".
-  const sortedVentas = useMemo(() => {
-    if (!sort) return ventas;
+  const grouped = useMemo(() => groupFacturas(ventas), [ventas]);
+
+  const sorted = useMemo(() => {
+    if (!sort) return grouped;
     const factor = sort.direction === 'asc' ? 1 : -1;
-    return [...ventas].sort((a, b) => {
+    return [...grouped].sort((a, b) => {
       if (sort.key === 'nroFactura') {
         return (Number(a.nroFactura) - Number(b.nroFactura)) * factor;
       }
@@ -74,10 +117,8 @@ export default function FacturasTable({ ventas, onDelete }: FacturasTableProps) 
       const bDate = sort.key === 'fechaFactura' ? b.fechaFactura : b.fecha;
       return aDate.localeCompare(bDate) * factor;
     });
-  }, [ventas, sort]);
+  }, [grouped, sort]);
 
-  // Clicking a sortable header cycles asc -> desc -> asc; switching to a
-  // different column restarts at asc.
   const toggleSort = (key: string) => {
     setSort((prev) => {
       if (!prev || prev.key !== key) return { key, direction: 'asc' };
@@ -85,20 +126,21 @@ export default function FacturasTable({ ventas, onDelete }: FacturasTableProps) 
     });
   };
 
-  const toggleSelected = (id: number) => {
-    setSelectedIds((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
-    );
+  const toggleSelected = (key: string) => {
+    setSelectedKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
   };
 
-  // Selection follows the currently displayed (sorted) order so the copy
-  // operation pastes the rows exactly as they appear on screen.
-  const selectedVentas = sortedVentas.filter((v) => selectedIds.includes(v.id));
+  const selectedGroups = sorted.filter((g) => selectedKeys.has(g.key));
 
   const handleCopy = async () => {
-    if (selectedVentas.length === 0) return;
+    if (selectedGroups.length === 0) return;
     try {
-      await navigator.clipboard.writeText(buildClipboardText(selectedVentas));
+      await navigator.clipboard.writeText(buildClipboardText(selectedGroups));
       setCopyState('copied');
     } catch {
       setCopyState('error');
@@ -106,20 +148,19 @@ export default function FacturasTable({ ventas, onDelete }: FacturasTableProps) 
     setTimeout(() => setCopyState('idle'), 2000);
   };
 
-  // Destructive action: the user must confirm before the rows are deleted.
-  // Errors are surfaced by the parent (FacturacionTabs) — onDelete never
-  // rejects, so the selection is always cleared once the batch ran.
   const handleDelete = async () => {
-    const count = selectedVentas.length;
+    const count = selectedGroups.length;
     if (count === 0) return;
     const confirmed = window.confirm(
       count === 1
-        ? '¿Borrar 1 venta? Esta acción no se puede deshacer.'
-        : `¿Borrar ${count} ventas? Esta acción no se puede deshacer.`,
+        ? '¿Borrar 1 factura? Esta acción no se puede deshacer.'
+        : `¿Borrar ${count} facturas? Esta acción no se puede deshacer.`,
     );
     if (!confirmed) return;
-    await onDelete(selectedIds);
-    setSelectedIds([]);
+    // Collect all row IDs from selected groups
+    const allIds = selectedGroups.flatMap((g) => g.rowIds);
+    await onDelete(allIds);
+    setSelectedKeys(new Set());
   };
 
   return (
@@ -131,12 +172,12 @@ export default function FacturasTable({ ventas, onDelete }: FacturasTableProps) 
         </div>
         <div className="flex items-center gap-4">
           <span className="text-on-surface-variant font-body-sm">
-            {ventas.length} {ventas.length === 1 ? 'factura' : 'facturas'}
+            {grouped.length} {grouped.length === 1 ? 'factura' : 'facturas'}
           </span>
           <button
             type="button"
             onClick={handleCopy}
-            disabled={selectedVentas.length === 0}
+            disabled={selectedGroups.length === 0}
             className="inline-flex items-center gap-2 h-10 px-4 rounded-full bg-primary text-on-primary font-label-lg shadow-sm hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
           >
             <span className="material-symbols-outlined text-lg">
@@ -147,17 +188,17 @@ export default function FacturasTable({ ventas, onDelete }: FacturasTableProps) 
                 ? '¡Copiado!'
                 : copyState === 'error'
                   ? 'Error'
-                  : `Copiar (${selectedVentas.length})`}
+                  : `Copiar (${selectedGroups.length})`}
             </span>
           </button>
           <button
             type="button"
             onClick={handleDelete}
-            disabled={selectedVentas.length === 0}
+            disabled={selectedGroups.length === 0}
             className="inline-flex items-center gap-2 h-10 px-4 rounded-full bg-error text-on-error font-label-lg shadow-sm hover:bg-error/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
           >
             <span className="material-symbols-outlined text-lg">delete</span>
-            <span>Borrar ({selectedVentas.length})</span>
+            <span>Borrar ({selectedGroups.length})</span>
           </button>
         </div>
       </div>
@@ -213,46 +254,48 @@ export default function FacturasTable({ ventas, onDelete }: FacturasTableProps) 
             </tr>
           </thead>
           <tbody className="divide-y divide-outline-variant/30">
-            {ventas.length === 0 ? (
+            {grouped.length === 0 ? (
               <tr>
                 <td colSpan={COLUMNS.length} className="px-6 py-12 text-center text-on-surface-variant">
                   No hay facturas emitidas todavía.
                 </td>
               </tr>
             ) : (
-              sortedVentas.map((v) => (
-                <tr key={v.id} className="hover:bg-surface-container-lowest transition-colors group">
+              sorted.map((g) => (
+                <tr key={g.key} className="hover:bg-surface-container-lowest transition-colors group">
                   <td className="px-6 py-4 font-data-mono text-on-surface-variant whitespace-nowrap">
-                    {v.numero}
+                    {g.numero}
                   </td>
                   <td className="px-6 py-4 text-on-surface-variant whitespace-nowrap">
-                    {formatLocalDate(v.fecha)}
+                    {formatLocalDate(g.fecha)}
                   </td>
-                  <td className="px-6 py-4 text-on-surface-variant">{v.cantidad}</td>
+                  <td className="px-6 py-4 text-on-surface-variant">{g.cantidad}</td>
                   <td className="px-6 py-4 font-data-mono text-on-surface-variant whitespace-nowrap">
-                    {v.nroFactura}
+                    {g.nroFactura}
                   </td>
                   <td className="px-6 py-4 text-on-surface-variant whitespace-nowrap">
-                    {formatLocalDate(v.fechaFactura)}
+                    {formatLocalDate(g.fechaFactura)}
                   </td>
                   <td className="px-6 py-4 text-right font-data-mono text-primary font-semibold whitespace-nowrap">
-                    {formatCurrency(v.importe)}
+                    {formatCurrency(g.importe)}
                   </td>
-                  <td className="px-6 py-4 text-on-surface-variant">{jurisdiccionLabel(v.jurisdiccion)}</td>
+                  <td className="px-6 py-4 text-on-surface-variant">{jurisdiccionLabel(g.jurisdiccion)}</td>
                   <td className="px-6 py-4 font-data-mono text-on-surface-variant whitespace-nowrap">
-                    {v.dniCuit || '—'}
+                    {g.dniCuit || '—'}
                   </td>
-                  <td className="px-6 py-4 text-on-surface-variant">{v.nombreApellido}</td>
-                  <td className="px-6 py-4 text-on-surface-variant">{v.producto}</td>
+                  <td className="px-6 py-4 text-on-surface-variant">{g.nombreApellido}</td>
+                  <td className="px-6 py-4 text-on-surface-variant">
+                    {g.productos.length === 1 ? g.productos[0] : g.productos.join(' / ')}
+                  </td>
                   <td className="px-6 py-4 text-on-surface-variant whitespace-nowrap">
-                    {v.nombreFactura}
+                    {g.nombreFactura}
                   </td>
                   <td className="px-6 py-4">
                     <input
                       type="checkbox"
-                      checked={selectedIds.includes(v.id)}
-                      onChange={() => toggleSelected(v.id)}
-                      aria-label={`Seleccionar venta ${v.numero}`}
+                      checked={selectedKeys.has(g.key)}
+                      onChange={() => toggleSelected(g.key)}
+                      aria-label={`Seleccionar factura ${g.numero}`}
                       className="h-5 w-5 accent-secondary cursor-pointer"
                     />
                   </td>

@@ -1,4 +1,4 @@
-import { add, del, list } from "./store.js";
+import { add, addFactura, del, list } from "./store.js";
 
 // Schema-aligned max lengths for free-text fields (mirror store/init.sql).
 const MAX_LENGTHS = {
@@ -204,6 +204,108 @@ const addVenta = async (body) => {
   return await add(payload);
 };
 
+const addFacturaVenta = async (body) => {
+  body = body ?? {};
+
+  // items is required and must be a non-empty array
+  if (!Array.isArray(body.items) || body.items.length === 0) {
+    const err = new Error("Datos inválidos: se requiere al menos un producto");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const invalid = [];
+
+  // Validate shared fields (same as addVenta)
+  for (const field of [
+    "nombre_apellido",
+    "nombre_factura",
+    "dni_cuit",
+    "codigo_postal",
+    "localidad",
+    "provincia",
+  ]) {
+    const value = body[field];
+    if (typeof value !== "string" || !value.trim()) invalid.push(field);
+    else if (value.trim().length > MAX_LENGTHS[field]) invalid.push(field);
+  }
+
+  const link = typeof body.link === "string" ? body.link.trim() : "";
+  if (link && !isValidHttpUrl(link)) invalid.push("link");
+
+  if (!isValidDate(body.fecha)) invalid.push("fecha");
+  if (!isValidDate(body.fecha_factura)) invalid.push("fecha_factura");
+
+  const numero = typeof body.numero === "string" ? body.numero.trim() : "";
+  if (numero.length > MAX_LENGTHS.numero) invalid.push("numero");
+  if (numero && /^V-\d{4}$/i.test(numero)) invalid.push("numero_reservado");
+
+  // Optional money
+  const totalRecibido = Number(body.total_recibido ?? 0);
+  if (!Number.isFinite(totalRecibido) || totalRecibido < 0 || totalRecibido > MAX_MONEY) {
+    invalid.push("total_recibido");
+  }
+
+  for (const field of OPTIONAL_MONEY) {
+    const n = Number(body[field] ?? 0);
+    if (!Number.isFinite(n) || n < 0 || n > MAX_MONEY) invalid.push(field);
+  }
+
+  // Validate each item
+  const validatedItems = [];
+  for (let i = 0; i < body.items.length; i++) {
+    const item = body.items[i];
+    if (typeof item.producto !== "string" || !item.producto.trim()) {
+      invalid.push(`items[${i}].producto`);
+    } else if (item.producto.trim().length > MAX_LENGTHS.producto) {
+      invalid.push(`items[${i}].producto`);
+    }
+
+    const cantidad = Number(item.cantidad);
+    if (!Number.isInteger(cantidad) || cantidad < 1 || cantidad > MAX_CANTIDAD) {
+      invalid.push(`items[${i}].cantidad`);
+    }
+
+    const precioVenta = Number(item.precio_venta);
+    if (!Number.isFinite(precioVenta) || precioVenta <= 0 || precioVenta > MAX_MONEY) {
+      invalid.push(`items[${i}].precio_venta`);
+    }
+
+    validatedItems.push({
+      producto: item.producto.trim(),
+      cantidad,
+      precio_venta: precioVenta,
+    });
+  }
+
+  if (invalid.length > 0) fail(invalid);
+
+  const nombreFactura = body.nombre_factura.trim();
+
+  return await addFactura({
+    items: validatedItems,
+    factura_id: body.factura_id || null,
+    numero,
+    fecha: body.fecha,
+    comision_venta: Number(body.comision_venta ?? 0),
+    comision_cuota: Number(body.comision_cuota ?? 0),
+    envio_ml: Number(body.envio_ml ?? 0),
+    envio_flex: Number(body.envio_flex ?? 0),
+    descuento: Number(body.descuento ?? 0),
+    retenciones: Number(body.retenciones ?? 0),
+    total_recibido: totalRecibido,
+    fecha_factura: body.fecha_factura,
+    codigo_postal: body.codigo_postal.trim(),
+    localidad: body.localidad.trim(),
+    provincia: body.provincia.trim(),
+    dni_cuit: body.dni_cuit.trim(),
+    nombre_apellido: body.nombre_apellido.trim(),
+    nombre_factura: nombreFactura,
+    nro_factura_base: NRO_FACTURA_BASES[nombreFactura.toLowerCase()] ?? DEFAULT_NRO_FACTURA_BASE,
+    link,
+  });
+};
+
 const listVenta = async () => {
   const listVentas = await list();
   return listVentas;
@@ -231,6 +333,7 @@ const deleteVenta = async (idParam) => {
 
 export default {
   addVenta,
+  addFacturaVenta,
   listVenta,
   deleteVenta,
 };
