@@ -199,14 +199,12 @@ export async function addFactura({
       WHERE lower(nombre_factura) = lower(${nombre_factura})
     `;
 
-    let nextNro = row.next;
     const inserted = [];
 
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
-      // Only the first item gets the manual numero (or auto V-####).
-      // Subsequent items share the same factura_id but get null numero.
-      const itemNumero = i === 0 ? (numero || null) : null;
+      // Each product gets its own auto-generated numero (V-####) based on row id.
+      // All products share the same nro_factura for the invoice.
 
       try {
         const [venta] = await tx`
@@ -217,16 +215,15 @@ export async function addFactura({
             dni_cuit, nombre_apellido, nombre_factura, link, factura_id
           )
           VALUES (
-            ${itemNumero}, ${item.producto}, ${fecha}, ${item.cantidad}, ${item.precio_venta}, ${comision_venta}, ${comision_cuota},
+            NULL, ${item.producto}, ${fecha}, ${item.cantidad}, ${item.precio_venta}, ${comision_venta}, ${comision_cuota},
             ${envio_ml}, ${envio_flex}, ${descuento}, ${retenciones}, ${total_recibido}, ${item.cantidad * item.precio_venta},
-            ${nextNro}, ${fecha_factura},
+            ${row.next}, ${fecha_factura},
             ${codigo_postal || null}, ${localidad || null}, ${provincia || null},
             ${dni_cuit || null}, ${nombre_apellido || null}, ${nombre_factura}, ${link || null}, ${factura_id}
           )
           RETURNING ${sql.unsafe(FACTURACION_COLUMNS)}
         `;
         inserted.push(venta);
-        nextNro++;
       } catch (err) {
         if (err?.code === "23505") {
           const conflict = new Error("Ya existe una venta con ese ID de venta");

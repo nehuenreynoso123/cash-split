@@ -81,7 +81,8 @@ const MIGRATIONS = [
   `DO $$
   BEGIN
     CREATE UNIQUE INDEX IF NOT EXISTS ventas_facturacion_nombre_nro_key
-      ON ventas_facturacion (lower(nombre_factura), nro_factura);
+      ON ventas_facturacion (lower(nombre_factura), nro_factura)
+      WHERE factura_id IS NULL;
   END $$`,
   // Manual ID de venta (numero): user-typed label stored as TEXT. NULL means
   // "auto-derive V-#### from the row id in the store SELECT", so the partial
