@@ -144,6 +144,31 @@ export async function deleteVenta(id: number): Promise<void> {
   return request<void>('DELETE', `/venta/${id}`);
 }
 
+export interface VentaFacturaItem {
+  nombre: string;
+  cantidad: number;
+  precio: number;
+}
+
+export interface VentaFactura {
+  factura_id: string;
+  fecha: string;
+  fecha_cobro: string | null;
+  cantidad: number;
+  precio: number;
+  ganancia: number;
+  productos: VentaFacturaItem[];
+}
+
+export async function listVentasGrouped(): Promise<VentaFactura[]> {
+  const data = await request<VentaFactura[]>('GET', '/venta/grouped');
+  return data.map((v) => ({ ...v, precio: Number(v.precio), ganancia: Number(v.ganancia) }));
+}
+
+export async function createFactura(data: { items: { product_id: number; cantidad: number; precio: number }[]; factura_id: string; fecha_cobro?: string | null }): Promise<void> {
+  return request<void>('POST', '/venta/factura', data);
+}
+
 // ── Dashboard ──────────────────────────────────────────────────
 export interface TotalCaja {
   producto_id: number;
