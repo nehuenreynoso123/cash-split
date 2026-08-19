@@ -218,7 +218,7 @@ export async function addFactura({
           )
           VALUES (
             ${itemNumero}, ${item.producto}, ${fecha}, ${item.cantidad}, ${item.precio_venta}, ${comision_venta}, ${comision_cuota},
-            ${envio_ml}, ${envio_flex}, ${descuento}, ${retenciones}, ${total_recibido}, ${item.precio_venta},
+            ${envio_ml}, ${envio_flex}, ${descuento}, ${retenciones}, ${total_recibido}, ${item.cantidad * item.precio_venta},
             ${nextNro}, ${fecha_factura},
             ${codigo_postal || null}, ${localidad || null}, ${provincia || null},
             ${dni_cuit || null}, ${nombre_apellido || null}, ${nombre_factura}, ${link || null}, ${factura_id}
