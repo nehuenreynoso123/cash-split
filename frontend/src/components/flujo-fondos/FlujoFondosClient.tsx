@@ -318,6 +318,46 @@ export default function FlujoFondosClient() {
               </div>
             )}
 
+            {selected.id === 'ganancia' && (
+              <div className="border-t border-outline-variant pt-5">
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="font-label-caps text-label-caps text-secondary uppercase tracking-wider">
+                    Ventas del período
+                  </h4>
+                  <span className="text-body-sm text-on-surface-variant">
+                    {flujoFondosData.filter((r) => Number(r.unidades_vendidas) > 0).length} productos
+                  </span>
+                </div>
+                {flujoFondosData.filter((r) => Number(r.unidades_vendidas) > 0).length === 0 ? (
+                  <p className="text-body-sm text-on-surface-variant">
+                    No hay ventas en el período.
+                  </p>
+                ) : (
+                  <ul className="divide-y divide-outline-variant/40 border border-outline-variant rounded-xl overflow-hidden max-h-64 overflow-y-auto">
+                    {[...flujoFondosData]
+                      .filter((r) => Number(r.unidades_vendidas) > 0)
+                      .sort((a, b) => Number(b.ganancia_real_total) - Number(a.ganancia_real_total))
+                      .map((r) => (
+                        <li
+                          key={r.producto_id}
+                          className="flex items-center justify-between gap-4 px-4 py-3 bg-surface-container-lowest hover:bg-surface-container-low transition-colors"
+                        >
+                          <span className="font-body-base text-on-surface truncate">
+                            {r.producto}
+                          </span>
+                          <span className="text-body-sm text-on-surface-variant shrink-0">
+                            Precio venta: {formatCurrency(r.ingresos_totales)}
+                          </span>
+                          <span className="font-data-mono text-green-600 shrink-0">
+                            {formatCurrency(r.ganancia_real_total)}
+                          </span>
+                        </li>
+                      ))}
+                  </ul>
+                )}
+              </div>
+            )}
+
             {selected.id === 'caja-reposicion' && (
               <div className="border-t border-outline-variant pt-5">
                 <div className="flex items-center justify-between mb-3">
