@@ -35,6 +35,7 @@ CREATE TABLE IF NOT EXISTS ventas (
     cantidad INTEGER NOT NULL,
     ganancia NUMERIC(10,2) NOT NULL DEFAULT 0,
     fecha_cobro DATE,
+    factura_id VARCHAR(36),
     created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 

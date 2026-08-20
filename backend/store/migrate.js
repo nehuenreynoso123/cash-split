@@ -17,6 +17,10 @@ import { MENSAJE_RENOVACION_DEFAULT } from "../api_cash_split/components/setting
 const MIGRATIONS = [
   "ALTER TABLE productos ADD COLUMN IF NOT EXISTS fecha_carga DATE NOT NULL DEFAULT CURRENT_DATE",
   "ALTER TABLE productos ALTER COLUMN fecha_carga TYPE DATE USING fecha_carga::date",
+  // factura_id groups multiple venta rows into a single invoice (factura).
+  // Nullable: legacy rows and single-product ventas have no grouping.
+  "ALTER TABLE ventas ADD COLUMN IF NOT EXISTS factura_id VARCHAR(36)",
+  "ALTER TABLE ventas_facturacion ADD COLUMN IF NOT EXISTS factura_id VARCHAR(36)",
   // ventas_facturacion: the fresh shape carries NO column-level UNIQUE — the
   // per-name, case-insensitive guarantee is the functional index
   // (lower(nombre_factura), nro_factura) created below. Pre-existing tables
