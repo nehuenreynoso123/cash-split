@@ -29,7 +29,7 @@ export default function SaleHistory() {
   };
 
   return (
-    <section className="lg:col-span-7 bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden shadow-sm self-stretch">
+    <section className="lg:col-span-12 bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden shadow-sm">
       <div className="p-6 border-b border-outline-variant bg-surface-container-low flex justify-between items-center">
         <div className="flex items-center gap-2">
           <span className="material-symbols-outlined text-secondary">history</span>
