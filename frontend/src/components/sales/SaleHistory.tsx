@@ -12,7 +12,7 @@ export default function SaleHistory() {
   const [error, setError] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [expanded, setExpanded] = useState<string | null>(null);
-  const pageSize = 5;
+  const pageSize = 10;
 
   useEffect(() => {
     listVentasGrouped()
