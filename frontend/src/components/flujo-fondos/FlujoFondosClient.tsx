@@ -311,7 +311,12 @@ export default function FlujoFondosClient() {
       </div>
 
       {/* Modal de detalle */}
-      <Modal open={!!selected} onClose={() => setSelected(null)} title={selected?.titulo ?? ''}>
+      <Modal
+        open={!!selected}
+        onClose={() => setSelected(null)}
+        title={selected?.titulo ?? ''}
+        maxWidth={selected?.id === 'ganancia' ? 'max-w-3xl' : undefined}
+      >
         {selected && (
           <div className="px-8 py-6 space-y-5">
             <div className="flex items-center gap-4">

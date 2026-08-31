@@ -4,10 +4,11 @@ interface ModalProps {
   open: boolean;
   onClose: () => void;
   title: string;
+  maxWidth?: string;
   children: ReactNode;
 }
 
-export default function Modal({ open, onClose, title, children }: ModalProps) {
+export default function Modal({ open, onClose, title, maxWidth = 'max-w-lg', children }: ModalProps) {
   const overlayRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -30,7 +31,7 @@ export default function Modal({ open, onClose, title, children }: ModalProps) {
         className="absolute inset-0 bg-primary/40 backdrop-blur-sm"
         onClick={onClose}
       />
-      <div className="relative w-full max-w-lg bg-surface-container-lowest rounded-xl shadow-2xl overflow-hidden border border-outline-variant transform transition-all duration-300 animate-in fade-in zoom-in-95">
+      <div className={`relative w-full ${maxWidth} bg-surface-container-lowest rounded-xl shadow-2xl overflow-hidden border border-outline-variant transform transition-all duration-300 animate-in fade-in zoom-in-95`}>
         <div className="px-8 py-6 border-b border-outline-variant flex justify-between items-center bg-surface-container-low">
           <h3 className="font-headline-md text-headline-md text-primary">
             {title}
