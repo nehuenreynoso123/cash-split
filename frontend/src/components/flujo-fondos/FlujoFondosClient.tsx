@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Modal from '../ui/Modal';
 import DateRangeFilter from '../ui/DateRangeFilter';
-import { getFlujoFondos, getLiquidezTotal, listLiquidez, listProductos, type TotalCaja, type DateRangeParams, type Producto, type Liquidez } from '../../lib/api';
+import { getFlujoFondos, getGananciaPorCobrarSemanas, getLiquidezTotal, listLiquidez, listProductos, type TotalCaja, type DateRangeParams, type Producto, type Liquidez, type GananciaPorCobrarSemana } from '../../lib/api';
 import { formatCurrency } from '../../lib/data';
 import { useAuthRedirect } from '../../hooks/useAuthRedirect';
 
@@ -104,6 +104,60 @@ function buildCajas(
   ];
 }
 
+interface SemanaCardInfo {
+  etiqueta: string;
+  rango: string;
+  monto: number;
+  unidades: number;
+}
+
+// Monday of the ISO week containing `date`, computed locally (no UTC drift).
+function startOfIsoWeek(date: Date): Date {
+  const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const day = d.getDay(); // 0 = Sunday
+  d.setDate(d.getDate() + (day === 0 ? -6 : 1 - day));
+  return d;
+}
+
+// Local 'YYYY-MM-DD' key so it matches the API `semana` string exactly.
+function toISODateKey(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+const dayFormatter = new Intl.DateTimeFormat('es-AR', { day: 'numeric' });
+const shortMonthFormatter = new Intl.DateTimeFormat('es-AR', { month: 'short' });
+
+// Week range label like "24–30 ago" (month on both sides when it spans two months).
+function formatWeekRange(monday: Date): string {
+  const sunday = new Date(monday);
+  sunday.setDate(sunday.getDate() + 6);
+  const start = monday.getMonth() === sunday.getMonth()
+    ? dayFormatter.format(monday)
+    : `${dayFormatter.format(monday)} ${shortMonthFormatter.format(monday)}`;
+  return `${start}–${dayFormatter.format(sunday)} ${shortMonthFormatter.format(sunday)}`;
+}
+
+// Builds exactly three forward-looking cards (current week, next week and
+// week+2). Weeks without pending sales show $0. API rows are keyed by the
+// ISO week of fecha_cobro as a local 'YYYY-MM-DD' string.
+function buildSemanasPorCobrar(rows: GananciaPorCobrarSemana[]): SemanaCardInfo[] {
+  const porSemana = new Map(rows.map((row) => [row.semana, row]));
+  const labels = ['Esta semana', 'Próxima semana', 'En 2 semanas'];
+  const today = startOfIsoWeek(new Date());
+
+  return labels.map((etiqueta, offset) => {
+    const monday = new Date(today);
+    monday.setDate(monday.getDate() + offset * 7);
+    const row = porSemana.get(toISODateKey(monday));
+    return {
+      etiqueta,
+      rango: formatWeekRange(monday),
+      monto: row ? Number(row.ganancia_por_cobrar_total) : 0,
+      unidades: row ? Number(row.unidades_por_cobrar) : 0,
+    };
+  });
+}
+
 export default function FlujoFondosClient() {
   useAuthRedirect();
   const [selected, setSelected] = useState<CajaInfo | null>(null);
@@ -113,6 +167,8 @@ export default function FlujoFondosClient() {
   const [flujoFondosData, setFlujoFondosData] = useState<TotalCaja[]>([]);
   const [liquidezItems, setLiquidezItems] = useState<Liquidez[]>([]);
   const [netoLiquidez, setNetoLiquidez] = useState(0);
+  // Weekly pending profit cards: independent of the date-range filter.
+  const [semanasPorCobrar, setSemanasPorCobrar] = useState<SemanaCardInfo[]>([]);
   const requestIdRef = useRef(0);
   // El "desde" por defecto arranca el día 1 del mes actual
   const now = new Date();
@@ -120,6 +176,14 @@ export default function FlujoFondosClient() {
 
   useEffect(() => {
     listProductos().then(setProductos).catch(() => {});
+  }, []);
+
+  // Weekly pending profit only depends on fecha_cobro, so it loads once on
+  // mount and must NOT reset when the date-range filter is applied.
+  useEffect(() => {
+    getGananciaPorCobrarSemanas()
+      .then((rows) => setSemanasPorCobrar(buildSemanasPorCobrar(rows)))
+      .catch(() => setSemanasPorCobrar([]));
   }, []);
 
   const load = useCallback((params?: DateRangeParams) => {
@@ -213,6 +277,38 @@ export default function FlujoFondosClient() {
         ))}
       </div>
       )}
+
+      {/* Ganancia por cobrar por semana: independiente del filtro de fechas */}
+      <div className="space-y-gutter">
+        <div className="flex items-center gap-2">
+          <span className="material-symbols-outlined text-orange-500 text-xl">event_available</span>
+          <h3 className="font-label-caps text-label-caps text-on-surface-variant uppercase tracking-wider">
+            Ganancia por cobrar por semana
+          </h3>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-gutter">
+          {semanasPorCobrar.map((semana) => (
+            <div
+              key={semana.etiqueta}
+              className="bg-surface-container-lowest border border-outline-variant border-l-4 border-l-orange-500 rounded-xl p-stack_lg min-w-0"
+            >
+              <div className="flex items-center justify-between mb-3 min-w-0">
+                <span className="font-label-caps text-label-caps text-on-surface-variant uppercase tracking-wider truncate">
+                  {semana.etiqueta}
+                </span>
+                <span className="material-symbols-outlined text-orange-500 shrink-0">hourglass_bottom</span>
+              </div>
+              <p className="text-body-sm text-on-surface-variant mb-2">{semana.rango}</p>
+              <span className="font-data-mono text-display-lg text-orange-500 block mb-2 break-all leading-tight">
+                {formatCurrency(semana.monto)}
+              </span>
+              <p className="text-body-sm text-on-surface-variant">
+                {semana.unidades === 1 ? '1 unidad pendiente' : `${semana.unidades} unidades pendientes`}
+              </p>
+            </div>
+          ))}
+        </div>
+      </div>
 
       {/* Modal de detalle */}
       <Modal open={!!selected} onClose={() => setSelected(null)} title={selected?.titulo ?? ''}>

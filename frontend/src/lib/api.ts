@@ -182,6 +182,14 @@ export interface TotalCaja {
   unidades_por_cobrar?: number;
 }
 
+// Pending profit-to-collect aggregated by ISO week (Monday-based) of fecha_cobro.
+// semana is a date-only 'YYYY-MM-DD' string (Monday of that week).
+export interface GananciaPorCobrarSemana {
+  semana: string;
+  ganancia_por_cobrar_total: number;
+  unidades_por_cobrar: number;
+}
+
 export async function getTotalCajas(params?: DateRangeParams): Promise<TotalCaja[]> {
   const query = params
     ? '?' + new URLSearchParams(Object.fromEntries(Object.entries(params).filter(([_, v]) => v))).toString()
@@ -210,6 +218,17 @@ export async function getFlujoFondos(params?: DateRangeParams): Promise<TotalCaj
     ganancia_real_total: Number(t.ganancia_real_total),
     ganancia_por_cobrar_total: Number(t.ganancia_por_cobrar_total),
     unidades_por_cobrar: Number(t.unidades_por_cobrar),
+  }));
+}
+
+// Forward-looking weekly pending profit: depends on fecha_cobro only, so it
+// takes NO date-range params (independent of the section's filter).
+export async function getGananciaPorCobrarSemanas(): Promise<GananciaPorCobrarSemana[]> {
+  const data = await request<GananciaPorCobrarSemana[]>('GET', '/flujo-fondos/por-cobrar-semanas');
+  return data.map((s) => ({
+    ...s,
+    ganancia_por_cobrar_total: Number(s.ganancia_por_cobrar_total),
+    unidades_por_cobrar: Number(s.unidades_por_cobrar),
   }));
 }
 
