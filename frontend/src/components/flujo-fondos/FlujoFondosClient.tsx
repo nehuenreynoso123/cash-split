@@ -442,6 +442,9 @@ export default function FlujoFondosClient() {
                             {r.producto}
                           </span>
                           <span className="text-body-sm text-on-surface-variant shrink-0">
+                            Cant. vendida: {r.unidades_vendidas}
+                          </span>
+                          <span className="text-body-sm text-on-surface-variant shrink-0">
                             Precio venta: {formatCurrency(r.ingresos_totales)}
                           </span>
                           <span className="font-data-mono text-green-600 shrink-0">
