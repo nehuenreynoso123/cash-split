@@ -18,6 +18,7 @@ const navItems: NavItem[] = [
   { id: 'ventas', label: 'Ventas', icon: 'payments', href: '/ventas/' },
   { id: 'facturacion', label: 'Facturación', icon: 'receipt', href: '/facturacion/' },
   { id: 'liquidez', label: 'Liquidez', icon: 'account_balance_wallet', href: '/liquidez' },
+  { id: 'liberacion-plata', label: 'Liberación de Plata', icon: 'monetization_on', href: '/liberacion-plata' },
   { id: 'gastos', label: 'Gastos', icon: 'receipt_long', href: '/gastos' },
   { id: 'deudores', label: 'Deudores', icon: 'group_remove', href: '/deudores' },
   { id: 'lumix', label: 'Lumix', icon: 'live_tv', href: '/lumix' },
