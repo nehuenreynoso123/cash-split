@@ -128,6 +128,17 @@ const MIGRATIONS = [
   // when the wording changes. [corchetes] mark parts omitted when the client has
   // no price/alias.
   `INSERT INTO settings (key, value) VALUES ('lumix_mensaje_renovacion', '${MENSAJE_RENOVACION_DEFAULT}') ON CONFLICT (key) DO NOTHING`,
+  // liberacion_plata: money-release records (frontend section /liberacion-plata).
+  // fecha is the collection/release day, hora the time of day, monto the amount.
+  // monto precision matches the rest of the money columns (NUMERIC(12,2)).
+  // Created idempotently for DBs initialized before this feature shipped.
+  `CREATE TABLE IF NOT EXISTS liberacion_plata (
+    id SERIAL PRIMARY KEY,
+    fecha DATE NOT NULL,
+    hora TIME NOT NULL,
+    monto NUMERIC(12,2) NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW()
+  )`,
 ];
 
 export async function runMigrations() {
