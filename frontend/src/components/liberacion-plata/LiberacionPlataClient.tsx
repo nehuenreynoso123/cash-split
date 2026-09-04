@@ -54,14 +54,22 @@ export default function LiberacionPlataClient() {
   useEffect(reload, []);
 
   const days = groupByDay(liberaciones);
+  const totalGeneral = liberaciones.reduce((s, l) => s + Number(l.monto), 0);
 
   return (
     <div>
       <div className="flex justify-between items-end mb-8">
         <div>
-          <h3 className="font-headline-md text-headline-md text-on-surface">
-            Liberaciones de Plata
-          </h3>
+          <div className="flex items-center gap-4 mb-1">
+            <h3 className="font-headline-md text-headline-md text-on-surface">
+              Liberaciones de Plata
+            </h3>
+            {!loading && (
+              <span className="font-data-mono text-display-sm text-primary">
+                {formatCurrency(totalGeneral)}
+              </span>
+            )}
+          </div>
           <p className="font-body-base text-on-surface-variant">
             Acá ves las liberaciones de plata agrupadas por día.
           </p>
