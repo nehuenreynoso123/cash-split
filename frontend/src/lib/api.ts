@@ -280,6 +280,20 @@ export async function deleteLiquidez(id: number): Promise<void> {
   return request<void>('DELETE', `/liquidez/${id}`);
 }
 
+// ── Liberación de Plata ────────────────────────────────────────
+export interface LiberacionPlata {
+  id: number;
+  fecha: string; // YYYY-MM-DD
+  hora: string;  // HH:MM
+  monto: number;
+  created_at: string;
+}
+
+export async function listLiberaciones(): Promise<LiberacionPlata[]> {
+  const data = await request<LiberacionPlata[]>('GET', '/liberacion-plata');
+  return data.map((l) => ({ ...l, monto: Number(l.monto) }));
+}
+
 // ── Gastos ─────────────────────────────────────────────────────
 export interface Gasto {
   id: number;
