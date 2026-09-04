@@ -294,6 +294,11 @@ export async function listLiberaciones(): Promise<LiberacionPlata[]> {
   return data.map((l) => ({ ...l, monto: Number(l.monto) }));
 }
 
+export async function createLiberacion(data: { fecha: string; hora: string; monto: number }): Promise<LiberacionPlata> {
+  const row = await request<LiberacionPlata>('POST', '/liberacion-plata', data);
+  return { ...row, monto: Number(row.monto) };
+}
+
 // ── Gastos ─────────────────────────────────────────────────────
 export interface Gasto {
   id: number;

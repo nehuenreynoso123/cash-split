@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { listLiberaciones, type LiberacionPlata } from '../../lib/api';
 import { formatCurrency } from '../../lib/data';
 import { useAuthRedirect } from '../../hooks/useAuthRedirect';
+import LiberacionPlataModal from './LiberacionPlataModal';
 
 interface DayGroup {
   fecha: string; // YYYY-MM-DD
@@ -40,25 +41,38 @@ export default function LiberacionPlataClient() {
   const [liberaciones, setLiberaciones] = useState<LiberacionPlata[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [modalOpen, setModalOpen] = useState(false);
 
-  useEffect(() => {
+  const reload = () => {
+    setLoading(true);
     listLiberaciones()
       .then(setLiberaciones)
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
-  }, []);
+  };
+
+  useEffect(reload, []);
 
   const days = groupByDay(liberaciones);
 
   return (
     <div>
-      <div className="mb-8">
-        <h3 className="font-headline-md text-headline-md text-on-surface">
-          Liberaciones de Plata
-        </h3>
-        <p className="font-body-base text-on-surface-variant">
-          Acá ves las liberaciones de plata agrupadas por día.
-        </p>
+      <div className="flex justify-between items-end mb-8">
+        <div>
+          <h3 className="font-headline-md text-headline-md text-on-surface">
+            Liberaciones de Plata
+          </h3>
+          <p className="font-body-base text-on-surface-variant">
+            Acá ves las liberaciones de plata agrupadas por día.
+          </p>
+        </div>
+        <button
+          className="bg-secondary text-on-secondary px-6 py-2.5 rounded-lg font-semibold flex items-center gap-2 hover:bg-secondary-container transition-all shadow-sm active:scale-95"
+          onClick={() => setModalOpen(true)}
+        >
+          <span className="material-symbols-outlined">add_circle</span>
+          Nueva Liberación
+        </button>
       </div>
 
       {loading ? (
@@ -110,6 +124,15 @@ export default function LiberacionPlataClient() {
           ))}
         </div>
       )}
+
+      <LiberacionPlataModal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        onSaved={() => {
+          setModalOpen(false);
+          reload();
+        }}
+      />
     </div>
   );
 }
