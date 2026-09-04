@@ -10,8 +10,9 @@ interface DayGroup {
   liberaciones: LiberacionPlata[];
 }
 
-// Group liberations by day (fecha string). Preserve the backend's newest-first
-// day ordering while sorting each day's liberations by hora ascending.
+// Group liberations by day (fecha string) and sort the days by proximity to
+// today: today first, then the days closest to today (past or future), and so
+// on. Within each day, liberations are sorted by hora ascending.
 function groupByDay(liberaciones: LiberacionPlata[]): DayGroup[] {
   const map = new Map<string, LiberacionPlata[]>();
   for (const l of liberaciones) {
@@ -19,10 +20,16 @@ function groupByDay(liberaciones: LiberacionPlata[]): DayGroup[] {
     if (arr) arr.push(l);
     else map.set(l.fecha, [l]);
   }
-  return Array.from(map.entries()).map(([fecha, list]) => ({
+  const now = new Date();
+  const todayLocal = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const dayTimestamp = (fecha: string) => new Date(`${fecha}T00:00:00`).getTime();
+  const sortedDates = [...map.keys()].sort(
+    (a, b) => Math.abs(dayTimestamp(a) - todayLocal) - Math.abs(dayTimestamp(b) - todayLocal),
+  );
+  return sortedDates.map((fecha) => ({
     fecha,
-    total: list.reduce((s, l) => s + Number(l.monto), 0),
-    liberaciones: [...list].sort((a, b) => a.hora.localeCompare(b.hora)),
+    total: map.get(fecha)!.reduce((s, l) => s + Number(l.monto), 0),
+    liberaciones: [...map.get(fecha)!].sort((a, b) => a.hora.localeCompare(b.hora)),
   }));
 }
 
