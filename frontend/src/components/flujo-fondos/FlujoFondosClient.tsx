@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Modal from '../ui/Modal';
 import DateRangeFilter from '../ui/DateRangeFilter';
-import { getFlujoFondos, getGananciaPorCobrarSemanas, getLiquidezTotal, listLiquidez, listProductos, type TotalCaja, type DateRangeParams, type Producto, type Liquidez, type GananciaPorCobrarSemana } from '../../lib/api';
+import { getFlujoFondos, getVentasPorCobrarSemanas, getLiquidezTotal, listLiquidez, listProductos, type TotalCaja, type DateRangeParams, type Producto, type Liquidez, type VentasPorCobrarSemana } from '../../lib/api';
 import { formatCurrency } from '../../lib/data';
 import { useAuthRedirect } from '../../hooks/useAuthRedirect';
 
@@ -140,7 +140,7 @@ function formatWeekRange(monday: Date): string {
 // Builds exactly three forward-looking cards (current week, next week and
 // week+2). Weeks without pending sales show $0. API rows are keyed by the
 // ISO week of fecha_cobro as a local 'YYYY-MM-DD' string.
-function buildSemanasPorCobrar(rows: GananciaPorCobrarSemana[]): SemanaCardInfo[] {
+function buildSemanasPorCobrar(rows: VentasPorCobrarSemana[]): SemanaCardInfo[] {
   const porSemana = new Map(rows.map((row) => [row.semana, row]));
   const labels = ['Esta semana', 'Próxima semana', 'En 2 semanas'];
   const today = startOfIsoWeek(new Date());
@@ -152,7 +152,7 @@ function buildSemanasPorCobrar(rows: GananciaPorCobrarSemana[]): SemanaCardInfo[
     return {
       etiqueta,
       rango: formatWeekRange(monday),
-      monto: row ? Number(row.ganancia_por_cobrar_total) : 0,
+      monto: row ? Number(row.total_ventas) : 0,
       unidades: row ? Number(row.unidades_por_cobrar) : 0,
     };
   });
@@ -167,7 +167,7 @@ export default function FlujoFondosClient() {
   const [flujoFondosData, setFlujoFondosData] = useState<TotalCaja[]>([]);
   const [liquidezItems, setLiquidezItems] = useState<Liquidez[]>([]);
   const [netoLiquidez, setNetoLiquidez] = useState(0);
-  // Weekly pending profit cards: independent of the date-range filter.
+  // Weekly pending sales amount cards: independent of the date-range filter.
   const [semanasPorCobrar, setSemanasPorCobrar] = useState<SemanaCardInfo[]>([]);
   const requestIdRef = useRef(0);
   // El "desde" por defecto arranca el día 1 del mes actual
@@ -178,10 +178,10 @@ export default function FlujoFondosClient() {
     listProductos().then(setProductos).catch(() => {});
   }, []);
 
-  // Weekly pending profit only depends on fecha_cobro, so it loads once on
+  // Weekly pending sales only depend on fecha_cobro, so they load once on
   // mount and must NOT reset when the date-range filter is applied.
   useEffect(() => {
-    getGananciaPorCobrarSemanas()
+    getVentasPorCobrarSemanas()
       .then((rows) => setSemanasPorCobrar(buildSemanasPorCobrar(rows)))
       .catch(() => setSemanasPorCobrar([]));
   }, []);
@@ -278,12 +278,12 @@ export default function FlujoFondosClient() {
       </div>
       )}
 
-      {/* Ganancia por cobrar por semana: independiente del filtro de fechas */}
+      {/* Ventas por cobrar por semana: independiente del filtro de fechas */}
       <div className="space-y-gutter">
         <div className="flex items-center gap-2">
           <span className="material-symbols-outlined text-orange-500 text-xl">event_available</span>
           <h3 className="font-label-caps text-label-caps text-on-surface-variant uppercase tracking-wider">
-            Ganancia por cobrar por semana
+            Ventas por cobrar por semana
           </h3>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-gutter">
