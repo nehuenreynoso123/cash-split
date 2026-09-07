@@ -25,6 +25,7 @@ export async function listTotalCajas({ desde, hasta } = {}) {
       COALESCE(SUM(v.precio::numeric - (p.precio::numeric * v.cantidad)), 0) AS ganancia_real_total
     FROM productos p
     ${joinFilter}
+    WHERE p.activo = true
     GROUP BY p.id, p.nombre
   `;
   return result;

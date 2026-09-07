@@ -42,7 +42,7 @@ function buildCajas(
       icono: 'inventory_2',
       colorIcono: 'text-blue-500',
       bordeClase: 'border-l-blue-500',
-      descripcion: 'Suma total de (Costo Base + Ganancia Reinvertida).',
+      descripcion: 'Total del costo de compra de la mercadería en stock.',
       detalle:
         'Es la métrica del tamaño de tu negocio. Si este número sube mes a mes, tu rueda se está agrandando (Efecto bola de nieve).',
     },

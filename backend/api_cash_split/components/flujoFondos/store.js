@@ -27,6 +27,7 @@ export async function listFlujoFondos({ desde, hasta } = {}) {
       COALESCE(SUM(CASE WHEN v.fecha_cobro IS NULL OR v.fecha_cobro > CURRENT_DATE THEN v.cantidad ELSE 0 END), 0) AS unidades_por_cobrar
     FROM productos p
     ${joinFilter}
+    WHERE p.activo = true
     GROUP BY p.id, p.nombre
   `;
   return result;
