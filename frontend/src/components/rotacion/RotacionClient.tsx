@@ -18,7 +18,8 @@ function daysInStock(fechaCarga: string): number {
 const RECIENTE_MAX_DAYS = 30;
 const NORMAL_MAX_DAYS = 60;
 
-function badgeForDays(days: number): { variant: 'success' | 'warning' | 'error'; label: string } {
+function badgeForDays(days: number, stock: number): { variant: 'success' | 'warning' | 'error'; label: string } {
+  if (stock === 0) return { variant: 'error', label: 'Agotado' };
   if (days <= RECIENTE_MAX_DAYS) return { variant: 'success', label: 'Reciente' };
   if (days <= NORMAL_MAX_DAYS) return { variant: 'warning', label: 'Normal' };
   return { variant: 'error', label: 'Antiguo' };
@@ -80,7 +81,7 @@ export default function RotacionClient() {
                 <tr><td colSpan={4} className="px-6 py-12 text-center text-on-surface-variant">No hay productos cargados</td></tr>
               ) : (
                 rows.map(({ producto, days }) => {
-                  const badge = badgeForDays(days);
+                  const badge = badgeForDays(days, producto.stock);
                   return (
                     <tr key={producto.id} className="hover:bg-surface-container-lowest transition-colors group">
                       <td className="px-6 py-4 font-semibold text-primary">{producto.nombre}</td>
