@@ -3,8 +3,8 @@ import sql from "../../../store/database.js";
 export async function list({ activo } = {}) {
   const list =
     activo === false
-      ? await sql`SELECT id, nombre, precio, stock, activo, fecha_carga::date::text AS fecha_carga FROM productos WHERE activo = false`
-      : await sql`SELECT id, nombre, precio, stock, activo, fecha_carga::date::text AS fecha_carga FROM productos WHERE activo = true`;
+      ? await sql`SELECT id, nombre, precio, stock, activo, fecha_carga::date::text AS fecha_carga FROM productos WHERE activo = false ORDER BY (stock > 0) DESC, nombre ASC, id ASC`
+      : await sql`SELECT id, nombre, precio, stock, activo, fecha_carga::date::text AS fecha_carga FROM productos WHERE activo = true ORDER BY (stock > 0) DESC, nombre ASC, id ASC`;
   return list;
 }
 
