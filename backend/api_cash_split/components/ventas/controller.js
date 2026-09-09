@@ -1,4 +1,4 @@
-import { add, addFactura, list, listGrouped, remove, update } from "./store.js";
+import { add, addFactura, list, listGrouped, remove, removeFactura, update } from "./store.js";
 
 const addVenta = async (body) => {
   const { nombre, precio, product_id, cantidad, fecha_cobro } = body;
@@ -25,6 +25,10 @@ const removeVenta = async (id) => {
   await remove({ id });
 };
 
+const removeVentaFactura = async (factura_id) => {
+  return await removeFactura({ factura_id });
+};
+
 const listVenta = async () => {
   const listVentas = await list();
   return listVentas;
@@ -39,6 +43,7 @@ export default {
   addFacturaVenta,
   editVenta,
   removeVenta,
+  removeVentaFactura,
   listVenta,
   listVentaGrouped,
 };

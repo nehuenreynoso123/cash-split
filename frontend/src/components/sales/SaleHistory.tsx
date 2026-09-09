@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import Badge from '../ui/Badge';
 import Pagination from '../ui/Pagination';
 import { formatCurrency } from '../../lib/data';
-import { listVentasGrouped, type VentaFactura } from '../../lib/api';
+import { listVentasGrouped, deleteVentaFactura, type VentaFactura } from '../../lib/api';
 import { useAuthRedirect } from '../../hooks/useAuthRedirect';
 
 export default function SaleHistory() {
@@ -12,6 +12,7 @@ export default function SaleHistory() {
   const [error, setError] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const pageSize = 10;
 
   useEffect(() => {
@@ -26,6 +27,21 @@ export default function SaleHistory() {
 
   const toggleExpand = (facturaId: string) => {
     setExpanded((prev) => (prev === facturaId ? null : facturaId));
+  };
+
+  const handleDelete = async (sale: VentaFactura) => {
+    if (!window.confirm('¿Eliminar esta venta? Se restituirá el stock de los productos.')) return;
+    setDeletingId(sale.factura_id);
+    try {
+      await deleteVentaFactura(sale.factura_id);
+      setSales((prev) => prev.filter((s) => s.factura_id !== sale.factura_id));
+      setExpanded((prev) => (prev === sale.factura_id ? null : prev));
+      setCurrentPage((p) => Math.min(p, Math.ceil((sales.length - 1) / pageSize) || 1));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al eliminar');
+    } finally {
+      setDeletingId(null);
+    }
   };
 
   return (
@@ -45,11 +61,11 @@ export default function SaleHistory() {
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="bg-surface-bright border-b border-outline-variant">
-              {['Fecha', 'Productos', 'Cant.', 'Total', 'Ganancia', 'Estado'].map((h) => (
+              {['Fecha', 'Productos', 'Cant.', 'Total', 'Ganancia', 'Estado', 'Acciones'].map((h) => (
                 <th
                   key={h}
                   className={`px-6 py-4 font-label-caps text-on-surface-variant uppercase tracking-wider ${
-                    h === 'Cant.' || h === 'Total' || h === 'Ganancia' ? 'text-right' : h === 'Estado' ? 'text-center' : ''
+                    h === 'Cant.' || h === 'Total' || h === 'Ganancia' || h === 'Acciones' ? 'text-right' : h === 'Estado' ? 'text-center' : ''
                   }`}
                 >
                   {h}
@@ -60,13 +76,13 @@ export default function SaleHistory() {
           <tbody className="divide-y divide-outline-variant/30">
             {loading ? (
               <tr>
-                <td colSpan={6} className="px-6 py-12 text-center text-on-surface-variant">
+                <td colSpan={7} className="px-6 py-12 text-center text-on-surface-variant">
                   Cargando ventas...
                 </td>
               </tr>
             ) : error ? (
               <tr>
-                <td colSpan={6} className="px-6 py-12 text-center text-error">
+                <td colSpan={7} className="px-6 py-12 text-center text-error">
                   {error}
                 </td>
               </tr>
@@ -117,12 +133,25 @@ export default function SaleHistory() {
                       <td className="px-6 py-4 text-center">
                         <Badge variant="success">Pagado</Badge>
                       </td>
+                      <td className="px-6 py-4 text-right">
+                        <button
+                          className="p-2 text-on-surface-variant hover:text-error hover:bg-error/5 rounded-lg transition-all disabled:opacity-40 disabled:hover:text-on-surface-variant disabled:hover:bg-transparent"
+                          title="Eliminar venta"
+                          disabled={deletingId !== null}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDelete(sale);
+                          }}
+                        >
+                          <span className="material-symbols-outlined">delete</span>
+                        </button>
+                      </td>
                     </tr>
 
                     {/* Expanded product details */}
                     {isExpanded && sale.productos && (
                       <tr key={`${sale.factura_id}-detail`}>
-                        <td colSpan={6} className="px-6 py-3 bg-surface-container-low/50">
+                        <td colSpan={7} className="px-6 py-3 bg-surface-container-low/50">
                           <div className="pl-8 space-y-1">
                             {sale.productos.map((p, i) => (
                               <div key={i} className="flex justify-between text-sm text-on-surface-variant">
@@ -142,7 +171,7 @@ export default function SaleHistory() {
             )}
             {!loading && !error && paginated.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-6 py-12 text-center text-on-surface-variant">
+                <td colSpan={7} className="px-6 py-12 text-center text-on-surface-variant">
                   No hay ventas registradas todavia.
                 </td>
               </tr>

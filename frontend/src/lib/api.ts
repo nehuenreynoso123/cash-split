@@ -144,6 +144,12 @@ export async function deleteVenta(id: number): Promise<void> {
   return request<void>('DELETE', `/venta/${id}`);
 }
 
+// Deletes a whole sale: the grouped factura (or a single legacy venta) and
+// restores each product's stock server-side inside one transaction.
+export async function deleteVentaFactura(facturaId: string): Promise<void> {
+  return request<void>('DELETE', `/venta/factura/${encodeURIComponent(facturaId)}`);
+}
+
 export interface VentaFacturaItem {
   nombre: string;
   cantidad: number;

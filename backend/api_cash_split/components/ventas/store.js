@@ -103,3 +103,31 @@ export async function update({ id, nombre, precio, product_id }) {
 export async function remove({ id }) {
   await sql`DELETE FROM ventas WHERE id=${id}`;
 }
+
+// ── Remove a factura (or a single legacy venta) and restore stock ──
+// Undoes addFactura/add semantics inside one transaction: every deleted venta
+// row returns its quantity to the product stock. factura_id is either the
+// UUID the frontend generated or the 'legacy-<id>' key listGrouped builds for
+// old ventas that never got a factura_id.
+export async function removeFactura({ factura_id }) {
+  return await sql.begin(async (sql) => {
+    const rows = await sql`
+      SELECT producto_id, cantidad
+      FROM ventas
+      WHERE factura_id = ${factura_id} OR ('legacy-' || id) = ${factura_id}
+    `;
+
+    for (const row of rows) {
+      await sql`
+        UPDATE productos SET stock = stock + ${row.cantidad} WHERE id = ${row.producto_id}
+      `;
+    }
+
+    await sql`
+      DELETE FROM ventas
+      WHERE factura_id = ${factura_id} OR ('legacy-' || id) = ${factura_id}
+    `;
+
+    return rows.length;
+  });
+}
