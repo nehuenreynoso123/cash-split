@@ -92,7 +92,8 @@ export default function SaleHistory() {
               paginated.map((sale) => {
                 const isExpanded = expanded === sale.factura_id;
                 const productCount = sale.productos?.length ?? 0;
-                const margin = sale.precio > 0 && sale.ganancia != null ? (sale.ganancia / sale.precio) * 100 : null;
+                // Markup over cost (costo = precio - ganancia), per business definition: ganancia / costo * 100
+                const margin = sale.ganancia != null && sale.precio - sale.ganancia > 0 ? (sale.ganancia / (sale.precio - sale.ganancia)) * 100 : null;
 
                 return (
                   <>
@@ -134,7 +135,7 @@ export default function SaleHistory() {
                         {sale.ganancia != null ? formatCurrency(sale.ganancia) : '—'}
                       </td>
                       <td className={`px-6 py-4 text-right font-data-mono font-semibold ${margin != null && margin < 0 ? 'text-error' : 'text-green-600'}`}>
-                        {margin != null ? `${margin.toFixed(1)}%` : '—'}
+                        {margin != null ? `${margin.toFixed(2)}%` : '—'}
                       </td>
                       <td className="px-6 py-4 text-center">
                         <Badge variant="success">Pagado</Badge>
