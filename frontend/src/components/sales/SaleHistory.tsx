@@ -5,6 +5,8 @@ import { formatCurrency } from '../../lib/data';
 import { listVentasGrouped, deleteVentaFactura, type VentaFactura } from '../../lib/api';
 import { useAuthRedirect } from '../../hooks/useAuthRedirect';
 
+const COLUMNS = ['Fecha', 'Productos', 'Cant.', 'Total', 'Ganancia', 'Margen', 'Estado', 'Acciones'];
+
 export default function SaleHistory() {
   useAuthRedirect();
   const [sales, setSales] = useState<VentaFactura[]>([]);
@@ -61,11 +63,11 @@ export default function SaleHistory() {
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="bg-surface-bright border-b border-outline-variant">
-              {['Fecha', 'Productos', 'Cant.', 'Total', 'Ganancia', 'Estado', 'Acciones'].map((h) => (
+              {COLUMNS.map((h) => (
                 <th
                   key={h}
                   className={`px-6 py-4 font-label-caps text-on-surface-variant uppercase tracking-wider ${
-                    h === 'Cant.' || h === 'Total' || h === 'Ganancia' || h === 'Acciones' ? 'text-right' : h === 'Estado' ? 'text-center' : ''
+                    h === 'Cant.' || h === 'Total' || h === 'Ganancia' || h === 'Margen' || h === 'Acciones' ? 'text-right' : h === 'Estado' ? 'text-center' : ''
                   }`}
                 >
                   {h}
@@ -76,13 +78,13 @@ export default function SaleHistory() {
           <tbody className="divide-y divide-outline-variant/30">
             {loading ? (
               <tr>
-                <td colSpan={7} className="px-6 py-12 text-center text-on-surface-variant">
+                <td colSpan={COLUMNS.length} className="px-6 py-12 text-center text-on-surface-variant">
                   Cargando ventas...
                 </td>
               </tr>
             ) : error ? (
               <tr>
-                <td colSpan={7} className="px-6 py-12 text-center text-error">
+                <td colSpan={COLUMNS.length} className="px-6 py-12 text-center text-error">
                   {error}
                 </td>
               </tr>
@@ -90,6 +92,7 @@ export default function SaleHistory() {
               paginated.map((sale) => {
                 const isExpanded = expanded === sale.factura_id;
                 const productCount = sale.productos?.length ?? 0;
+                const margin = sale.precio > 0 && sale.ganancia != null ? (sale.ganancia / sale.precio) * 100 : null;
 
                 return (
                   <>
@@ -130,6 +133,9 @@ export default function SaleHistory() {
                       <td className="px-6 py-4 text-right font-data-mono text-green-600 font-semibold">
                         {sale.ganancia != null ? formatCurrency(sale.ganancia) : '—'}
                       </td>
+                      <td className={`px-6 py-4 text-right font-data-mono font-semibold ${margin != null && margin < 0 ? 'text-error' : 'text-green-600'}`}>
+                        {margin != null ? `${margin.toFixed(1)}%` : '—'}
+                      </td>
                       <td className="px-6 py-4 text-center">
                         <Badge variant="success">Pagado</Badge>
                       </td>
@@ -151,7 +157,7 @@ export default function SaleHistory() {
                     {/* Expanded product details */}
                     {isExpanded && sale.productos && (
                       <tr key={`${sale.factura_id}-detail`}>
-                        <td colSpan={7} className="px-6 py-3 bg-surface-container-low/50">
+                        <td colSpan={COLUMNS.length} className="px-6 py-3 bg-surface-container-low/50">
                           <div className="pl-8 space-y-1">
                             {sale.productos.map((p, i) => (
                               <div key={i} className="flex justify-between text-sm text-on-surface-variant">
@@ -171,7 +177,7 @@ export default function SaleHistory() {
             )}
             {!loading && !error && paginated.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-6 py-12 text-center text-on-surface-variant">
+                <td colSpan={COLUMNS.length} className="px-6 py-12 text-center text-on-surface-variant">
                   No hay ventas registradas todavia.
                 </td>
               </tr>
