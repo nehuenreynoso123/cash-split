@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { listLiberaciones, type LiberacionPlata } from '../../lib/api';
+import { listLiberaciones, deleteLiberacion, type LiberacionPlata } from '../../lib/api';
 import { formatCurrency } from '../../lib/data';
 import { useAuthRedirect } from '../../hooks/useAuthRedirect';
 import LiberacionPlataModal from './LiberacionPlataModal';
@@ -111,8 +111,11 @@ export default function LiberacionPlataClient() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
 
   const reload = () => {
+    // Clear any stale error (e.g. a previous failed action) before reloading.
+    setError('');
     setLoading(true);
     listLiberaciones()
       .then(setLiberaciones)
@@ -121,6 +124,25 @@ export default function LiberacionPlataClient() {
   };
 
   useEffect(reload, []);
+
+  // Guards all row delete buttons while a delete is in flight (mirrors SaleHistory).
+  const busy = deletingId !== null;
+
+  // Destructive action: the user must confirm before the row is deleted.
+  const handleDelete = async (l: LiberacionPlata) => {
+    if (!window.confirm(`¿Eliminar liberación del ${dayLabel(l.fecha)} a las ${l.hora} por ${formatCurrency(l.monto)}?`)) return;
+    setDeletingId(l.id);
+    try {
+      await deleteLiberacion(l.id);
+      // totals (totalGeneral, semanas, days) derive from state, so removing the
+      // row keeps every aggregate in sync without a refetch (mirrors SaleHistory).
+      setLiberaciones((prev) => prev.filter((x) => x.id !== l.id));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al eliminar');
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   const days = groupByDay(liberaciones);
   const totalGeneral = liberaciones.reduce((s, l) => s + Number(l.monto), 0);
@@ -228,7 +250,17 @@ export default function LiberacionPlataClient() {
                     className="flex items-center justify-between px-6 py-3 hover:bg-surface-container-lowest transition-colors"
                   >
                     <span className="font-data-mono text-on-surface-variant">{l.hora}</span>
-                    <span className="font-data-mono text-on-surface">{formatCurrency(l.monto)}</span>
+                    <span className="flex items-center gap-2">
+                      <span className="font-data-mono text-on-surface">{formatCurrency(l.monto)}</span>
+                      <button
+                        className="p-2 text-on-surface-variant hover:text-error hover:bg-error/5 rounded-lg transition-all disabled:opacity-40 disabled:hover:text-on-surface-variant disabled:hover:bg-transparent"
+                        title="Eliminar liberación"
+                        disabled={busy}
+                        onClick={() => handleDelete(l)}
+                      >
+                        <span className="material-symbols-outlined text-[18px]">delete</span>
+                      </button>
+                    </span>
                   </li>
                 ))}
               </ul>

@@ -325,6 +325,10 @@ export async function createLiberacion(data: { fecha: string; hora: string; mont
   return { ...row, monto: Number(row.monto) };
 }
 
+export async function deleteLiberacion(id: number): Promise<void> {
+  return request<void>('DELETE', `/liberacion-plata/${id}`);
+}
+
 // ── Gastos ─────────────────────────────────────────────────────
 export interface Gasto {
   id: number;
