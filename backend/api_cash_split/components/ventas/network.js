@@ -10,6 +10,7 @@ router.get("/venta/grouped", [verifyToken], listVentasGrouped);
 router.post("/venta", [verifyToken], addVenta);
 router.post("/venta/factura", [verifyToken], addFactura);
 router.delete("/venta/factura/:factura_id", [verifyToken], removeVentaFactura);
+router.put("/venta/factura/:factura_id", [verifyToken], updateFacturaVenta);
 router.delete("/venta/:id", [verifyToken], removeVenta);
 router.put("/venta", [verifyToken], editVenta);
 
@@ -51,6 +52,13 @@ function removeVenta(req, resp, next) {
 function removeVentaFactura(req, resp, next) {
   controller
     .removeVentaFactura(req.params.factura_id)
+    .then((data) => response.success(req, resp, data, 200))
+    .catch(next);
+}
+
+function updateFacturaVenta(req, resp, next) {
+  controller
+    .updateFacturaVenta({ ...req.body, factura_id: req.params.factura_id })
     .then((data) => response.success(req, resp, data, 200))
     .catch(next);
 }

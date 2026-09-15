@@ -2,72 +2,40 @@ import { useState, useEffect, type FormEvent } from 'react';
 import { formatCurrency } from '../../lib/data';
 import { listProductos, createFactura, type Producto } from '../../lib/api';
 import { useAuthRedirect } from '../../hooks/useAuthRedirect';
+import { useSaleLines, emptySaleLine } from '../../hooks/useSaleLines';
 
 interface SaleFormProps {
   onSaleComplete: () => void;
 }
 
-type ProductOption = Producto & { _stock: number };
-
-interface SaleItem {
-  productId: string;
-  unitPriceInput: string;
-  quantity: number;
-}
-
-const emptyItem = (): SaleItem => ({
-  productId: '',
-  unitPriceInput: '',
-  quantity: 1,
-});
-
 export default function SaleForm({ onSaleComplete }: SaleFormProps) {
   useAuthRedirect();
-  const [products, setProducts] = useState<ProductOption[]>([]);
-  const [items, setItems] = useState<SaleItem[]>([emptyItem()]);
+  const [products, setProducts] = useState<Producto[]>([]);
   const [fechaCobro, setFechaCobro] = useState(new Date().toISOString().split('T')[0]);
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
   const [loadingProducts, setLoadingProducts] = useState(true);
 
+  const {
+    lines,
+    setLines,
+    updateLine,
+    addLine,
+    removeLine,
+    getSelected,
+    getLineTotal,
+    grandTotal,
+    getMaxStock,
+    getStockError,
+    canSubmit,
+  } = useSaleLines([emptySaleLine()], products);
+
   useEffect(() => {
     listProductos()
-      .then((list) => setProducts(list))
+      .then(setProducts)
       .catch(() => {})
       .finally(() => setLoadingProducts(false));
   }, []);
-
-  // ── helpers ────────────────────────────────────────────────
-  const updateItem = (index: number, patch: Partial<SaleItem>) => {
-    setItems((prev) => prev.map((it, i) => (i === index ? { ...it, ...patch } : it)));
-  };
-
-  const addItem = () => setItems((prev) => [...prev, emptyItem()]);
-  const removeItem = (index: number) => setItems((prev) => prev.filter((_, i) => i !== index));
-
-  const getSelected = (productId: string) => products.find((p) => p.id.toString() === productId);
-
-  const getItemTotal = (item: SaleItem) => {
-    const price = parseFloat(item.unitPriceInput) || 0;
-    return price * item.quantity;
-  };
-
-  const grandTotal = items.reduce((sum, it) => sum + getItemTotal(it), 0);
-
-  // stock error per item
-  const getStockError = (item: SaleItem) => {
-    const sel = getSelected(item.productId);
-    if (!sel) return false;
-    return item.quantity > sel.stock;
-  };
-
-  const hasStockError = items.some(getStockError);
-
-  // can submit?
-  const canSubmit =
-    items.length > 0 &&
-    items.every((it) => it.productId && it.quantity >= 1 && parseFloat(it.unitPriceInput) > 0) &&
-    !hasStockError;
 
   // ── submit ─────────────────────────────────────────────────
   const handleSubmit = async (e: FormEvent) => {
@@ -82,10 +50,10 @@ export default function SaleForm({ onSaleComplete }: SaleFormProps) {
       await createFactura({
         factura_id,
         fecha_cobro: fechaCobro || null,
-        items: items.map((it) => ({
+        items: lines.map((it) => ({
           product_id: Number(it.productId),
-          cantidad: it.quantity,
-          precio: getItemTotal(it),
+          cantidad: it.cantidad,
+          precio: Math.round(it.cantidad * (parseFloat(it.unitPriceInput) || 0) * 100) / 100,
         })),
       });
 
@@ -94,7 +62,7 @@ export default function SaleForm({ onSaleComplete }: SaleFormProps) {
 
       setTimeout(() => {
         setDone(false);
-        setItems([emptyItem()]);
+        setLines([emptySaleLine()]);
         setFechaCobro(new Date().toISOString().split('T')[0]);
       }, 2000);
     } catch {
@@ -129,11 +97,11 @@ export default function SaleForm({ onSaleComplete }: SaleFormProps) {
         </div>
 
         {/* ── Product rows ─────────────────────────────────── */}
-        {items.map((item, idx) => {
+        {lines.map((item, idx) => {
           const selected = getSelected(item.productId);
-          const maxStock = selected?.stock ?? 0;
+          const maxStock = getMaxStock(item);
           const stockErr = getStockError(item);
-          const rowTotal = getItemTotal(item);
+          const rowTotal = getLineTotal(item);
 
           return (
             <div
@@ -144,10 +112,10 @@ export default function SaleForm({ onSaleComplete }: SaleFormProps) {
                 <span className="font-label-caps text-on-surface-variant uppercase text-xs">
                   Producto {idx + 1}
                 </span>
-                {items.length > 1 && (
+                {lines.length > 1 && (
                   <button
                     type="button"
-                    onClick={() => removeItem(idx)}
+                    onClick={() => removeLine(idx)}
                     className="text-on-surface-variant hover:text-error transition-colors"
                   >
                     <span className="material-symbols-outlined text-[18px]">delete</span>
@@ -166,9 +134,9 @@ export default function SaleForm({ onSaleComplete }: SaleFormProps) {
                     value={item.productId}
                     onChange={(e) => {
                       const p = products.find((x) => x.id.toString() === e.target.value);
-                      updateItem(idx, {
+                      updateLine(idx, {
                         productId: e.target.value,
-                        quantity: 1,
+                        cantidad: 1,
                         unitPriceInput: p?.precio?.toString() ?? '',
                       });
                     }}
@@ -209,8 +177,8 @@ export default function SaleForm({ onSaleComplete }: SaleFormProps) {
                       type="number"
                       min={1}
                       max={maxStock}
-                      value={item.quantity}
-                      onChange={(e) => updateItem(idx, { quantity: parseInt(e.target.value) || 0 })}
+                      value={item.cantidad}
+                      onChange={(e) => updateLine(idx, { cantidad: parseInt(e.target.value) || 0 })}
                       disabled={!item.productId}
                     />
                     <span className="absolute right-4 top-1/2 -translate-y-1/2 text-on-surface-variant font-body-sm group-focus-within:text-secondary">
@@ -234,7 +202,7 @@ export default function SaleForm({ onSaleComplete }: SaleFormProps) {
                       step="0.01"
                       min="0"
                       value={item.unitPriceInput}
-                      onChange={(e) => updateItem(idx, { unitPriceInput: e.target.value })}
+                      onChange={(e) => updateLine(idx, { unitPriceInput: e.target.value })}
                       disabled={!item.productId}
                       placeholder="0.00"
                     />
@@ -257,7 +225,7 @@ export default function SaleForm({ onSaleComplete }: SaleFormProps) {
         {/* ── Add product button ──────────────────────────── */}
         <button
           type="button"
-          onClick={addItem}
+          onClick={addLine}
           className="w-full h-12 border-2 border-dashed border-outline-variant rounded-xl flex items-center justify-center gap-2 text-on-surface-variant hover:border-secondary hover:text-secondary transition-all"
         >
           <span className="material-symbols-outlined text-[18px]">add</span>

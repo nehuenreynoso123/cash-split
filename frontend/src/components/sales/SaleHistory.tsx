@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Fragment } from 'react';
 import Badge from '../ui/Badge';
 import Pagination from '../ui/Pagination';
+import EditVentaModal from './EditVentaModal';
 import { formatCurrency } from '../../lib/data';
 import { listVentasGrouped, deleteVentaFactura, type VentaFactura } from '../../lib/api';
 import { useAuthRedirect } from '../../hooks/useAuthRedirect';
@@ -15,7 +16,11 @@ export default function SaleHistory() {
   const [currentPage, setCurrentPage] = useState(1);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [editingSale, setEditingSale] = useState<VentaFactura | null>(null);
   const pageSize = 10;
+
+  // Guards both row buttons while a delete is in flight or the edit modal is open.
+  const busy = deletingId !== null || editingSale !== null;
 
   useEffect(() => {
     listVentasGrouped()
@@ -43,6 +48,21 @@ export default function SaleHistory() {
       setError(err instanceof Error ? err.message : 'Error al eliminar');
     } finally {
       setDeletingId(null);
+    }
+  };
+
+  // The items changed opaquely server-side (ganancia per line, stock), so the
+  // whole list is refetched instead of trying to patch local state.
+  const handleEditSaved = async () => {
+    try {
+      const list = await listVentasGrouped();
+      setSales(list);
+      setExpanded(null);
+      setError('');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al actualizar la venta');
+    } finally {
+      setEditingSale(null);
     }
   };
 
@@ -96,10 +116,9 @@ export default function SaleHistory() {
                 const margin = sale.ganancia != null && sale.precio - sale.ganancia > 0 ? (sale.ganancia / (sale.precio - sale.ganancia)) * 100 : null;
 
                 return (
-                  <>
+                  <Fragment key={sale.factura_id}>
                     {/* Main row */}
                     <tr
-                      key={sale.factura_id}
                       className="hover:bg-surface-container-lowest transition-colors group cursor-pointer"
                       onClick={() => productCount > 1 && toggleExpand(sale.factura_id)}
                     >
@@ -142,9 +161,20 @@ export default function SaleHistory() {
                       </td>
                       <td className="px-6 py-4 text-right">
                         <button
+                          className="p-2 text-on-surface-variant hover:text-primary hover:bg-primary/5 rounded-lg transition-all disabled:opacity-40 disabled:hover:text-on-surface-variant disabled:hover:bg-transparent"
+                          title="Editar venta"
+                          disabled={busy}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEditingSale(sale);
+                          }}
+                        >
+                          <span className="material-symbols-outlined">edit</span>
+                        </button>
+                        <button
                           className="p-2 text-on-surface-variant hover:text-error hover:bg-error/5 rounded-lg transition-all disabled:opacity-40 disabled:hover:text-on-surface-variant disabled:hover:bg-transparent"
                           title="Eliminar venta"
-                          disabled={deletingId !== null}
+                          disabled={busy}
                           onClick={(e) => {
                             e.stopPropagation();
                             handleDelete(sale);
@@ -157,7 +187,7 @@ export default function SaleHistory() {
 
                     {/* Expanded product details */}
                     {isExpanded && sale.productos && (
-                      <tr key={`${sale.factura_id}-detail`}>
+                      <tr>
                         <td colSpan={COLUMNS.length} className="px-6 py-3 bg-surface-container-low/50">
                           <div className="pl-8 space-y-1">
                             {sale.productos.map((p, i) => (
@@ -172,7 +202,7 @@ export default function SaleHistory() {
                         </td>
                       </tr>
                     )}
-                  </>
+                  </Fragment>
                 );
               })
             )}
@@ -196,6 +226,13 @@ export default function SaleHistory() {
           onPageChange={setCurrentPage}
         />
       )}
+
+      <EditVentaModal
+        open={editingSale !== null}
+        sale={editingSale}
+        onClose={() => setEditingSale(null)}
+        onSaved={handleEditSaved}
+      />
     </section>
   );
 }

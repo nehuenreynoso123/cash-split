@@ -151,9 +151,12 @@ export async function deleteVentaFactura(facturaId: string): Promise<void> {
 }
 
 export interface VentaFacturaItem {
+  id: number;
   nombre: string;
+  product_id: number;
   cantidad: number;
   precio: number;
+  ganancia: number;
 }
 
 export interface VentaFactura {
@@ -168,11 +171,28 @@ export interface VentaFactura {
 
 export async function listVentasGrouped(): Promise<VentaFactura[]> {
   const data = await request<VentaFactura[]>('GET', '/venta/grouped');
-  return data.map((v) => ({ ...v, precio: Number(v.precio), ganancia: Number(v.ganancia) }));
+  return data.map((v) => ({
+    ...v,
+    precio: Number(v.precio),
+    ganancia: Number(v.ganancia),
+    productos: v.productos.map((p) => ({ ...p, precio: Number(p.precio), ganancia: Number(p.ganancia) })),
+  }));
 }
 
 export async function createFactura(data: { items: { product_id: number; cantidad: number; precio: number }[]; factura_id: string; fecha_cobro?: string | null }): Promise<void> {
   return request<void>('POST', '/venta/factura', data);
+}
+
+// Edits a whole sale factura server-side: ganancia is recalculated per line
+// (historical cost is preserved for unchanged lines) and stock is reconciled
+// inside one transaction. `id` is the row's id and must be sent ONLY for lines
+// that already exist (new lines omit it). `precio` is the LINE TOTAL
+// (unit × qty), same wire shape as createFactura.
+export async function updateVentaFactura(
+  facturaId: string,
+  data: { items: { id?: number; product_id: number; cantidad: number; precio: number }[]; fecha_cobro?: string | null },
+): Promise<void> {
+  return request<void>('PUT', '/venta/factura/' + encodeURIComponent(facturaId), data);
 }
 
 // ── Dashboard ──────────────────────────────────────────────────

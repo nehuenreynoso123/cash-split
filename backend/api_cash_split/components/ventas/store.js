@@ -79,15 +79,175 @@ export async function listGrouped() {
       SUM(precio) AS precio,
       SUM(ganancia) AS ganancia,
       json_agg(json_build_object(
+        'id', id,
         'nombre', nombre,
+        'product_id', producto_id,
         'cantidad', cantidad,
-        'precio', precio
+        'precio', precio,
+        'ganancia', ganancia
       )) AS productos
     FROM ventas
     GROUP BY COALESCE(factura_id, 'legacy-' || id)
     ORDER BY MIN(created_at) DESC
   `;
   return rows;
+}
+
+// ── Update an entire factura (or a single legacy venta) ───────
+// items: [{ id?, product_id, cantidad, precio }]; precio is the LINE TOTAL
+// (unit × qty), same wire format as addFactura. Per-line rules:
+//   - id that doesn't match any original row of this factura → hard error that
+//     aborts the transaction (nothing is inserted, stock is rolled back).
+//   - original row (matching id) with same product + qty, price only changed
+//     → keep HISTORICAL cost (precio_original − ganancia_original), set
+//     ganancia = nuevo_precio − costo; stock untouched.
+//   - original row with product or qty changed → restore original quantity to
+//     the ORIGINAL product, then re-price with the CURRENT product cost via
+//     applyLineWithCurrentCost (deducts the new quantity from the NEW product,
+//     recomputes ganancia, and follows the new product's nombre).
+//   - original row whose product was DELETED from the catalog → price-only
+//     change on the historical cost: original nombre/cantidad kept, no stock
+//     touched (the frontend locks these rows to unit-price edits; this also
+//     protects a stale client from a mid-transaction failure).
+//   - new line (no id) → same semantics as addFactura via
+//     applyLineWithCurrentCost; the product MUST still exist in the catalog,
+//     otherwise the transaction aborts.
+//   - original lines absent from the submitted items (removed by the user)
+//     → restore their stock and DELETE the row.
+// Everything runs in one transaction; a failure rolls back all stock changes.
+
+// Re-price a line against the CURRENT catalog cost, write the venta row
+// (UPDATE by existing id, or INSERT with factura_id for a new line), and move
+// the matching stock. The product must still exist in the catalog — callers
+// guarantee it (original rows fall back to a price-only change before reaching
+// this helper; new lines must be costable or there is nothing to record).
+async function applyLineWithCurrentCost(sql, { id, product_id, cantidad, precio, factura_id, fecha_cobro }) {
+  const [producto] = await sql`
+    SELECT nombre, precio FROM productos WHERE id = ${product_id}
+  `;
+
+  if (!producto) {
+    throw new Error(`El producto ${product_id} ya no existe en el catálogo`);
+  }
+
+  const costo_total = Number(producto.precio) * Number(cantidad);
+  const ganancia = Number(precio) - costo_total;
+
+  const [venta] =
+    id != null
+      ? await sql`
+          UPDATE ventas
+          SET nombre = ${producto.nombre}, precio = ${precio}, producto_id = ${product_id},
+              cantidad = ${cantidad}, ganancia = ${ganancia}, fecha_cobro = ${fecha_cobro || null}
+          WHERE id = ${id}
+          RETURNING id
+        `
+      : await sql`
+          INSERT INTO ventas (nombre, precio, producto_id, cantidad, ganancia, factura_id, fecha_cobro)
+          VALUES (${producto.nombre}, ${precio}, ${product_id}, ${cantidad}, ${ganancia}, ${factura_id}, ${fecha_cobro || null})
+          RETURNING id
+        `;
+
+  await sql`
+    UPDATE productos SET stock = stock - ${cantidad} WHERE id = ${product_id}
+  `;
+
+  return venta;
+}
+
+export async function updateFactura({ factura_id, items, fecha_cobro }) {
+  return await sql.begin(async (sql) => {
+    const rows = await sql`
+      SELECT id, nombre, producto_id, cantidad, precio, ganancia
+      FROM ventas
+      WHERE factura_id = ${factura_id} OR ('legacy-' || id) = ${factura_id}
+    `;
+
+    const originalById = new Map(rows.map((row) => [row.id, row]));
+    const updated = [];
+    const removed = [];
+
+    for (const item of items) {
+      const { id, product_id, cantidad, precio } = item;
+
+      // Unmatched non-null id → the line doesn't belong to this factura.
+      // Abort instead of falling through to the INSERT branch (which would
+      // duplicate the row and double-deduct stock).
+      if (id != null && !originalById.has(id)) {
+        throw new Error(`El item con id ${id} no pertenece a esta factura`);
+      }
+
+      if (id != null) {
+        const original = originalById.get(id);
+        const productChanged = original.producto_id !== product_id;
+        const quantityChanged = original.cantidad !== cantidad;
+
+        // Same product and quantity, only price changed → preserve historical cost
+        if (!productChanged && !quantityChanged) {
+          const costo = Number(original.precio) - Number(original.ganancia);
+          const ganancia = Number(precio) - costo;
+
+          const [venta] = await sql`
+            UPDATE ventas SET precio = ${precio}, ganancia = ${ganancia}, fecha_cobro = ${fecha_cobro || null}
+            WHERE id = ${id}
+            RETURNING id
+          `;
+          updated.push(venta);
+          continue;
+        }
+
+        // Product or quantity changed → restore the original quantity to the
+        // ORIGINAL product (deleted product: the UPDATE touches zero rows,
+        // which is harmless), then re-price against the current catalog.
+        await sql`
+          UPDATE productos SET stock = stock + ${original.cantidad} WHERE id = ${original.producto_id}
+        `;
+
+        // Product was deleted from the catalog → price-only change with the
+        // historical cost, original nombre/cantidad kept, no stock touched.
+        const [producto] = await sql`
+          SELECT nombre, precio FROM productos WHERE id = ${product_id}
+        `;
+        if (!producto) {
+          const costo = Number(original.precio) - Number(original.ganancia);
+          const ganancia = Number(precio) - costo;
+
+          const [venta] = await sql`
+            UPDATE ventas SET precio = ${precio}, ganancia = ${ganancia}, fecha_cobro = ${fecha_cobro || null}
+            WHERE id = ${id}
+            RETURNING id
+          `;
+          updated.push(venta);
+          continue;
+        }
+
+        const venta = await applyLineWithCurrentCost(sql, { id, product_id, cantidad, precio, fecha_cobro });
+        updated.push(venta);
+        continue;
+      }
+
+      // New line → same semantics as addFactura (missing product is a hard
+      // error here: a line we can't cost has nothing to record).
+      const venta = await applyLineWithCurrentCost(sql, { product_id, cantidad, precio, factura_id, fecha_cobro });
+      updated.push(venta);
+    }
+
+    // Original lines missing from the submitted items → restore stock, delete
+    const submittedIds = new Set(items.filter((it) => it.id != null).map((it) => it.id));
+    for (const original of rows) {
+      if (!submittedIds.has(original.id)) {
+        await sql`
+          UPDATE productos SET stock = stock + ${original.cantidad} WHERE id = ${original.producto_id}
+        `;
+        await sql`
+          DELETE FROM ventas WHERE id = ${original.id}
+        `;
+        removed.push(original.id);
+      }
+    }
+
+    return { updated, removed };
+  });
 }
 
 // ── List all (flat, for backward compat) ────────────────────
