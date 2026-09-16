@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { listGastos, createGasto, type Gasto } from '../../lib/api';
 import { formatCurrency } from '../../lib/data';
 import GastoModal from './GastoModal';
@@ -21,6 +21,8 @@ export default function GastosClient() {
   const [total, setTotal] = useState(0);
   const [totalMonto, setTotalMonto] = useState(0);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const selectAllRef = useRef<HTMLInputElement>(null);
   const pageSize = 15;
 
   const load = () => {
@@ -52,8 +54,40 @@ export default function GastosClient() {
     setModalOpen(false);
     setEditItem(null);
     if (wasCreate) setCurrentPage(1); // new expense is newest -> page 1
+    setSelectedIds(new Set());        // list changed -> drop stale selections
     setRefreshKey((k) => k + 1);      // always refetch (effect owns fetching now)
   };
+
+  const allPageSelected = items.length > 0 && items.every((item) => selectedIds.has(item.id));
+  const somePageSelected = items.some((item) => selectedIds.has(item.id));
+
+  useEffect(() => {
+    if (selectAllRef.current) {
+      selectAllRef.current.indeterminate = somePageSelected && !allPageSelected;
+    }
+  }, [somePageSelected, allPageSelected]);
+
+  const toggleSelect = (id: number) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    setSelectedIds((prev) => {
+      const pageIds = items.map((item) => item.id);
+      const next = new Set(prev);
+      if (allPageSelected) pageIds.forEach((id) => next.delete(id));
+      else pageIds.forEach((id) => next.add(id));
+      return next;
+    });
+  };
+
+  const selectedItems = items.filter((item) => selectedIds.has(item.id));
+  const selectedTotal = selectedItems.reduce((sum, item) => sum + Number(item.monto), 0);
 
   const totalPages = Math.ceil(total / pageSize);
 
@@ -92,7 +126,7 @@ export default function GastosClient() {
             type="date"
             className="w-full px-4 py-2.5 border border-outline-variant rounded-lg focus:ring-2 focus:ring-secondary/20 focus:border-secondary outline-none font-data-mono text-on-surface"
             value={desde}
-            onChange={(e) => { setDesde(e.target.value); setCurrentPage(1); }}
+            onChange={(e) => { setDesde(e.target.value); setCurrentPage(1); setSelectedIds(new Set()); }}
           />
         </div>
         <div className="flex-1 min-w-[160px]">
@@ -101,24 +135,55 @@ export default function GastosClient() {
             type="date"
             className="w-full px-4 py-2.5 border border-outline-variant rounded-lg focus:ring-2 focus:ring-secondary/20 focus:border-secondary outline-none font-data-mono text-on-surface"
             value={hasta}
-            onChange={(e) => { setHasta(e.target.value); setCurrentPage(1); }}
+            onChange={(e) => { setHasta(e.target.value); setCurrentPage(1); setSelectedIds(new Set()); }}
           />
         </div>
         {(desde || hasta) && (
           <button
             className="px-4 py-2.5 text-on-surface-variant hover:text-on-surface font-semibold rounded-lg hover:bg-surface-container transition-all"
-            onClick={() => { setDesde(''); setHasta(''); setCurrentPage(1); }}
+            onClick={() => { setDesde(''); setHasta(''); setCurrentPage(1); setSelectedIds(new Set()); }}
           >
             Limpiar
           </button>
         )}
       </div>
 
+      {selectedIds.size > 0 && (
+        <div className="sticky top-0 z-10 mb-4 flex items-center justify-between gap-4 rounded-xl border border-secondary/30 bg-secondary-container px-4 py-3 shadow-sm">
+          <div className="flex items-center gap-3">
+            <span className="material-symbols-outlined text-secondary">check_circle</span>
+            <span className="font-body-base text-on-secondary-container">
+              {selectedItems.length} {selectedItems.length === 1 ? 'gasto seleccionado' : 'gastos seleccionados'}
+            </span>
+          </div>
+          <div className="flex items-center gap-4">
+            <span className="font-data-mono text-display-sm text-secondary">
+              {formatCurrency(selectedTotal)}
+            </span>
+            <button
+              className="text-on-secondary-container hover:text-secondary font-semibold"
+              onClick={() => setSelectedIds(new Set())}
+            >
+              Quitar selección
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-surface-container-low border-b border-outline-variant">
+                <th className="px-4 py-4 w-12">
+                  <input
+                    ref={selectAllRef}
+                    type="checkbox"
+                    className="w-4 h-4 accent-secondary cursor-pointer"
+                    checked={allPageSelected}
+                    onChange={toggleSelectAll}
+                  />
+                </th>
                 {['Descripción', 'Monto', 'Fecha', 'Acciones'].map((h) => (
                   <th key={h} className={`px-6 py-4 font-label-caps text-label-caps text-on-surface-variant uppercase ${h === 'Monto' || h === 'Acciones' ? 'text-right' : ''}`}>{h}</th>
                 ))}
@@ -126,14 +191,22 @@ export default function GastosClient() {
             </thead>
             <tbody className="divide-y divide-outline-variant">
               {loading ? (
-                <tr><td colSpan={4} className="px-6 py-12 text-center text-on-surface-variant">Cargando...</td></tr>
+                <tr><td colSpan={5} className="px-6 py-12 text-center text-on-surface-variant">Cargando...</td></tr>
               ) : error ? (
-                <tr><td colSpan={4} className="px-6 py-12 text-center text-error">{error}</td></tr>
+                <tr><td colSpan={5} className="px-6 py-12 text-center text-error">{error}</td></tr>
               ) : items.length === 0 ? (
-                <tr><td colSpan={4} className="px-6 py-12 text-center text-on-surface-variant">No hay gastos registrados.</td></tr>
+                <tr><td colSpan={5} className="px-6 py-12 text-center text-on-surface-variant">No hay gastos registrados.</td></tr>
               ) : (
                 items.map((item) => (
                   <tr key={item.id} className="hover:bg-surface-container-lowest transition-colors group">
+                    <td className="px-4 py-4">
+                      <input
+                        type="checkbox"
+                        className="w-4 h-4 accent-secondary cursor-pointer"
+                        checked={selectedIds.has(item.id)}
+                        onChange={() => toggleSelect(item.id)}
+                      />
+                    </td>
                     <td className="px-6 py-4 font-semibold text-primary">{item.descripcion}</td>
                     <td className="px-6 py-4 text-right font-data-mono text-error">{formatCurrency(Number(item.monto))}</td>
                     <td className="px-6 py-4 text-on-surface-variant">
@@ -156,7 +229,7 @@ export default function GastosClient() {
             totalPages={totalPages}
             totalItems={total}
             pageSize={pageSize}
-            onPageChange={setCurrentPage}
+            onPageChange={(p) => { setCurrentPage(p); setSelectedIds(new Set()); }}
           />
         )}
       </div>
