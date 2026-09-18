@@ -217,6 +217,7 @@ export default function CalculadoraClient() {
 
   const totalGananciaCalculadora = itemsGanancia.reduce((s, it) => s + it.ganancia * it.cantidad, 0);
   const totalCostoCalculadora = itemsGanancia.reduce((s, it) => s + it.costo * it.cantidad, 0);
+  const totalPorcentajeGananciaCalculadora = totalCostoCalculadora > 0 ? (totalGananciaCalculadora / totalCostoCalculadora) * 100 : null;
 
   // Productos calculados ordenados por mayor margen de ganancia
   const productosOrdenados = [...productos].sort((a, b) => b.porcentajeGanancia - a.porcentajeGanancia);
@@ -710,6 +711,14 @@ export default function CalculadoraClient() {
               <p class="font-headline-md font-bold text-on-surface">
                 $ {totalCostoCalculadora.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </p>
+              {totalPorcentajeGananciaCalculadora !== null && (
+                <p class="font-body-sm text-on-surface-variant">
+                  Porcentaje de ganancia:{' '}
+                  <span class={`font-body-base font-semibold ${totalPorcentajeGananciaCalculadora >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    {totalPorcentajeGananciaCalculadora >= 0 ? '+' : ''}{totalPorcentajeGananciaCalculadora.toFixed(2)}%
+                  </span>
+                </p>
+              )}
             </div>
             <div class="flex flex-col items-end gap-1">
               <p class="font-body-base font-medium text-on-surface">Total ganancia calculado</p>
