@@ -100,6 +100,7 @@ export interface Producto {
   precio: number;
   stock: number;
   fecha_carga: string;
+  fecha_agotado: string | null;
 }
 
 export async function listProductos(): Promise<Producto[]> {

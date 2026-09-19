@@ -3,13 +3,24 @@ import { listProductos, type Producto } from '../../lib/api';
 import Badge from '../ui/Badge';
 import { useAuthRedirect } from '../../hooks/useAuthRedirect';
 
-// Whole days between fecha_carga and today. fecha_carga is an opaque 'YYYY-MM-DD'
-// string: parse its components directly instead of new Date(...) so no UTC instant
-// interpretation is involved. today is normalized to local midnight expressed as
-// UTC (Date.UTC on y/m/d) so DST shifts never cause an off-by-one.
-function daysInStock(fechaCarga: string): number {
+// Whole days between fecha_carga and the "end" of the cycle: fecha_agotado when
+// the product is currently out of stock (freeze day), today otherwise. All dates
+// are opaque 'YYYY-MM-DD' strings: parse their components directly instead of
+// new Date(...) so no UTC instant interpretation is involved. today is
+// normalized to local midnight expressed as UTC (Date.UTC on y/m/d) so DST
+// shifts never cause an off-by-one.
+function daysInStock(fechaCarga: string, fechaAgotado: string | null, stock: number): number {
   const [y, m, d] = fechaCarga.slice(0, 10).split('-').map(Number);
   const cargaUTC = Date.UTC(y, m - 1, d);
+
+  // Out of stock → freeze on the day it ran out, parsed the same way as
+  // fecha_carga (no UTC instant interpretation).
+  if (stock <= 0 && fechaAgotado) {
+    const [ay, am, ad] = fechaAgotado.slice(0, 10).split('-').map(Number);
+    const agotadoUTC = Date.UTC(ay, am - 1, ad);
+    return Math.max(0, Math.floor((agotadoUTC - cargaUTC) / 86400000));
+  }
+
   const today = new Date();
   const todayUTC = Date.UTC(today.getFullYear(), today.getMonth(), today.getDate());
   return Math.max(0, Math.floor((todayUTC - cargaUTC) / 86400000));
@@ -46,7 +57,7 @@ export default function RotacionClient() {
 
   // Oldest/riskiest first: days in stock descending.
   const rows = productos
-    .map((p) => ({ producto: p, days: daysInStock(p.fecha_carga) }))
+    .map((p) => ({ producto: p, days: daysInStock(p.fecha_carga, p.fecha_agotado, p.stock) }))
     .sort((a, b) => b.days - a.days);
 
   return (

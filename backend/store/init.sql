@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS productos (
     precio NUMERIC(10,2) NOT NULL,
     stock INTEGER NOT NULL DEFAULT 0,
     fecha_carga DATE NOT NULL DEFAULT CURRENT_DATE,
+    fecha_agotado DATE,
     activo BOOLEAN NOT NULL DEFAULT true
 );
 
@@ -26,6 +27,10 @@ CREATE TABLE IF NOT EXISTS productos (
 -- products start at 0 days in stock.
 ALTER TABLE productos ADD COLUMN IF NOT EXISTS fecha_carga DATE NOT NULL DEFAULT CURRENT_DATE;
 ALTER TABLE productos ALTER COLUMN fecha_carga TYPE DATE USING fecha_carga::date;
+-- fecha_agotado: day the stock first hit <= 0 in the current cycle (frozen while
+-- out of stock, cleared on restock). Nullable on purpose: in-stock products have
+-- no freeze date. Stamped by the reconciliation UPDATE after every stock mutation.
+ALTER TABLE productos ADD COLUMN IF NOT EXISTS fecha_agotado DATE;
 
 CREATE TABLE IF NOT EXISTS ventas (
     id SERIAL PRIMARY KEY,

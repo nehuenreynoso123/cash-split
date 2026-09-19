@@ -17,6 +17,15 @@ import { MENSAJE_RENOVACION_DEFAULT } from "../api_cash_split/components/setting
 const MIGRATIONS = [
   "ALTER TABLE productos ADD COLUMN IF NOT EXISTS fecha_carga DATE NOT NULL DEFAULT CURRENT_DATE",
   "ALTER TABLE productos ALTER COLUMN fecha_carga TYPE DATE USING fecha_carga::date",
+  // fecha_agotado: day the stock first hit <= 0 in the current cycle. Stamped by
+  // the reconciliation UPDATE after every stock mutation (COALESCE preserves the
+  // first date while the product stays out of stock, NULL once restocked), so the
+  // Rotación section can freeze "days in stock" instead of counting to today.
+  "ALTER TABLE productos ADD COLUMN IF NOT EXISTS fecha_agotado DATE",
+  // Legacy backfill: products already out of stock when this ships freeze from
+  // deploy day (there is no way to know when they actually ran out). Idempotent —
+  // only touches rows that never got a date.
+  `UPDATE productos SET fecha_agotado = CURRENT_DATE WHERE stock <= 0 AND fecha_agotado IS NULL`,
   // factura_id groups multiple venta rows into a single invoice (factura).
   // Nullable: legacy rows and single-product ventas have no grouping.
   "ALTER TABLE ventas ADD COLUMN IF NOT EXISTS factura_id VARCHAR(36)",

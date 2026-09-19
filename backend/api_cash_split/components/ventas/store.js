@@ -24,6 +24,14 @@ export async function add({ nombre, precio, product_id, cantidad, fecha_cobro })
             SET stock = stock - ${cantidad}
             WHERE id = ${product_id}
         `;
+    // Reconcile fecha_agotado against the final stock — separate UPDATE because
+    // PostgreSQL SET clauses evaluate left-to-right (a same-statement reference
+    // would already see the deducted value).
+    await sql`
+            UPDATE productos
+            SET fecha_agotado = CASE WHEN stock <= 0 THEN COALESCE(fecha_agotado, CURRENT_DATE) ELSE NULL END
+            WHERE id = ${product_id}
+        `;
 
     return venta;
   });
@@ -58,6 +66,13 @@ export async function addFactura({ items, factura_id, fecha_cobro }) {
       // 3. Deduct stock
       await sql`
         UPDATE productos SET stock = stock - ${cantidad} WHERE id = ${product_id}
+      `;
+
+      // Reconcile fecha_agotado against the final stock — separate UPDATE because
+      // PostgreSQL SET clauses evaluate left-to-right (a same-statement reference
+      // would already see the deducted value).
+      await sql`
+        UPDATE productos SET fecha_agotado = CASE WHEN stock <= 0 THEN COALESCE(fecha_agotado, CURRENT_DATE) ELSE NULL END WHERE id = ${product_id}
       `;
 
       inserted.push(venta);
@@ -152,6 +167,13 @@ async function applyLineWithCurrentCost(sql, { id, product_id, cantidad, precio,
     UPDATE productos SET stock = stock - ${cantidad} WHERE id = ${product_id}
   `;
 
+  // Reconcile fecha_agotado against the final stock — separate UPDATE because
+  // PostgreSQL SET clauses evaluate left-to-right (a same-statement reference
+  // would already see the deducted value).
+  await sql`
+    UPDATE productos SET fecha_agotado = CASE WHEN stock <= 0 THEN COALESCE(fecha_agotado, CURRENT_DATE) ELSE NULL END WHERE id = ${product_id}
+  `;
+
   return venta;
 }
 
@@ -203,6 +225,13 @@ export async function updateFactura({ factura_id, items, fecha_cobro }) {
           UPDATE productos SET stock = stock + ${original.cantidad} WHERE id = ${original.producto_id}
         `;
 
+        // Reconcile fecha_agotado against the final stock — separate UPDATE because
+        // PostgreSQL SET clauses evaluate left-to-right (a same-statement reference
+        // would already see the restored value).
+        await sql`
+          UPDATE productos SET fecha_agotado = CASE WHEN stock <= 0 THEN COALESCE(fecha_agotado, CURRENT_DATE) ELSE NULL END WHERE id = ${original.producto_id}
+        `;
+
         // Product was deleted from the catalog → price-only change with the
         // historical cost, original nombre/cantidad kept, no stock touched.
         const [producto] = await sql`
@@ -238,6 +267,13 @@ export async function updateFactura({ factura_id, items, fecha_cobro }) {
       if (!submittedIds.has(original.id)) {
         await sql`
           UPDATE productos SET stock = stock + ${original.cantidad} WHERE id = ${original.producto_id}
+        `;
+
+        // Reconcile fecha_agotado against the final stock — separate UPDATE because
+        // PostgreSQL SET clauses evaluate left-to-right (a same-statement reference
+        // would already see the restored value).
+        await sql`
+          UPDATE productos SET fecha_agotado = CASE WHEN stock <= 0 THEN COALESCE(fecha_agotado, CURRENT_DATE) ELSE NULL END WHERE id = ${original.producto_id}
         `;
         await sql`
           DELETE FROM ventas WHERE id = ${original.id}
@@ -280,6 +316,13 @@ export async function removeFactura({ factura_id }) {
     for (const row of rows) {
       await sql`
         UPDATE productos SET stock = stock + ${row.cantidad} WHERE id = ${row.producto_id}
+      `;
+
+      // Reconcile fecha_agotado against the final stock — separate UPDATE because
+      // PostgreSQL SET clauses evaluate left-to-right (a same-statement reference
+      // would already see the restored value).
+      await sql`
+        UPDATE productos SET fecha_agotado = CASE WHEN stock <= 0 THEN COALESCE(fecha_agotado, CURRENT_DATE) ELSE NULL END WHERE id = ${row.producto_id}
       `;
     }
 
