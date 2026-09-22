@@ -58,6 +58,17 @@ function buildCajas(
         'El valor bruto generado por tu trabajo. De este bloque se alimentan las cajas operativas, de reserva y de escala.',
     },
     {
+      id: 'ganancia-mas-invertido',
+      titulo: 'Ganancia + Invertido',
+      valor: formatCurrency(gananciaReal + totalInvertido),
+      icono: 'payments',
+      colorIcono: 'text-teal-500',
+      bordeClase: 'border-l-teal-500',
+      descripcion: 'La ganancia del período más el costo de la mercadería en stock.',
+      detalle:
+        'Te muestra el valor total que maneja tu rueda: lo que generaste con las ventas más lo que tenés invertido en productos.',
+    },
+    {
       id: 'caja-reposicion',
       titulo: 'Caja Reposición Base',
       valor: formatCurrency(costoReposicion),
@@ -217,6 +228,8 @@ export default function FlujoFondosClient() {
   // Desglose de Liquidez Dinero: Total Invertido − Caja Reposición + Liquidez neta
   const totalInvertidoDesglose = flujoFondosData.reduce((s, r) => s + Number(r.costo_invertido_stock), 0);
   const costoReposicionDesglose = flujoFondosData.reduce((s, r) => s + Number(r.costo_reposicion_total), 0);
+  const gananciaRealDesglose = flujoFondosData.reduce((s, r) => s + Number(r.ganancia_real_total), 0);
+  const gananciaMasInvertidoDesglose = totalInvertidoDesglose + gananciaRealDesglose;
   const liquidezDisponibleDesglose = totalInvertidoDesglose - costoReposicionDesglose + netoLiquidez;
 
   return (
@@ -459,6 +472,28 @@ export default function FlujoFondosClient() {
                       ))}
                   </ul>
                 )}
+              </div>
+            )}
+
+            {selected.id === 'ganancia-mas-invertido' && (
+              <div className="border-t border-outline-variant pt-5">
+                <h4 className="font-label-caps text-label-caps text-secondary uppercase tracking-wider mb-2">
+                  De dónde sale el cálculo
+                </h4>
+                <ul className="divide-y divide-outline-variant/40 border border-outline-variant rounded-xl overflow-hidden">
+                  <li className="flex items-center justify-between gap-4 px-4 py-3 bg-surface-container-lowest">
+                    <span className="font-body-base text-on-surface">Total Invertido</span>
+                    <span className="font-data-mono text-on-surface-variant shrink-0">+{formatCurrency(totalInvertidoDesglose)}</span>
+                  </li>
+                  <li className="flex items-center justify-between gap-4 px-4 py-3 bg-surface-container-lowest">
+                    <span className="font-body-base text-on-surface">Ganancia del período</span>
+                    <span className="font-data-mono text-on-surface-variant shrink-0">+{formatCurrency(gananciaRealDesglose)}</span>
+                  </li>
+                  <li className="flex items-center justify-between gap-4 px-4 py-3 bg-surface-container-low">
+                    <span className="font-label-caps text-label-caps text-secondary uppercase tracking-wider">Total</span>
+                    <span className="font-data-mono text-primary font-semibold shrink-0">{formatCurrency(gananciaMasInvertidoDesglose)}</span>
+                  </li>
+                </ul>
               </div>
             )}
 
