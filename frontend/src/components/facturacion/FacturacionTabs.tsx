@@ -5,6 +5,7 @@ import VentasTable from './VentasTable';
 import FacturasTable from './FacturasTable';
 import AgregarVentaForm from './AgregarVentaForm';
 import ComisionesRetencionesTable from './ComisionesRetencionesTable';
+import TotalFacturadoCard from './TotalFacturadoCard';
 import type { Venta, VentaFormItem } from './ventas';
 
 type TabId = 'ventas' | 'facturacion' | 'comisionesRetenciones' | 'agregarVenta';
@@ -200,6 +201,10 @@ export default function FacturacionTabs() {
           {deleteError}
         </p>
       )}
+
+      {/* Accumulated billed total per invoice name (quién emite la factura) —
+          visible on every tab, derived from the ventas already loaded. */}
+      <TotalFacturadoCard ventas={ventas} />
 
       {/* All tabs stay mounted — visibility toggles with `hidden` so the
           Agregar Venta form draft and the ventas list survive tab switches. */}
