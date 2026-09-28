@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Modal from '../ui/Modal';
 import DateRangeFilter from '../ui/DateRangeFilter';
-import { getFlujoFondos, getVentasPorCobrarSemanas, getLiquidezTotal, listLiquidez, listProductos, type TotalCaja, type DateRangeParams, type Producto, type Liquidez, type VentasPorCobrarSemana } from '../../lib/api';
+import { getFlujoFondos, getVentasPorCobrarSemanas, getLiquidezTotal, listLiquidez, listProductos, listGastos, CATEGORIAS_GASTO, type TotalCaja, type DateRangeParams, type Producto, type Liquidez, type VentasPorCobrarSemana, type TotalPorCategoria, type CategoriaGasto } from '../../lib/api';
 import { formatCurrency } from '../../lib/data';
 import { useAuthRedirect } from '../../hooks/useAuthRedirect';
 
@@ -16,12 +16,26 @@ interface CajaInfo {
   detalle: string;
 }
 
+// Categorías que cuentan como gasto del emprendimiento en la ganancia real.
+// Decisión del usuario: `servicios` se cuenta como negocio aunque la categoría no
+// distinga un servicio personal de uno del local. No se esconde el problema: el
+// detalle de la tarjeta muestra esa línea por separado, y los gastos sin
+// categoría sereportan aparte para que se vea lo que NO se está descontando.
+const CATEGORIAS_NEGOCIO: CategoriaGasto[] = ['emprendimiento', 'servicios'];
+
+// Suma de una fila de totalesPorCategoria para una categoría dada. La columna es
+// nullable y el slug puede no aparecer en el período: ambos casos cuentan como 0.
+function totalDeCategoria(totales: TotalPorCategoria[], categoria: CategoriaGasto | null): number {
+  return totales.find((t) => t.categoria === categoria)?.totalMonto ?? 0;
+}
+
 function buildCajas(
   liquidezDisponible: number,
   totalInvertido: number,
   gananciaReal: number,
   costoReposicion: number,
   gananciaPorCobrar: number,
+  gastosNegocio: number,
 ): CajaInfo[] {
   return [
     {
@@ -91,15 +105,15 @@ function buildCajas(
         'Medir tu descalce financiero. Te dice cuánta ganancia tenés "en el aire" esperando impactar en tu cuenta.',
     },
     {
-      id: 'caja-operativa',
-      titulo: 'Caja Operativa',
-      valor: formatCurrency(Math.round(gananciaReal * 0.3)),
-      icono: 'work_history',
+      id: 'ganancia-emprendimiento',
+      titulo: 'Ganancia del Emprendimiento',
+      valor: formatCurrency(Math.round(gananciaReal - gastosNegocio)),
+      icono: 'trending_up',
       colorIcono: 'text-cyan-500',
       bordeClase: 'border-l-cyan-500',
-      descripcion: '30% de la Ganancia Real (o un sueldo fijo mensual estipulado por vos).',
+      descripcion: 'Ganancia del período menos los gastos del emprendimiento.',
       detalle:
-        'Pagarte a vos por tu trabajo diario y cubrir los gastos fijos del negocio (envíos, publicidad, monotributo) para no tocar el capital de trabajo.',
+        'Es la plata que dejó el negocio una vez pagos sus gastos. La Ganancia de arriba todavía no sabe nada de ellos: este número sí. Tocá la tarjeta para ver la resta completa.',
     },
     {
       id: 'caja-amortiguacion',
@@ -178,6 +192,9 @@ export default function FlujoFondosClient() {
   const [flujoFondosData, setFlujoFondosData] = useState<TotalCaja[]>([]);
   const [liquidezItems, setLiquidezItems] = useState<Liquidez[]>([]);
   const [netoLiquidez, setNetoLiquidez] = useState(0);
+  // Totales de gastos por categoría del mismo rango de fechas que esta pantalla.
+  // Alimentan la resta de la Ganancia del Emprendimiento.
+  const [gastosPorCategoria, setGastosPorCategoria] = useState<TotalPorCategoria[]>([]);
   // Weekly pending sales amount cards: independent of the date-range filter.
   const [semanasPorCobrar, setSemanasPorCobrar] = useState<SemanaCardInfo[]>([]);
   const requestIdRef = useRef(0);
@@ -204,11 +221,16 @@ export default function FlujoFondosClient() {
       getFlujoFondos(params).catch(() => [] as TotalCaja[]),
       getLiquidezTotal(params).catch(() => 0),
       listLiquidez(params).catch(() => [] as Liquidez[]),
-    ]).then(([flujoFondosData, netoLiquidez, liquidezItems]) => {
+      // limit 1: de esta respuesta solo se leen los totales por categoría, que
+      // el backend calcula sobre el rango de fechas completo e ignorando el
+      // límite — las filas de la tabla son un payload que acá no se usa.
+      listGastos({ ...params, limit: 1 }).catch(() => ({ totalesPorCategoria: [] } as unknown as Awaited<ReturnType<typeof listGastos>>)),
+    ]).then(([flujoFondosData, netoLiquidez, liquidezItems, gastos]) => {
       if (requestId !== requestIdRef.current) return;
       setFlujoFondosData(flujoFondosData);
       setNetoLiquidez(netoLiquidez);
       setLiquidezItems(liquidezItems);
+      setGastosPorCategoria(gastos.totalesPorCategoria);
       const totalInvertido = flujoFondosData.reduce((s, r) => s + Number(r.costo_invertido_stock), 0);
       const gananciaReal = flujoFondosData.reduce((s, r) => s + Number(r.ganancia_real_total), 0);
       const costoReposicion = flujoFondosData.reduce((s, r) => s + Number(r.costo_reposicion_total), 0);
@@ -216,7 +238,11 @@ export default function FlujoFondosClient() {
       const gananciaPorCobrar = flujoFondosData.reduce((s, r) => s + (Number(r.ganancia_por_cobrar_total) || 0), 0);
 
       const liquidezDisponible = totalInvertido - costoReposicion + netoLiquidez;
-      const built = buildCajas(liquidezDisponible, totalInvertido, gananciaReal, costoReposicion, gananciaPorCobrar);
+      const gastosNegocio = CATEGORIAS_NEGOCIO.reduce(
+        (s, cat) => s + totalDeCategoria(gastos.totalesPorCategoria, cat),
+        0,
+      );
+      const built = buildCajas(liquidezDisponible, totalInvertido, gananciaReal, costoReposicion, gananciaPorCobrar, gastosNegocio);
       setCajas(built);
       setLoading(false);
     });
@@ -231,6 +257,14 @@ export default function FlujoFondosClient() {
   const gananciaRealDesglose = flujoFondosData.reduce((s, r) => s + Number(r.ganancia_real_total), 0);
   const gananciaMasInvertidoDesglose = totalInvertidoDesglose + gananciaRealDesglose;
   const liquidezDisponibleDesglose = totalInvertidoDesglose - costoReposicionDesglose + netoLiquidez;
+  // Desglose de la Ganancia del Emprendimiento: cada categoría de gasto que se
+  // descuenta por separado, más los gastos sin categoría — que NO se descuentan
+  // pero cuya existencia hay que mostrar, porque inflan la ganancia de arriba.
+  const gastosNegocioDesglose = CATEGORIAS_NEGOCIO.reduce(
+    (s, cat) => s + totalDeCategoria(gastosPorCategoria, cat),
+    0,
+  );
+  const gastosSinClasificarDesglose = totalDeCategoria(gastosPorCategoria, null);
 
   return (
     <div className="space-y-gutter">
@@ -591,6 +625,60 @@ export default function FlujoFondosClient() {
                     </ul>
                   )}
                 </div>
+              </div>
+            )}
+
+            {selected.id === 'ganancia-emprendimiento' && (
+              <div className="border-t border-outline-variant pt-5 space-y-4">
+                <div>
+                  <h4 className="font-label-caps text-label-caps text-secondary uppercase tracking-wider mb-2">
+                    De dónde sale el cálculo
+                  </h4>
+                  <ul className="divide-y divide-outline-variant/40 border border-outline-variant rounded-xl overflow-hidden">
+                    <li className="flex items-center justify-between gap-4 px-4 py-3 bg-surface-container-lowest">
+                      <span className="font-body-base text-on-surface">Ganancia del período (ventas − costo de mercadería)</span>
+                      <span className="font-data-mono text-on-surface-variant shrink-0">+{formatCurrency(gananciaRealDesglose)}</span>
+                    </li>
+                    {CATEGORIAS_NEGOCIO.map((cat) => {
+                      const info = CATEGORIAS_GASTO.find((c) => c.valor === cat);
+                      const monto = totalDeCategoria(gastosPorCategoria, cat);
+                      // Categoría presente en el período pero con 0 en gastos:
+                      // mostrarla igual mantiene la resta legible entre períodos.
+                      if (monto === 0) return null;
+                      return (
+                        <li key={cat} className="flex items-center justify-between gap-4 px-4 py-3 bg-surface-container-lowest">
+                          <span className="font-body-base text-on-surface">Gastos {info?.label ?? cat}</span>
+                          <span className="font-data-mono text-on-surface-variant shrink-0">−{formatCurrency(monto)}</span>
+                        </li>
+                      );
+                    })}
+                    <li className="flex items-center justify-between gap-4 px-4 py-3 bg-surface-container-low">
+                      <span className="font-label-caps text-label-caps text-secondary uppercase tracking-wider">Ganancia del Emprendimiento</span>
+                      <span className="font-data-mono text-primary font-semibold shrink-0">
+                        {formatCurrency(Math.round(gananciaRealDesglose - gastosNegocioDesglose))}
+                      </span>
+                    </li>
+                  </ul>
+                </div>
+
+                {gastosSinClasificarDesglose > 0 && (
+                  <div className="bg-surface-container rounded-xl p-5 border border-outline-variant">
+                    <div className="flex items-start gap-3">
+                      <span className="material-symbols-outlined text-orange-500 shrink-0">warning</span>
+                      <div>
+                        <p className="font-body-base text-on-surface leading-relaxed">
+                          Hay {formatCurrency(gastosSinClasificarDesglose)} en gastos sin categoría este
+                          período. No se descuentan, así que la ganancia de arriba los está
+                          sobrestimando en esa misma cantidad.
+                        </p>
+                        <p className="text-body-sm text-on-surface-variant mt-2">
+                          Clasificalos desde Gastos: la ganancia real solo es tan precisa como su
+                          clasificación.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
