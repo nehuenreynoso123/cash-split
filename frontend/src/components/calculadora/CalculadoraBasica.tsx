@@ -204,51 +204,51 @@ export default function CalculadoraBasica() {
 
   return (
     <div
-      class="w-full xl:w-96 shrink-0 bg-surface-container rounded-2xl p-4 flex flex-col gap-4"
+      className="w-full xl:w-96 shrink-0 bg-surface-container rounded-2xl p-4 flex flex-col gap-4"
       role="group"
       aria-label="Calculadora básica"
       onKeyDown={manejarTeclado}
     >
-      <div class="flex items-center gap-2">
-        <span class="material-symbols-outlined text-xl text-secondary">calculate</span>
-        <h3 class="font-label-caps text-label-caps text-on-surface-variant uppercase tracking-wider">Calculadora</h3>
+      <div className="flex items-center gap-2">
+        <span className="material-symbols-outlined text-xl text-secondary">calculate</span>
+        <h3 className="font-label-caps text-label-caps text-on-surface-variant uppercase tracking-wider">Calculadora</h3>
       </div>
 
-      <div class="rounded-xl bg-surface-container-lowest border border-outline p-4 flex flex-col gap-2">
+      <div className="rounded-xl bg-surface-container-lowest border border-outline p-4 flex flex-col gap-2">
         <input
           ref={entradaRef}
           readOnly
           value={expresion}
           placeholder="0"
           aria-label="Expresión de la calculadora"
-          class="w-full bg-transparent text-right font-data-mono text-data-mono text-on-surface outline-none placeholder:text-on-surface-variant/50"
+          className="w-full bg-transparent text-right font-data-mono text-data-mono text-on-surface outline-none placeholder:text-on-surface-variant/50"
         />
-        <div class="min-h-7 flex items-center justify-end">
+        <div className="min-h-7 flex items-center justify-end">
           {error ? (
-            <p class="font-body-sm text-error text-right">{error}</p>
+            <p className="font-body-sm text-error text-right">{error}</p>
           ) : resultado ? (
-            <p class="font-data-mono text-xl font-bold text-on-surface text-right break-all leading-tight">{resultado}</p>
+            <p className="font-data-mono text-xl font-bold text-on-surface text-right break-all leading-tight">{resultado}</p>
           ) : (
-            <p class="font-body-sm text-on-surface-variant/50">—</p>
+            <p className="font-body-sm text-on-surface-variant/50">—</p>
           )}
         </div>
       </div>
 
-      <div class="grid grid-cols-4 gap-2">
+      <div className="grid grid-cols-4 gap-2">
         {TECLAS.map((t) => (
           <button
             key={t.esIcono ? `${t.etiqueta}-icon` : t.etiqueta}
             type="button"
             aria-label={t.ariaLabel}
             onClick={() => pulsarTecla(t)}
-            class={`h-12 rounded-xl font-data-mono text-lg transition-all duration-200 active:scale-[0.98] ${
+            className={`h-12 rounded-xl font-data-mono text-lg transition-all duration-200 active:scale-[0.98] ${
               t.resaltada
                 ? 'bg-secondary text-on-secondary hover:bg-secondary/90'
                 : 'bg-surface-container-lowest text-on-surface hover:bg-surface-container-high'
             }`}
           >
             {t.esIcono ? (
-              <span class="material-symbols-outlined text-2xl leading-none">{t.etiqueta}</span>
+              <span className="material-symbols-outlined text-2xl leading-none">{t.etiqueta}</span>
             ) : (
               t.etiqueta
             )}

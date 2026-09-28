@@ -200,7 +200,7 @@ export function construirMensajeRenovacion(
   // First resolve optional segments (on the raw template, before substitution),
   // then substitute the surviving placeholders.
   return template
-    .replace(/\[([^[\]]*)\]/g, (segmento, contenido) => {
+    .replace(/\[([^[\]]*)\]/g, (segmento: string, contenido: string) => {
       const usados = contenido.match(PLACEHOLDER_RE);
       if (!usados) return segmento; // literal brackets, not an optional marker
       const algunoVacio = usados.some((ph) => valores[ph.slice(1, -1)] === '');

@@ -60,8 +60,14 @@ export default function CalculadoraClient() {
   const [productos, setProductos] = useState<ProductoCalculado[]>(() => {
     try { return JSON.parse(localStorage.getItem('calculadora-productos') ?? '[]'); } catch { return []; }
   });
-  const [nextId, setNextId] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('calculadora-productos-nextid') ?? '1'); } catch { return 1; }
+  const [nextId, setNextId] = useState<number>(() => {
+    // JSON.parse only throws on malformed input: valid-but-wrong JSON such as "null",
+    // "{}" or '"3"' parses fine and would seed a corrupt id counter, so the parsed value
+    // is validated before it becomes state. Any non-finite number falls back to 1.
+    try {
+      const parsed: unknown = JSON.parse(localStorage.getItem('calculadora-productos-nextid') ?? '1');
+      return typeof parsed === 'number' && Number.isFinite(parsed) ? parsed : 1;
+    } catch { return 1; }
   });
 
   // Calculadora Ganancia de Productos: items seleccionados del listado
@@ -223,83 +229,83 @@ export default function CalculadoraClient() {
   const productosOrdenados = [...productos].sort((a, b) => b.porcentajeGanancia - a.porcentajeGanancia);
 
   return (
-    <div class="space-y-4">
+    <div className="space-y-4">
       {/* ── Card con tabs de calculadoras ── */}
-      <div class="bg-surface rounded-2xl shadow-md overflow-hidden">
-        <div class="flex items-center gap-2 px-6 pt-5 pb-3 border-b border-outline overflow-x-auto">
+      <div className="bg-surface rounded-2xl shadow-md overflow-hidden">
+        <div className="flex items-center gap-2 px-6 pt-5 pb-3 border-b border-outline overflow-x-auto">
           {TABS.map((t) => (
             <button
               key={t.id}
               onClick={() => setTabActivo(t.id)}
-              class={`flex items-center gap-2 px-4 py-2 rounded-lg font-body-base font-medium whitespace-nowrap transition-all duration-200 ${
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-body-base font-medium whitespace-nowrap transition-all duration-200 ${
                 tabActivo === t.id
                   ? 'bg-secondary text-on-secondary'
                   : 'text-on-surface-variant hover:bg-surface-container'
               }`}
             >
-              <span class="material-symbols-outlined text-lg">{t.icon}</span>
+              <span className="material-symbols-outlined text-lg">{t.icon}</span>
               {t.label}
             </button>
           ))}
         </div>
 
-        <div class="p-6">
-          <div class="flex flex-col xl:flex-row gap-6">
-            <div class="flex-1 min-w-0">
+        <div className="p-6">
+          <div className="flex flex-col xl:flex-row gap-6">
+            <div className="flex-1 min-w-0">
               {/* ── Tab: USDT → ARS ── */}
               {tabActivo === 'usdt-ars' && (
                 <div>
-                  <div class="flex items-center justify-between mb-5">
-                    <div class="flex items-center gap-3">
-                      <span class="material-symbols-outlined text-2xl text-secondary">currency_exchange</span>
-                      <h2 class="font-headline-md font-bold text-on-surface">USDT → ARS</h2>
+                  <div className="flex items-center justify-between mb-5">
+                    <div className="flex items-center gap-3">
+                      <span className="material-symbols-outlined text-2xl text-secondary">currency_exchange</span>
+                      <h2 className="font-headline-md font-bold text-on-surface">USDT → ARS</h2>
                     </div>
                     <button
                       onClick={limpiarUsdtAArs}
-                      class="p-1.5 rounded-lg text-on-surface-variant hover:text-error hover:bg-error/10 transition-all duration-200"
+                      className="p-1.5 rounded-lg text-on-surface-variant hover:text-error hover:bg-error/10 transition-all duration-200"
                       title="Limpiar campos"
                     >
-                      <span class="material-symbols-outlined text-[20px]">refresh</span>
+                      <span className="material-symbols-outlined text-[20px]">refresh</span>
                     </button>
                   </div>
 
-                  <div class="space-y-4">
+                  <div className="space-y-4">
                     <div>
-                      <label class="block font-body-base font-medium text-on-surface mb-1.5">Valor del USDT ($)</label>
+                      <label className="block font-body-base font-medium text-on-surface mb-1.5">Valor del USDT ($)</label>
                       <input
                         type="text"
                         inputMode="decimal"
                         value={numVal(valorUsdt)}
                         onChange={(e) => numChange(e, setValorUsdt)}
                         placeholder="Ej: 1.300,50"
-                        class="w-full p-3 rounded-xl border border-outline bg-surface-container text-on-surface font-body-base placeholder:text-on-surface-variant/50 focus:outline-none focus:ring-2 focus:ring-secondary"
+                        className="w-full p-3 rounded-xl border border-outline bg-surface-container text-on-surface font-body-base placeholder:text-on-surface-variant/50 focus:outline-none focus:ring-2 focus:ring-secondary"
                       />
                     </div>
                     <div>
-                      <label class="block font-body-base font-medium text-on-surface mb-1.5">Cantidad de USDT</label>
+                      <label className="block font-body-base font-medium text-on-surface mb-1.5">Cantidad de USDT</label>
                       <input
                         type="text"
                         inputMode="decimal"
                         value={numVal(cantidadUsdt)}
                         onChange={(e) => numChange(e, setCantidadUsdt)}
                         placeholder="Ej: 100"
-                        class="w-full p-3 rounded-xl border border-outline bg-surface-container text-on-surface font-body-base placeholder:text-on-surface-variant/50 focus:outline-none focus:ring-2 focus:ring-secondary"
+                        className="w-full p-3 rounded-xl border border-outline bg-surface-container text-on-surface font-body-base placeholder:text-on-surface-variant/50 focus:outline-none focus:ring-2 focus:ring-secondary"
                       />
                     </div>
                     <button
                       onClick={calcularUsdtAArs}
                       disabled={!valorUsdt || !cantidadUsdt}
-                      class="w-full py-3 px-6 rounded-xl bg-secondary text-on-secondary font-body-base font-bold hover:bg-secondary/90 transition-all duration-200 active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100"
+                      className="w-full py-3 px-6 rounded-xl bg-secondary text-on-secondary font-body-base font-bold hover:bg-secondary/90 transition-all duration-200 active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100"
                     >
                       Calcular
                     </button>
                     {resultadoArs !== null && (
-                      <div class="p-4 rounded-xl bg-secondary-container/30 border border-secondary-container">
-                        <p class="font-body-sm text-on-surface-variant mb-1">Total en pesos</p>
-                        <p class="font-display-lg text-display-lg font-bold text-on-surface">
+                      <div className="p-4 rounded-xl bg-secondary-container/30 border border-secondary-container">
+                        <p className="font-body-sm text-on-surface-variant mb-1">Total en pesos</p>
+                        <p className="font-display-lg text-display-lg font-bold text-on-surface">
                           $ {resultadoArs.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </p>
-                        <p class="font-body-sm text-on-surface-variant mt-2">
+                        <p className="font-body-sm text-on-surface-variant mt-2">
                           {valorUsdt} × {cantidadUsdt} = {resultadoArs.toFixed(2)}
                         </p>
                       </div>
@@ -311,59 +317,59 @@ export default function CalculadoraClient() {
               {/* ── Tab: % del Costo ── */}
               {tabActivo === 'porcentaje-costo' && (
                 <div>
-                  <div class="flex items-center justify-between mb-5">
-                    <div class="flex items-center gap-3">
-                      <span class="material-symbols-outlined text-2xl text-secondary">percent</span>
-                      <h2 class="font-headline-md font-bold text-on-surface">% del Costo</h2>
+                  <div className="flex items-center justify-between mb-5">
+                    <div className="flex items-center gap-3">
+                      <span className="material-symbols-outlined text-2xl text-secondary">percent</span>
+                      <h2 className="font-headline-md font-bold text-on-surface">% del Costo</h2>
                     </div>
                     <button
                       onClick={limpiarPorcentajeCosto}
-                      class="p-1.5 rounded-lg text-on-surface-variant hover:text-error hover:bg-error/10 transition-all duration-200"
+                      className="p-1.5 rounded-lg text-on-surface-variant hover:text-error hover:bg-error/10 transition-all duration-200"
                       title="Limpiar campos"
                     >
-                      <span class="material-symbols-outlined text-[20px]">refresh</span>
+                      <span className="material-symbols-outlined text-[20px]">refresh</span>
                     </button>
                   </div>
 
-                  <div class="space-y-4">
+                  <div className="space-y-4">
                     <div>
-                      <label class="block font-body-base font-medium text-on-surface mb-1.5">Porcentaje (%)</label>
+                      <label className="block font-body-base font-medium text-on-surface mb-1.5">Porcentaje (%)</label>
                       <input
                         type="text"
                         inputMode="decimal"
                         value={porcentajeCosto}
                         onChange={(e) => setPorcentajeCosto(e.target.value)}
                         placeholder="Ej: 25"
-                        class="w-full p-3 rounded-xl border border-outline bg-surface-container text-on-surface font-body-base placeholder:text-on-surface-variant/50 focus:outline-none focus:ring-2 focus:ring-secondary"
+                        className="w-full p-3 rounded-xl border border-outline bg-surface-container text-on-surface font-body-base placeholder:text-on-surface-variant/50 focus:outline-none focus:ring-2 focus:ring-secondary"
                       />
                     </div>
                     <div>
-                      <label class="block font-body-base font-medium text-on-surface mb-1.5">Costo ($)</label>
+                      <label className="block font-body-base font-medium text-on-surface mb-1.5">Costo ($)</label>
                       <input
                         type="text"
                         inputMode="decimal"
                         value={numVal(costoBase)}
                         onChange={(e) => numChange(e, setCostoBase)}
                         placeholder="Ej: 100.000"
-                        class="w-full p-3 rounded-xl border border-outline bg-surface-container text-on-surface font-body-base placeholder:text-on-surface-variant/50 focus:outline-none focus:ring-2 focus:ring-secondary"
+                        className="w-full p-3 rounded-xl border border-outline bg-surface-container text-on-surface font-body-base placeholder:text-on-surface-variant/50 focus:outline-none focus:ring-2 focus:ring-secondary"
                       />
                     </div>
                     <button
                       onClick={calcularPorcentajeCosto}
                       disabled={!porcentajeCosto || !costoBase}
-                      class="w-full py-3 px-6 rounded-xl bg-secondary text-on-secondary font-body-base font-bold hover:bg-secondary/90 transition-all duration-200 active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100"
+                      className="w-full py-3 px-6 rounded-xl bg-secondary text-on-secondary font-body-base font-bold hover:bg-secondary/90 transition-all duration-200 active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100"
                     >
                       Calcular
                     </button>
                     {resultadoPorcentajeCosto !== null && (
-                      <div class="p-4 rounded-xl bg-secondary-container/30 border border-secondary-container">
-                        <p class="font-body-sm text-on-surface-variant mb-1">
+                      <div className="p-4 rounded-xl bg-secondary-container/30 border border-secondary-container">
+                        <p className="font-body-sm text-on-surface-variant mb-1">
                           El {porcentajeCosto}% de ${Number(costoBase).toLocaleString('es-AR')}
                         </p>
-                        <p class="font-display-lg text-display-lg font-bold text-on-surface">
+                        <p className="font-display-lg text-display-lg font-bold text-on-surface">
                           $ {resultadoPorcentajeCosto.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </p>
-                        <p class="font-body-sm text-on-surface-variant mt-2">
+                        <p className="font-body-sm text-on-surface-variant mt-2">
                           {porcentajeCosto}% × ${Number(costoBase).toLocaleString('es-AR')} = $ {resultadoPorcentajeCosto.toFixed(2)}
                         </p>
                       </div>
@@ -375,65 +381,65 @@ export default function CalculadoraClient() {
               {/* ── Tab: % Ganancia ── */}
               {tabActivo === 'ganancia' && (
                 <div>
-                  <div class="flex items-center justify-between mb-5">
-                    <div class="flex items-center gap-3">
-                      <span class="material-symbols-outlined text-2xl text-secondary">trending_up</span>
-                      <h2 class="font-headline-md font-bold text-on-surface">% Ganancia</h2>
+                  <div className="flex items-center justify-between mb-5">
+                    <div className="flex items-center gap-3">
+                      <span className="material-symbols-outlined text-2xl text-secondary">trending_up</span>
+                      <h2 className="font-headline-md font-bold text-on-surface">% Ganancia</h2>
                     </div>
                     <button
                       onClick={limpiarGanancia}
-                      class="p-1.5 rounded-lg text-on-surface-variant hover:text-error hover:bg-error/10 transition-all duration-200"
+                      className="p-1.5 rounded-lg text-on-surface-variant hover:text-error hover:bg-error/10 transition-all duration-200"
                       title="Limpiar campos"
                     >
-                      <span class="material-symbols-outlined text-[20px]">refresh</span>
+                      <span className="material-symbols-outlined text-[20px]">refresh</span>
                     </button>
                   </div>
 
-                  <div class="space-y-4">
+                  <div className="space-y-4">
                     <div>
-                      <label class="block font-body-base font-medium text-on-surface mb-1.5">Precio de costo ($)</label>
+                      <label className="block font-body-base font-medium text-on-surface mb-1.5">Precio de costo ($)</label>
                       <input
                         type="text"
                         inputMode="decimal"
                         value={numVal(precioCosto)}
                         onChange={(e) => numChange(e, setPrecioCosto)}
                         placeholder="Ej: 25.000"
-                        class="w-full p-3 rounded-xl border border-outline bg-surface-container text-on-surface font-body-base placeholder:text-on-surface-variant/50 focus:outline-none focus:ring-2 focus:ring-secondary"
+                        className="w-full p-3 rounded-xl border border-outline bg-surface-container text-on-surface font-body-base placeholder:text-on-surface-variant/50 focus:outline-none focus:ring-2 focus:ring-secondary"
                       />
                     </div>
                     <div>
-                      <label class="block font-body-base font-medium text-on-surface mb-1.5">Precio de venta ($)</label>
+                      <label className="block font-body-base font-medium text-on-surface mb-1.5">Precio de venta ($)</label>
                       <input
                         type="text"
                         inputMode="decimal"
                         value={numVal(precioVenta)}
                         onChange={(e) => numChange(e, setPrecioVenta)}
                         placeholder="Ej: 45.000"
-                        class="w-full p-3 rounded-xl border border-outline bg-surface-container text-on-surface font-body-base placeholder:text-on-surface-variant/50 focus:outline-none focus:ring-2 focus:ring-secondary"
+                        className="w-full p-3 rounded-xl border border-outline bg-surface-container text-on-surface font-body-base placeholder:text-on-surface-variant/50 focus:outline-none focus:ring-2 focus:ring-secondary"
                       />
                     </div>
                     <button
                       onClick={calcularGanancia}
                       disabled={!precioCosto || !precioVenta}
-                      class="w-full py-3 px-6 rounded-xl bg-secondary text-on-secondary font-body-base font-bold hover:bg-secondary/90 transition-all duration-200 active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100"
+                      className="w-full py-3 px-6 rounded-xl bg-secondary text-on-secondary font-body-base font-bold hover:bg-secondary/90 transition-all duration-200 active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100"
                     >
                       Calcular
                     </button>
                     {ganancia !== null && porcentaje !== null && (
-                      <div class="p-4 rounded-xl bg-secondary-container/30 border border-secondary-container space-y-2">
+                      <div className="p-4 rounded-xl bg-secondary-container/30 border border-secondary-container space-y-2">
                         <div>
-                          <p class="font-body-sm text-on-surface-variant mb-0.5">Ganancia en pesos</p>
-                          <p class="font-headline-md font-bold text-on-surface">
+                          <p className="font-body-sm text-on-surface-variant mb-0.5">Ganancia en pesos</p>
+                          <p className="font-headline-md font-bold text-on-surface">
                             $ {ganancia.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </p>
                         </div>
-                        <div class="border-t border-secondary-container/50 pt-2">
-                          <p class="font-body-sm text-on-surface-variant mb-0.5">Porcentaje de ganancia</p>
-                          <p class={`font-headline-md font-bold ${porcentaje >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        <div className="border-t border-secondary-container/50 pt-2">
+                          <p className="font-body-sm text-on-surface-variant mb-0.5">Porcentaje de ganancia</p>
+                          <p className={`font-headline-md font-bold ${porcentaje >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                             {porcentaje >= 0 ? '+' : ''}{porcentaje.toFixed(2)}%
                           </p>
                         </div>
-                        <p class="font-body-sm text-on-surface-variant">
+                        <p className="font-body-sm text-on-surface-variant">
                           ${Number(precioVenta).toLocaleString('es-AR')} — ${Number(precioCosto).toLocaleString('es-AR')} = $ {ganancia.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </p>
                       </div>
@@ -445,87 +451,87 @@ export default function CalculadoraClient() {
               {/* ── Tab: Costo USDT + Guardar datos calculados ── */}
               {tabActivo === 'costo-usdt' && (
                 <div>
-                  <div class="flex items-center justify-between mb-5">
-                    <div class="flex items-center gap-3">
-                      <span class="material-symbols-outlined text-2xl text-secondary">conversion_path</span>
-                      <h2 class="font-headline-md font-bold text-on-surface">Costo USDT</h2>
+                  <div className="flex items-center justify-between mb-5">
+                    <div className="flex items-center gap-3">
+                      <span className="material-symbols-outlined text-2xl text-secondary">conversion_path</span>
+                      <h2 className="font-headline-md font-bold text-on-surface">Costo USDT</h2>
                     </div>
                     <button
                       onClick={limpiarCostoUsdt}
-                      class="p-1.5 rounded-lg text-on-surface-variant hover:text-error hover:bg-error/10 transition-all duration-200"
+                      className="p-1.5 rounded-lg text-on-surface-variant hover:text-error hover:bg-error/10 transition-all duration-200"
                       title="Limpiar campos"
                     >
-                      <span class="material-symbols-outlined text-[20px]">refresh</span>
+                      <span className="material-symbols-outlined text-[20px]">refresh</span>
                     </button>
                   </div>
 
-                  <div class="space-y-4">
+                  <div className="space-y-4">
                     <div>
-                      <label class="block font-body-base font-medium text-on-surface mb-1.5">Valor del USDT ($)</label>
+                      <label className="block font-body-base font-medium text-on-surface mb-1.5">Valor del USDT ($)</label>
                       <input
                         type="text"
                         inputMode="decimal"
                         value={numVal(costoUsdt)}
                         onChange={(e) => numChange(e, setCostoUsdt)}
                         placeholder="Ej: 1.300,50"
-                        class="w-full p-3 rounded-xl border border-outline bg-surface-container text-on-surface font-body-base placeholder:text-on-surface-variant/50 focus:outline-none focus:ring-2 focus:ring-secondary"
+                        className="w-full p-3 rounded-xl border border-outline bg-surface-container text-on-surface font-body-base placeholder:text-on-surface-variant/50 focus:outline-none focus:ring-2 focus:ring-secondary"
                       />
                     </div>
                     <div>
-                      <label class="block font-body-base font-medium text-on-surface mb-1.5">Cantidad de USDT</label>
+                      <label className="block font-body-base font-medium text-on-surface mb-1.5">Cantidad de USDT</label>
                       <input
                         type="text"
                         inputMode="decimal"
                         value={numVal(valorUsdt2)}
                         onChange={(e) => numChange(e, setValorUsdt2)}
                         placeholder="Ej: 15"
-                        class="w-full p-3 rounded-xl border border-outline bg-surface-container text-on-surface font-body-base placeholder:text-on-surface-variant/50 focus:outline-none focus:ring-2 focus:ring-secondary"
+                        className="w-full p-3 rounded-xl border border-outline bg-surface-container text-on-surface font-body-base placeholder:text-on-surface-variant/50 focus:outline-none focus:ring-2 focus:ring-secondary"
                       />
                     </div>
                     <div>
-                      <label class="block font-body-base font-medium text-on-surface mb-1.5">Precio de Venta ($)</label>
+                      <label className="block font-body-base font-medium text-on-surface mb-1.5">Precio de Venta ($)</label>
                       <input
                         type="text"
                         inputMode="decimal"
                         value={numVal(ventaArs)}
                         onChange={(e) => numChange(e, setVentaArs)}
                         placeholder="Ej: 45.000"
-                        class="w-full p-3 rounded-xl border border-outline bg-surface-container text-on-surface font-body-base placeholder:text-on-surface-variant/50 focus:outline-none focus:ring-2 focus:ring-secondary"
+                        className="w-full p-3 rounded-xl border border-outline bg-surface-container text-on-surface font-body-base placeholder:text-on-surface-variant/50 focus:outline-none focus:ring-2 focus:ring-secondary"
                       />
                     </div>
                     <button
                       onClick={calcularCostoEnUsdt}
                       disabled={!costoUsdt || !valorUsdt2 || !ventaArs}
-                      class="w-full py-3 px-6 rounded-xl bg-secondary text-on-secondary font-body-base font-bold hover:bg-secondary/90 transition-all duration-200 active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100"
+                      className="w-full py-3 px-6 rounded-xl bg-secondary text-on-secondary font-body-base font-bold hover:bg-secondary/90 transition-all duration-200 active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100"
                     >
                       Calcular
                     </button>
                     {gananciaArs !== null && porcentajeGanancia !== null && (
-                      <div class="p-4 rounded-xl bg-secondary-container/30 border border-secondary-container space-y-2">
+                      <div className="p-4 rounded-xl bg-secondary-container/30 border border-secondary-container space-y-2">
                         <div>
-                          <p class="font-body-sm text-on-surface-variant mb-0.5">Total en pesos</p>
-                          <p class="font-headline-md font-bold text-on-surface">
+                          <p className="font-body-sm text-on-surface-variant mb-0.5">Total en pesos</p>
+                          <p className="font-headline-md font-bold text-on-surface">
                             $ {(Number(costoUsdt) * Number(valorUsdt2)).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </p>
-                          <p class="font-body-sm text-on-surface-variant mt-1">
+                          <p className="font-body-sm text-on-surface-variant mt-1">
                             ${Number(costoUsdt).toLocaleString('es-AR')} × ${Number(valorUsdt2).toLocaleString('es-AR')} = ${(Number(costoUsdt) * Number(valorUsdt2)).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </p>
                         </div>
-                        <div class="border-t border-secondary-container/50 pt-2">
-                          <p class="font-body-sm text-on-surface-variant mb-0.5">Ganancia en pesos</p>
-                          <p class={`font-headline-md font-bold ${gananciaArs >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        <div className="border-t border-secondary-container/50 pt-2">
+                          <p className="font-body-sm text-on-surface-variant mb-0.5">Ganancia en pesos</p>
+                          <p className={`font-headline-md font-bold ${gananciaArs >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                             $ {gananciaArs.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </p>
-                          <p class="font-body-sm text-on-surface-variant mt-1">
+                          <p className="font-body-sm text-on-surface-variant mt-1">
                             ${Number(ventaArs).toLocaleString('es-AR')} − ${(Number(costoUsdt) * Number(valorUsdt2)).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} = $ {gananciaArs.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </p>
                         </div>
-                        <div class="border-t border-secondary-container/50 pt-2">
-                          <p class="font-body-sm text-on-surface-variant mb-0.5">Porcentaje de ganancia</p>
-                          <p class={`font-headline-md font-bold ${porcentajeGanancia >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        <div className="border-t border-secondary-container/50 pt-2">
+                          <p className="font-body-sm text-on-surface-variant mb-0.5">Porcentaje de ganancia</p>
+                          <p className={`font-headline-md font-bold ${porcentajeGanancia >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                             {porcentajeGanancia >= 0 ? '+' : ''}{porcentajeGanancia.toFixed(2)}%
                           </p>
-                          <p class="font-body-sm text-on-surface-variant mt-1">
+                          <p className="font-body-sm text-on-surface-variant mt-1">
                             (${gananciaArs.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ÷ ${(Number(costoUsdt) * Number(valorUsdt2)).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}) × 100 = {porcentajeGanancia >= 0 ? '+' : ''}{porcentajeGanancia.toFixed(2)}%
                           </p>
                         </div>
@@ -534,35 +540,35 @@ export default function CalculadoraClient() {
                   </div>
 
                   {/* Guardar datos calculados */}
-                  <div class="border-t border-outline mt-6 pt-6">
-                    <div class="flex items-center gap-3 mb-5">
-                      <span class="material-symbols-outlined text-2xl text-secondary">save</span>
-                      <h2 class="font-headline-md font-bold text-on-surface">Guardar datos calculados</h2>
+                  <div className="border-t border-outline mt-6 pt-6">
+                    <div className="flex items-center gap-3 mb-5">
+                      <span className="material-symbols-outlined text-2xl text-secondary">save</span>
+                      <h2 className="font-headline-md font-bold text-on-surface">Guardar datos calculados</h2>
                     </div>
 
-                    <div class="space-y-4">
+                    <div className="space-y-4">
                       <div>
-                        <label class="block font-body-base font-medium text-on-surface mb-1.5">Nombre del producto</label>
+                        <label className="block font-body-base font-medium text-on-surface mb-1.5">Nombre del producto</label>
                         <input
                           type="text"
                           value={nombreProducto}
                           onChange={(e) => setNombreProducto(e.target.value)}
                           placeholder="Ej: Resma A4"
-                          class="w-full p-3 rounded-xl border border-outline bg-surface-container text-on-surface font-body-base placeholder:text-on-surface-variant/50 focus:outline-none focus:ring-2 focus:ring-secondary"
+                          className="w-full p-3 rounded-xl border border-outline bg-surface-container text-on-surface font-body-base placeholder:text-on-surface-variant/50 focus:outline-none focus:ring-2 focus:ring-secondary"
                         />
                       </div>
-                      <div class="grid grid-cols-2 gap-3">
+                      <div className="grid grid-cols-2 gap-3">
                         <button
                           onClick={modificarProducto}
                           disabled={!nombreProducto}
-                          class="py-3 px-6 rounded-xl bg-tertiary text-on-tertiary font-body-base font-bold hover:bg-tertiary/90 transition-all duration-200 active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100"
+                          className="py-3 px-6 rounded-xl bg-tertiary text-on-tertiary font-body-base font-bold hover:bg-tertiary/90 transition-all duration-200 active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100"
                         >
                           Modificar
                         </button>
                         <button
                           onClick={guardarProducto}
                           disabled={!nombreProducto}
-                          class="py-3 px-6 rounded-xl bg-secondary text-on-secondary font-body-base font-bold hover:bg-secondary/90 transition-all duration-200 active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100"
+                          className="py-3 px-6 rounded-xl bg-secondary text-on-secondary font-body-base font-bold hover:bg-secondary/90 transition-all duration-200 active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100"
                         >
                           Guardar
                         </button>
@@ -579,63 +585,63 @@ export default function CalculadoraClient() {
 
       {/* ── Productos calculados ── */}
       {productos.length > 0 && (
-        <div class="p-6 bg-surface rounded-2xl shadow-md">
-          <div class="flex items-center gap-3 mb-5">
-            <span class="material-symbols-outlined text-2xl text-secondary">inventory_2</span>
-            <h2 class="font-headline-md font-bold text-on-surface">Productos calculados</h2>
+        <div className="p-6 bg-surface rounded-2xl shadow-md">
+          <div className="flex items-center gap-3 mb-5">
+            <span className="material-symbols-outlined text-2xl text-secondary">inventory_2</span>
+            <h2 className="font-headline-md font-bold text-on-surface">Productos calculados</h2>
           </div>
 
-          <div class="overflow-x-auto max-h-[520px] overflow-y-auto">
-            <table class="w-full text-left">
+          <div className="overflow-x-auto max-h-[520px] overflow-y-auto">
+            <table className="w-full text-left">
               <thead>
-                <tr class="border-b border-outline">
-                  <th class="sticky top-0 bg-surface z-10 py-3 px-3 font-body-sm font-medium text-on-surface-variant">
-                    <span class="sr-only">Seleccionar</span>
+                <tr className="border-b border-outline">
+                  <th className="sticky top-0 bg-surface z-10 py-3 px-3 font-body-sm font-medium text-on-surface-variant">
+                    <span className="sr-only">Seleccionar</span>
                   </th>
-                  <th class="sticky top-0 bg-surface z-10 py-3 px-3 font-body-sm font-medium text-on-surface-variant">Nombre</th>
-                  <th class="sticky top-0 bg-surface z-10 py-3 px-3 font-body-sm font-medium text-on-surface-variant">Costo</th>
-                  <th class="sticky top-0 bg-surface z-10 py-3 px-3 font-body-sm font-medium text-on-surface-variant">Ganancia</th>
-                  <th class="sticky top-0 bg-surface z-10 py-3 px-3 font-body-sm font-medium text-on-surface-variant">% Ganancia</th>
-                  <th class="sticky top-0 bg-surface z-10 py-3 px-3 font-body-sm font-medium text-on-surface-variant">USDT</th>
-                  <th class="sticky top-0 bg-surface z-10 py-3 px-3 font-body-sm font-medium text-on-surface-variant">Cant. USDT</th>
-                  <th class="sticky top-0 bg-surface z-10 py-3 px-3 font-body-sm font-medium text-on-surface-variant">Precio Venta</th>
-                  <th class="sticky top-0 bg-surface z-10 py-3 px-3 font-body-sm font-medium text-on-surface-variant"></th>
+                  <th className="sticky top-0 bg-surface z-10 py-3 px-3 font-body-sm font-medium text-on-surface-variant">Nombre</th>
+                  <th className="sticky top-0 bg-surface z-10 py-3 px-3 font-body-sm font-medium text-on-surface-variant">Costo</th>
+                  <th className="sticky top-0 bg-surface z-10 py-3 px-3 font-body-sm font-medium text-on-surface-variant">Ganancia</th>
+                  <th className="sticky top-0 bg-surface z-10 py-3 px-3 font-body-sm font-medium text-on-surface-variant">% Ganancia</th>
+                  <th className="sticky top-0 bg-surface z-10 py-3 px-3 font-body-sm font-medium text-on-surface-variant">USDT</th>
+                  <th className="sticky top-0 bg-surface z-10 py-3 px-3 font-body-sm font-medium text-on-surface-variant">Cant. USDT</th>
+                  <th className="sticky top-0 bg-surface z-10 py-3 px-3 font-body-sm font-medium text-on-surface-variant">Precio Venta</th>
+                  <th className="sticky top-0 bg-surface z-10 py-3 px-3 font-body-sm font-medium text-on-surface-variant"></th>
                 </tr>
               </thead>
               <tbody>
                 {productosOrdenados.map((p) => (
-                  <tr key={p.id} class="border-b border-outline/50 hover:bg-surface-container/50 transition-colors">
-                    <td class="py-3 px-3">
+                  <tr key={p.id} className="border-b border-outline/50 hover:bg-surface-container/50 transition-colors">
+                    <td className="py-3 px-3">
                       <input
                         type="checkbox"
                         checked={itemsGanancia.some(s => s.id === p.id)}
                         onChange={() => toggleGananciaProducto(p)}
-                        class="w-4 h-4 accent-secondary cursor-pointer"
+                        className="w-4 h-4 accent-secondary cursor-pointer"
                         title="Agregar a la Calculadora Ganancia de Productos"
                       />
                     </td>
-                    <td class="py-3 px-3 font-body-base font-medium text-on-surface">{p.nombre}</td>
-                    <td class="py-3 px-3 font-body-base text-on-surface">$ {p.costo.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                    <td class="py-3 px-3 font-body-base font-medium text-on-surface">
-                      <span class={p.ganancia >= 0 ? 'text-green-600' : 'text-red-600'}>
+                    <td className="py-3 px-3 font-body-base font-medium text-on-surface">{p.nombre}</td>
+                    <td className="py-3 px-3 font-body-base text-on-surface">$ {p.costo.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td className="py-3 px-3 font-body-base font-medium text-on-surface">
+                      <span className={p.ganancia >= 0 ? 'text-green-600' : 'text-red-600'}>
                         $ {p.ganancia.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </span>
                     </td>
-                    <td class="py-3 px-3 font-body-base font-medium text-on-surface">
-                      <span class={p.porcentajeGanancia >= 0 ? 'text-green-600' : 'text-red-600'}>
+                    <td className="py-3 px-3 font-body-base font-medium text-on-surface">
+                      <span className={p.porcentajeGanancia >= 0 ? 'text-green-600' : 'text-red-600'}>
                         {p.porcentajeGanancia >= 0 ? '+' : ''}{p.porcentajeGanancia.toFixed(2)}%
                       </span>
                     </td>
-                    <td class="py-3 px-3 font-body-base text-on-surface">{p.usdt}</td>
-                    <td class="py-3 px-3 font-body-base text-on-surface">{p.cantidadUsdt}</td>
-                    <td class="py-3 px-3 font-body-base text-on-surface">{p.precioVenta ? `$ ${Number(p.precioVenta).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—'}</td>
-                    <td class="py-3 px-3">
+                    <td className="py-3 px-3 font-body-base text-on-surface">{p.usdt}</td>
+                    <td className="py-3 px-3 font-body-base text-on-surface">{p.cantidadUsdt}</td>
+                    <td className="py-3 px-3 font-body-base text-on-surface">{p.precioVenta ? `$ ${Number(p.precioVenta).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—'}</td>
+                    <td className="py-3 px-3">
                       <button
                         onClick={() => eliminarProducto(p.id)}
-                        class="p-1.5 rounded-lg text-on-surface-variant hover:text-error hover:bg-error/10 transition-all duration-200"
+                        className="p-1.5 rounded-lg text-on-surface-variant hover:text-error hover:bg-error/10 transition-all duration-200"
                         title="Eliminar producto"
                       >
-                        <span class="material-symbols-outlined text-[18px]">delete</span>
+                        <span className="material-symbols-outlined text-[18px]">delete</span>
                       </button>
                     </td>
                   </tr>
@@ -648,55 +654,55 @@ export default function CalculadoraClient() {
 
       {/* ── Calculadora Ganancia de Productos ── */}
       {itemsGanancia.length > 0 && (
-        <div class="p-6 bg-surface rounded-2xl shadow-md">
-          <div class="flex items-center justify-between mb-5">
-            <div class="flex items-center gap-3">
-              <span class="material-symbols-outlined text-2xl text-secondary">calculate</span>
-              <h2 class="font-headline-md font-bold text-on-surface">Calculadora Ganancia de Productos</h2>
+        <div className="p-6 bg-surface rounded-2xl shadow-md">
+          <div className="flex items-center justify-between mb-5">
+            <div className="flex items-center gap-3">
+              <span className="material-symbols-outlined text-2xl text-secondary">calculate</span>
+              <h2 className="font-headline-md font-bold text-on-surface">Calculadora Ganancia de Productos</h2>
             </div>
           </div>
 
-          <div class="overflow-x-auto">
-            <table class="w-full text-left">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
               <thead>
-                <tr class="border-b border-outline">
-                  <th class="py-3 px-3 font-body-sm font-medium text-on-surface-variant">Producto</th>
-                  <th class="py-3 px-3 font-body-sm font-medium text-on-surface-variant">Costo</th>
-                  <th class="py-3 px-3 font-body-sm font-medium text-on-surface-variant">Ganancia</th>
-                  <th class="py-3 px-3 font-body-sm font-medium text-on-surface-variant">Cantidad</th>
-                  <th class="py-3 px-3 font-body-sm font-medium text-on-surface-variant">Subtotal</th>
-                  <th class="py-3 px-3 font-body-sm font-medium text-on-surface-variant"></th>
+                <tr className="border-b border-outline">
+                  <th className="py-3 px-3 font-body-sm font-medium text-on-surface-variant">Producto</th>
+                  <th className="py-3 px-3 font-body-sm font-medium text-on-surface-variant">Costo</th>
+                  <th className="py-3 px-3 font-body-sm font-medium text-on-surface-variant">Ganancia</th>
+                  <th className="py-3 px-3 font-body-sm font-medium text-on-surface-variant">Cantidad</th>
+                  <th className="py-3 px-3 font-body-sm font-medium text-on-surface-variant">Subtotal</th>
+                  <th className="py-3 px-3 font-body-sm font-medium text-on-surface-variant"></th>
                 </tr>
               </thead>
               <tbody>
                 {itemsGanancia.map((s) => (
-                  <tr key={s.id} class="border-b border-outline/50 hover:bg-surface-container/50 transition-colors">
-                    <td class="py-3 px-3 font-body-base font-medium text-on-surface">{s.nombre}</td>
-                    <td class="py-3 px-3 font-body-base text-on-surface">$ {s.costo.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                    <td class="py-3 px-3 font-body-base font-medium text-on-surface">
-                      <span class={s.ganancia >= 0 ? 'text-green-600' : 'text-red-600'}>
+                  <tr key={s.id} className="border-b border-outline/50 hover:bg-surface-container/50 transition-colors">
+                    <td className="py-3 px-3 font-body-base font-medium text-on-surface">{s.nombre}</td>
+                    <td className="py-3 px-3 font-body-base text-on-surface">$ {s.costo.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td className="py-3 px-3 font-body-base font-medium text-on-surface">
+                      <span className={s.ganancia >= 0 ? 'text-green-600' : 'text-red-600'}>
                         $ {s.ganancia.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </span>
                     </td>
-                    <td class="py-3 px-3">
+                    <td className="py-3 px-3">
                       <input
                         type="number"
                         min="1"
                         value={s.cantidad}
                         onChange={(e) => cambiarCantidadGanancia(s.id, parseInt(e.target.value) || 0)}
-                        class="w-20 p-2 rounded-lg border border-outline bg-surface-container text-on-surface font-body-base text-center focus:outline-none focus:ring-2 focus:ring-secondary"
+                        className="w-20 p-2 rounded-lg border border-outline bg-surface-container text-on-surface font-body-base text-center focus:outline-none focus:ring-2 focus:ring-secondary"
                       />
                     </td>
-                    <td class="py-3 px-3 font-body-base font-semibold text-on-surface">
+                    <td className="py-3 px-3 font-body-base font-semibold text-on-surface">
                       $ {(s.ganancia * s.cantidad).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </td>
-                    <td class="py-3 px-3">
+                    <td className="py-3 px-3">
                       <button
                         onClick={() => eliminarGananciaProducto(s.id)}
-                        class="p-1.5 rounded-lg text-on-surface-variant hover:text-error hover:bg-error/10 transition-all duration-200"
+                        className="p-1.5 rounded-lg text-on-surface-variant hover:text-error hover:bg-error/10 transition-all duration-200"
                         title="Quitar de la calculadora"
                       >
-                        <span class="material-symbols-outlined text-[18px]">close</span>
+                        <span className="material-symbols-outlined text-[18px]">close</span>
                       </button>
                     </td>
                   </tr>
@@ -705,24 +711,24 @@ export default function CalculadoraClient() {
             </table>
           </div>
 
-          <div class="mt-5 p-4 rounded-xl bg-secondary-container/30 border border-secondary-container flex items-center justify-between">
-            <div class="flex flex-col gap-1">
-              <p class="font-body-base font-medium text-on-surface">Total precio costo</p>
-              <p class="font-headline-md font-bold text-on-surface">
+          <div className="mt-5 p-4 rounded-xl bg-secondary-container/30 border border-secondary-container flex items-center justify-between">
+            <div className="flex flex-col gap-1">
+              <p className="font-body-base font-medium text-on-surface">Total precio costo</p>
+              <p className="font-headline-md font-bold text-on-surface">
                 $ {totalCostoCalculadora.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </p>
               {totalPorcentajeGananciaCalculadora !== null && (
-                <p class="font-body-sm text-on-surface-variant">
+                <p className="font-body-sm text-on-surface-variant">
                   Porcentaje de ganancia:{' '}
-                  <span class={`font-body-base font-semibold ${totalPorcentajeGananciaCalculadora >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  <span className={`font-body-base font-semibold ${totalPorcentajeGananciaCalculadora >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                     {totalPorcentajeGananciaCalculadora >= 0 ? '+' : ''}{totalPorcentajeGananciaCalculadora.toFixed(2)}%
                   </span>
                 </p>
               )}
             </div>
-            <div class="flex flex-col items-end gap-1">
-              <p class="font-body-base font-medium text-on-surface">Total ganancia calculado</p>
-              <p class={`font-display-lg text-display-lg font-bold ${totalGananciaCalculadora >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+            <div className="flex flex-col items-end gap-1">
+              <p className="font-body-base font-medium text-on-surface">Total ganancia calculado</p>
+              <p className={`font-display-lg text-display-lg font-bold ${totalGananciaCalculadora >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                 $ {totalGananciaCalculadora.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </p>
             </div>

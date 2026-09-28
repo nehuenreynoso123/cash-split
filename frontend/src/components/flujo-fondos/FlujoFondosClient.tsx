@@ -513,7 +513,7 @@ export default function FlujoFondosClient() {
                             Cant. por cobrar: {r.unidades_por_cobrar}
                           </span>
                           <span className="font-data-mono text-green-600 shrink-0">
-                            {formatCurrency(r.ganancia_por_cobrar_total)}
+                            {formatCurrency(Number(r.ganancia_por_cobrar_total))}
                           </span>
                         </li>
                       ))}
