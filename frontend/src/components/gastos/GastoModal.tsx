@@ -1,7 +1,7 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import Modal from '../ui/Modal';
-import type { Gasto } from '../../lib/api';
-import { createGasto, updateGasto } from '../../lib/api';
+import type { Gasto, CategoriaGastoInput } from '../../lib/api';
+import { CATEGORIAS_GASTO, createGasto, updateGasto } from '../../lib/api';
 
 interface Props {
   open: boolean;
@@ -13,6 +13,7 @@ interface Props {
 export default function GastoModal({ open, onClose, editItem, onSaved }: Props) {
   const [descripcion, setDescripcion] = useState(editItem?.descripcion ?? '');
   const [monto, setMonto] = useState(editItem?.monto?.toString() ?? '');
+  const [categoria, setCategoria] = useState<CategoriaGastoInput>(editItem?.categoria ?? '');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -20,9 +21,11 @@ export default function GastoModal({ open, onClose, editItem, onSaved }: Props) 
     if (editItem) {
       setDescripcion(editItem.descripcion ?? '');
       setMonto(editItem.monto?.toString() ?? '');
+      setCategoria(editItem.categoria ?? '');
     } else {
       setDescripcion('');
       setMonto('');
+      setCategoria('');
     }
     setError('');
   }, [editItem]);
@@ -33,9 +36,9 @@ export default function GastoModal({ open, onClose, editItem, onSaved }: Props) 
     setSaving(true);
     try {
       if (editItem) {
-        await updateGasto({ id: editItem.id, descripcion, monto: parseFloat(monto) });
+        await updateGasto({ id: editItem.id, descripcion, monto: parseFloat(monto), categoria });
       } else {
-        await createGasto({ descripcion, monto: parseFloat(monto) });
+        await createGasto({ descripcion, monto: parseFloat(monto), categoria });
       }
       onSaved();
     } catch (err) {
@@ -52,6 +55,19 @@ export default function GastoModal({ open, onClose, editItem, onSaved }: Props) 
         <div>
           <label className="block font-label-caps text-label-caps text-on-surface-variant uppercase mb-2">Descripción</label>
           <input className="w-full px-4 py-2.5 border border-outline-variant rounded-lg focus:ring-2 focus:ring-secondary/20 focus:border-secondary outline-none" placeholder="Ej: Alquiler mensual" value={descripcion} onChange={(e) => setDescripcion(e.target.value)} required />
+        </div>
+        <div>
+          <label className="block font-label-caps text-label-caps text-on-surface-variant uppercase mb-2">Categoría</label>
+          <select
+            className="w-full px-4 py-2.5 border border-outline-variant rounded-lg focus:ring-2 focus:ring-secondary/20 focus:border-secondary outline-none bg-surface-container-lowest"
+            value={categoria}
+            onChange={(e) => setCategoria(CATEGORIAS_GASTO.find((c) => c.valor === e.target.value)?.valor ?? '')}
+          >
+            <option value="">Sin categoría</option>
+            {CATEGORIAS_GASTO.map((c) => (
+              <option key={c.valor} value={c.valor}>{c.label}</option>
+            ))}
+          </select>
         </div>
         <div>
           <label className="block font-label-caps text-label-caps text-on-surface-variant uppercase mb-2">Monto</label>

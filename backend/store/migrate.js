@@ -148,6 +148,22 @@ const MIGRATIONS = [
     monto NUMERIC(12,2) NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT NOW()
   )`,
+  // gastos.categoria: classifies every expense as personal / emprendimiento /
+  // servicios so the section can break the total down and filter by it. Stores
+  // the SLUG, not the Spanish label, so rewording the UI never requires a data
+  // migration. NULLABLE on purpose: expenses loaded before this column cannot be
+  // classified retroactively (nothing says whether an old expense was personal or
+  // business) and a made-up default would lie in the data — the UI shows them as
+  // "Sin categoría" and totals them in a card of their own.
+  "ALTER TABLE gastos ADD COLUMN IF NOT EXISTS categoria VARCHAR(20)",
+  // Domain guarantee: the three slugs only, so integrity does NOT depend on the
+  // frontend behaving. DROP + ADD keeps it idempotent AND lets the domain be
+  // corrected later without leaving a stale constraint behind.
+  "ALTER TABLE gastos DROP CONSTRAINT IF EXISTS gastos_categoria_check",
+  // Canonical list, backend copy. The frontend copy is CATEGORIAS_GASTO in
+  // frontend/src/lib/api.ts — backend and frontend deploy separately (no shared
+  // package), so when you add a category update BOTH.
+  "ALTER TABLE gastos ADD CONSTRAINT gastos_categoria_check CHECK (categoria IS NULL OR categoria IN ('personal', 'emprendimiento', 'servicios'))",
 ];
 
 export async function runMigrations() {

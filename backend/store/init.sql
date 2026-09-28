@@ -85,12 +85,27 @@ CREATE TABLE IF NOT EXISTS ventas_facturacion (
     created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
+-- Gastos operativos (sección /gastos del frontend). `categoria` guarda el SLUG
+-- ('personal' | 'emprendimiento' | 'servicios'), no el texto del label, para
+-- que cambiar la redacción en la UI no obligue a migrar datos. Es NULLABLE a
+-- propósito: los gastos ya cargados no se pueden clasificar solos (no hay forma
+-- de saber si uno viejo fue personal o del negocio) y ponerles un default sería
+-- mentir en los datos — la UI los muestra como "Sin categoría".
+-- La garantía de dominio (CHECK sobre los 3 slugs) vive en store/migrate.js,
+-- que corre en cada boot: es la única fuente, igual que los índices de
+-- ventas_facturacion.
 CREATE TABLE IF NOT EXISTS gastos (
     id SERIAL PRIMARY KEY,
     descripcion TEXT NOT NULL,
     monto NUMERIC(10,2) NOT NULL,
+    categoria VARCHAR(20),
     fecha TIMESTAMP NOT NULL DEFAULT NOW()
 );
+
+-- Migración: agregar categoria a gastos (si la tabla ya existe).
+-- Idempotente, mismo patrón que fecha_carga en productos: no-op si la columna
+-- ya existe, para que la tabla se cree igual en bases nuevas y viejas.
+ALTER TABLE gastos ADD COLUMN IF NOT EXISTS categoria VARCHAR(20);
 
 CREATE TABLE IF NOT EXISTS liquidez (
     id SERIAL PRIMARY KEY,

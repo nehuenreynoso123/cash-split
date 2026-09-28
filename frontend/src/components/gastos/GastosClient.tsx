@@ -1,9 +1,34 @@
 import { useState, useEffect, useRef } from 'react';
-import { listGastos, createGasto, type Gasto } from '../../lib/api';
+import { listGastos, createGasto, CATEGORIAS_GASTO, type Gasto, type CategoriaGasto, type CategoriaGastoInput, type TotalPorCategoria } from '../../lib/api';
 import { formatCurrency } from '../../lib/data';
 import GastoModal from './GastoModal';
 import Pagination from '../ui/Pagination';
 import { useAuthRedirect } from '../../hooks/useAuthRedirect';
+
+// Colores de cada categoría: se reusa el idioma de LiquidezClient (chip
+// rounded-full) para que las dos tablas se lean igual. La clave es el slug, así
+// TypeScript obliga a dar estilo a las 3 categorías si el dominio crece.
+const BADGE_CATEGORIA: Record<CategoriaGasto, { clases: string; icono: string }> = {
+  personal: { clases: 'bg-blue-100 text-blue-700', icono: 'person' },
+  emprendimiento: { clases: 'bg-green-100 text-green-700', icono: 'storefront' },
+  servicios: { clases: 'bg-red-100 text-red-700', icono: 'bolt' },
+};
+
+// "Sin categoría" no es una cuarta categoría sino la ausencia de clasificación
+// (gastos cargados antes de que la columna existiera), por eso usa los tokens
+// neutros de superficie en lugar de un color propio.
+const SIN_CATEGORIA = { clases: 'bg-surface-container text-on-surface-variant', icono: 'help' };
+
+function CategoriaBadge({ categoria }: { categoria: CategoriaGasto | null }) {
+  const estilo = categoria ? BADGE_CATEGORIA[categoria] : SIN_CATEGORIA;
+  const label = categoria ? CATEGORIAS_GASTO.find((c) => c.valor === categoria)?.label ?? categoria : 'Sin categoría';
+  return (
+    <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-label-caps font-semibold ${estilo.clases}`}>
+      <span className="material-symbols-outlined text-sm">{estilo.icono}</span>
+      {label}
+    </span>
+  );
+}
 
 export default function GastosClient() {
   useAuthRedirect();
@@ -17,9 +42,11 @@ export default function GastosClient() {
   const firstDayOfMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
   const [desde, setDesde] = useState(firstDayOfMonth);
   const [hasta, setHasta] = useState('');
+  const [categoria, setCategoria] = useState<CategoriaGastoInput>('');
   const [currentPage, setCurrentPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [totalMonto, setTotalMonto] = useState(0);
+  const [totales, setTotales] = useState<TotalPorCategoria[]>([]);
   const [refreshKey, setRefreshKey] = useState(0);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const selectAllRef = useRef<HTMLInputElement>(null);
@@ -27,17 +54,19 @@ export default function GastosClient() {
 
   const load = () => {
     setLoading(true);
-    const params: { desde?: string; hasta?: string; limit: number; offset: number } = {
+    const params: { desde?: string; hasta?: string; categoria?: CategoriaGastoInput; limit: number; offset: number } = {
       limit: pageSize,
       offset: (currentPage - 1) * pageSize,
     };
     if (desde) params.desde = desde;
     if (hasta) params.hasta = hasta;
+    if (categoria) params.categoria = categoria;
     listGastos(params)
       .then((res) => {
         setItems(res.data);
         setTotal(res.total);
         setTotalMonto(res.totalMonto);
+        setTotales(res.totalesPorCategoria);
       })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
@@ -45,7 +74,7 @@ export default function GastosClient() {
 
   useEffect(() => {
     load();
-  }, [desde, hasta, currentPage, refreshKey]);
+  }, [desde, hasta, categoria, currentPage, refreshKey]);
 
   const handleNew = () => { setEditItem(null); setModalOpen(true); };
   const handleEdit = (item: Gasto) => { setEditItem(item); setModalOpen(true); };
@@ -90,6 +119,25 @@ export default function GastosClient() {
   const selectedTotal = selectedItems.reduce((sum, item) => sum + Number(item.monto), 0);
 
   const totalPages = Math.ceil(total / pageSize);
+
+  // Los totales por categoría llegan del backend ya reducidos por el rango de
+  // fechas (no por el filtro ni por la paginación), así que son el desglose real
+  // del período. Se muestran las 3 categorías siempre, aunque una no tenga filas,
+  // para que el breakdown nunca quede oculto detrás del filtro activo; la
+  // cuarta aparece solo si quedan gastos legacy sin clasificar.
+  const totalDe = (slug: CategoriaGasto | null) => totales.find((t) => t.categoria === slug)?.totalMonto ?? 0;
+  const totalSinCategoria = totalDe(null);
+  const tarjetas = [
+    ...CATEGORIAS_GASTO.map((c) => ({
+      clave: c.valor,
+      label: c.label,
+      total: totalDe(c.valor),
+      icono: BADGE_CATEGORIA[c.valor].icono,
+    })),
+    ...(totalSinCategoria > 0
+      ? [{ clave: null, label: 'Sin categoría', total: totalSinCategoria, icono: SIN_CATEGORIA.icono }]
+      : []),
+  ];
 
   return (
     <div>
@@ -138,6 +186,19 @@ export default function GastosClient() {
             onChange={(e) => { setHasta(e.target.value); setCurrentPage(1); setSelectedIds(new Set()); }}
           />
         </div>
+        <div className="flex-1 min-w-[160px]">
+          <label className="block font-label-caps text-label-caps text-on-surface-variant uppercase mb-1">Categoría</label>
+          <select
+            className="w-full px-4 py-2.5 border border-outline-variant rounded-lg focus:ring-2 focus:ring-secondary/20 focus:border-secondary outline-none bg-surface-container-lowest text-on-surface"
+            value={categoria}
+            onChange={(e) => { setCategoria(CATEGORIAS_GASTO.find((c) => c.valor === e.target.value)?.valor ?? ''); setCurrentPage(1); setSelectedIds(new Set()); }}
+          >
+            <option value="">Todas las categorías</option>
+            {CATEGORIAS_GASTO.map((c) => (
+              <option key={c.valor} value={c.valor}>{c.label}</option>
+            ))}
+          </select>
+        </div>
         {(desde || hasta) && (
           <button
             className="px-4 py-2.5 text-on-surface-variant hover:text-on-surface font-semibold rounded-lg hover:bg-surface-container transition-all"
@@ -147,6 +208,35 @@ export default function GastosClient() {
           </button>
         )}
       </div>
+
+      {/* Desglose del período por categoría: se muestra siempre completo, con la
+          categoría filtrada resaltada, para que el total grande del encabezado
+          (total del período, no del filtro) siempre se pueda descomponer. */}
+      {!loading && (
+        <div className={`grid grid-cols-1 sm:grid-cols-2 ${tarjetas.length === 4 ? 'lg:grid-cols-4' : 'lg:grid-cols-3'} gap-gutter mb-6`}>
+          {tarjetas.map((t) => {
+            const activa = categoria === (t.clave ?? '');
+            return (
+              <div
+                key={t.clave ?? 'sin-categoria'}
+                // El resaltado de la activa va con ring, no con border-secondary: dos
+                // utilidades de border-color (outline-variant vs secondary) se resuelven
+                // por orden de emisión de Tailwind, no por orden en el className.
+                className={`bg-surface-container-lowest border border-outline-variant border-l-4 rounded-xl p-stack_lg min-w-0 ${activa ? 'ring-2 ring-secondary' : ''}`}
+              >
+                <div className="flex items-center justify-between mb-3 min-w-0">
+                  <span className="font-label-caps text-label-caps text-on-surface-variant uppercase tracking-wider truncate">{t.label}</span>
+                  <span className="material-symbols-outlined text-secondary shrink-0">{t.icono}</span>
+                </div>
+                <span className="font-data-mono text-display-lg text-error block mb-2 break-all leading-tight">
+                  {formatCurrency(t.total)}
+                </span>
+                <p className="text-body-sm text-on-surface-variant">{activa ? 'Filtro activo' : 'Total del período'}</p>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {selectedIds.size > 0 && (
         <div className="sticky top-0 z-10 mb-4 flex items-center justify-between gap-4 rounded-xl border border-secondary/30 bg-secondary-container px-4 py-3 shadow-sm">
@@ -184,18 +274,18 @@ export default function GastosClient() {
                     onChange={toggleSelectAll}
                   />
                 </th>
-                {['Descripción', 'Monto', 'Fecha', 'Acciones'].map((h) => (
+                {['Descripción', 'Categoría', 'Monto', 'Fecha', 'Acciones'].map((h) => (
                   <th key={h} className={`px-6 py-4 font-label-caps text-label-caps text-on-surface-variant uppercase ${h === 'Monto' || h === 'Acciones' ? 'text-right' : ''}`}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-outline-variant">
               {loading ? (
-                <tr><td colSpan={5} className="px-6 py-12 text-center text-on-surface-variant">Cargando...</td></tr>
+                <tr><td colSpan={6} className="px-6 py-12 text-center text-on-surface-variant">Cargando...</td></tr>
               ) : error ? (
-                <tr><td colSpan={5} className="px-6 py-12 text-center text-error">{error}</td></tr>
+                <tr><td colSpan={6} className="px-6 py-12 text-center text-error">{error}</td></tr>
               ) : items.length === 0 ? (
-                <tr><td colSpan={5} className="px-6 py-12 text-center text-on-surface-variant">No hay gastos registrados.</td></tr>
+                <tr><td colSpan={6} className="px-6 py-12 text-center text-on-surface-variant">No hay gastos registrados.</td></tr>
               ) : (
                 items.map((item) => (
                   <tr key={item.id} className="hover:bg-surface-container-lowest transition-colors group">
@@ -208,6 +298,7 @@ export default function GastosClient() {
                       />
                     </td>
                     <td className="px-6 py-4 font-semibold text-primary">{item.descripcion}</td>
+                    <td className="px-6 py-4"><CategoriaBadge categoria={item.categoria} /></td>
                     <td className="px-6 py-4 text-right font-data-mono text-error">{formatCurrency(Number(item.monto))}</td>
                     <td className="px-6 py-4 text-on-surface-variant">
                       {new Date(item.fecha).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' })}

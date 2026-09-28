@@ -331,20 +331,49 @@ export async function deleteLiberacion(id: number): Promise<void> {
 }
 
 // ── Gastos ─────────────────────────────────────────────────────
+// Canonical expense-category list. `valor` is the slug stored in the
+// `gastos.categoria` column, `label` is presentation only. The backend copy of
+// the domain is the `gastos_categoria_check` constraint in
+// backend/store/migrate.js: backend and frontend deploy separately (there is no
+// shared package), so adding or renaming a category means updating BOTH copies.
+export type CategoriaGasto = 'personal' | 'emprendimiento' | 'servicios';
+
+// What the UI can send: a slug, or the empty selection ("Sin categoría"), which
+// the backend persists as NULL. Legacy rows come back as null.
+export type CategoriaGastoInput = CategoriaGasto | '';
+
+export interface CategoriaGastoInfo {
+  valor: CategoriaGasto;
+  label: string;
+}
+
+export const CATEGORIAS_GASTO: CategoriaGastoInfo[] = [
+  { valor: 'personal', label: 'Gastos personales' },
+  { valor: 'emprendimiento', label: 'Emprendimiento' },
+  { valor: 'servicios', label: 'Servicios' },
+];
+
 export interface Gasto {
   id: number;
   descripcion: string;
   monto: number;
   fecha: string;
+  categoria: CategoriaGasto | null;
+}
+
+export interface TotalPorCategoria {
+  categoria: CategoriaGasto | null;
+  totalMonto: number;
 }
 
 export interface GastosResponse {
   data: Gasto[];
   total: number;
   totalMonto: number;
+  totalesPorCategoria: TotalPorCategoria[];
 }
 
-export async function listGastos(params?: { desde?: string; hasta?: string; limit?: number; offset?: number }): Promise<GastosResponse> {
+export async function listGastos(params?: { desde?: string; hasta?: string; limit?: number; offset?: number; categoria?: CategoriaGastoInput }): Promise<GastosResponse> {
   const query = params
     ? '?' + new URLSearchParams(
         Object.entries(params)
@@ -357,14 +386,15 @@ export async function listGastos(params?: { desde?: string; hasta?: string; limi
     data: Array.isArray(data.data) ? data.data.map((g) => ({ ...g, monto: Number(g.monto) })) : [],
     total: Number(data.total) || 0,
     totalMonto: Number(data.totalMonto) || 0,
+    totalesPorCategoria: Array.isArray(data.totalesPorCategoria) ? data.totalesPorCategoria : [],
   };
 }
 
-export async function createGasto(data: { descripcion: string; monto: number }): Promise<void> {
+export async function createGasto(data: { descripcion: string; monto: number; categoria?: CategoriaGastoInput }): Promise<void> {
   return request<void>('POST', '/gastos', data);
 }
 
-export async function updateGasto(data: { id: number; descripcion: string; monto: number }): Promise<void> {
+export async function updateGasto(data: { id: number; descripcion: string; monto: number; categoria?: CategoriaGastoInput }): Promise<void> {
   return request<void>('PUT', '/gastos', data);
 }
 
