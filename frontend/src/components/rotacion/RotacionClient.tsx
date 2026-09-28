@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { listProductos, listVentasPorProducto, type Producto, type VentasProducto } from '../../lib/api';
 import { formatCurrency } from '../../lib/data';
 import Badge from '../ui/Badge';
+import HelpTooltip from '../ui/HelpTooltip';
 import { useAuthRedirect } from '../../hooks/useAuthRedirect';
 
 // Whole days between fecha_carga and the "end" of the cycle: fecha_agotado when
@@ -206,16 +207,69 @@ export default function RotacionClient() {
     );
   };
 
-  const columnas: { id: ColumnaOrden; label: string; derecha: boolean; title: string }[] = [
-    { id: 'nombre', label: 'Producto', derecha: false, title: '' },
-    { id: 'dias', label: 'Fecha de carga', derecha: false, title: 'Días que lleva cargado' },
-    { id: 'velocidad', label: 'Velocidad', derecha: true, title: 'Unidades vendidas por día desde la carga' },
-    { id: 'unidades', label: 'Vendidas', derecha: true, title: 'Unidades vendidas en el período' },
-    { id: 'margenMes', label: 'Margen/mes', derecha: true, title: 'Margen proyectado a 30 días al ritmo actual de venta' },
-    { id: 'roi', label: 'ROI', derecha: true, title: 'Margen del mes por peso invertido en stock. La columna que decide qué comprar' },
-    { id: 'margen', label: 'Margen total', derecha: true, title: 'Margen acumulado histórico de las ventas' },
-    { id: 'reposicion', label: 'Reposición', derecha: true, title: 'Unidades a comprar para cubrir el próximo ciclo comparable' },
+  // `description` feeds the HelpTooltip popover on every header. The copy states
+  // exactly what `filas` computes: no period filter reaches this screen, so
+  // "Vendidas" and "Margen total" cover the whole history, and `Margen/mes` is
+  // the only projected (30-day) figure.
+  const columnas: { id: ColumnaOrden; label: string; derecha: boolean; description: string }[] = [
+    {
+      id: 'nombre',
+      label: 'Producto',
+      derecha: false,
+      description: 'Nombre del producto. Tocá el encabezado para ordenarlo de la A a la Z.',
+    },
+    {
+      id: 'dias',
+      label: 'Fecha de carga',
+      derecha: false,
+      description:
+        'Fecha en que se cargó el producto y cuántos días lleva en el local. Los días se congelan el día que se agotó el stock.',
+    },
+    {
+      id: 'velocidad',
+      label: 'Velocidad',
+      derecha: true,
+      description:
+        'Unidades vendidas por día desde la carga: el ritmo de venta del producto. Sin stock —o el mismo día de la carga— no se puede calcular y muestra «—».',
+    },
+    {
+      id: 'unidades',
+      label: 'Vendidas',
+      derecha: true,
+      description: 'Unidades vendidas, acumuladas en todas las ventas registradas hasta hoy.',
+    },
+    {
+      id: 'margenMes',
+      label: 'Margen/mes',
+      derecha: true,
+      description:
+        'Margen proyectado a 30 días al ritmo de venta actual: margen por unidad × ritmo de venta × 30 días.',
+    },
+    {
+      id: 'roi',
+      label: 'ROI',
+      derecha: true,
+      description:
+        'Margen del mes dividido por el capital invertido en stock (precio × unidades en stock). Es la columna que decide qué comprar.',
+    },
+    {
+      id: 'margen',
+      label: 'Margen total',
+      derecha: true,
+      description:
+        'Margen acumulado de todas las ventas históricas. No es un monto mensual: compáralo con «Margen/mes», que sí es una proyección a 30 días.',
+    },
+    {
+      id: 'reposicion',
+      label: 'Reposición',
+      derecha: true,
+      description:
+        'Unidades a comprar para cubrir el próximo ciclo comparable (ritmo de venta × 30 días). No contempla el plazo de entrega del proveedor.',
+    },
   ];
+
+  const ESTADO_DESCRIPTION =
+    'Se deriva de los días que lleva cargado: Reciente hasta 30 días, Normal hasta 60 y Antiguo a partir de 61. Si no queda stock, muestra Agotado y tiene prioridad sobre las demás.';
 
   const agotados = filas.filter((f) => f.producto.stock === 0).length;
 
@@ -251,20 +305,30 @@ export default function RotacionClient() {
                 {columnas.map((c) => {
                   const activa = orden.columna === c.id;
                   return (
-                    <th key={c.id} title={c.title} className="px-6 py-4 font-label-caps text-label-caps text-on-surface-variant uppercase whitespace-nowrap">
-                      <button
-                        onClick={() => alternarOrden(c.id)}
-                        className={`flex items-center gap-1 w-full hover:text-secondary transition-colors ${c.derecha ? 'justify-end' : ''} ${activa ? 'text-secondary' : ''}`}
-                      >
-                        {c.label}
-                        <span className={`material-symbols-outlined text-sm transition-opacity ${activa ? 'opacity-100' : 'opacity-0'}`}>
-                          {orden.ascendente ? 'arrow_upward' : 'arrow_downward'}
-                        </span>
-                      </button>
+                    <th key={c.id} className="px-6 py-4 font-label-caps text-label-caps text-on-surface-variant uppercase whitespace-nowrap">
+                      {/* The tooltip lives outside the sort button: nesting it would
+                          make every click on the icon toggle the sort order. */}
+                      <div className={`flex items-center gap-1.5 ${c.derecha ? 'justify-end' : ''}`}>
+                        <button
+                          onClick={() => alternarOrden(c.id)}
+                          className={`flex items-center gap-1 hover:text-secondary transition-colors ${activa ? 'text-secondary' : ''}`}
+                        >
+                          {c.label}
+                          <span className={`material-symbols-outlined text-sm transition-opacity ${activa ? 'opacity-100' : 'opacity-0'}`}>
+                            {orden.ascendente ? 'arrow_upward' : 'arrow_downward'}
+                          </span>
+                        </button>
+                        <HelpTooltip text={c.description} />
+                      </div>
                     </th>
                   );
                 })}
-                <th className="px-6 py-4 font-label-caps text-label-caps text-on-surface-variant uppercase">Estado</th>
+                <th className="px-6 py-4 font-label-caps text-label-caps text-on-surface-variant uppercase">
+                  <div className="flex items-center gap-1.5">
+                    Estado
+                    <HelpTooltip text={ESTADO_DESCRIPTION} label="Qué significa el estado" />
+                  </div>
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-outline-variant">
