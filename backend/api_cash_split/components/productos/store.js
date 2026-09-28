@@ -35,7 +35,10 @@ export async function listVentasPorProducto({ desde, hasta } = {}) {
       p.id AS producto_id,
       COALESCE(SUM(v.cantidad), 0) AS unidades,
       COALESCE(SUM(v.ganancia), 0) AS margen,
-      COALESCE(SUM(v.precio::numeric), 0) AS ingresos
+      COALESCE(SUM(v.precio::numeric), 0) AS ingresos,
+      MIN(v.created_at)::date AS primera_venta,
+      MAX(v.created_at)::date AS ultima_venta,
+      COUNT(v.id) AS cant_ventas
         FROM productos p
         LEFT JOIN ventas v ON p.id = v.producto_id AND ${where}
        WHERE p.activo = true
@@ -47,6 +50,12 @@ export async function listVentasPorProducto({ desde, hasta } = {}) {
     unidades: Number(row.unidades),
     margen: Number(row.margen),
     ingresos: Number(row.ingresos),
+    // Primera y última venta del período: el denominador del ritmo de venta.
+    // Primera/última venta en lugar de ventana completa del filtro, porque el
+    // ritmo que importa es el del producto, no el del rango elegido.
+    primera_venta: row.primera_venta ? row.primera_venta.toISOString().slice(0, 10) : null,
+    ultima_venta: row.ultima_venta ? row.ultima_venta.toISOString().slice(0, 10) : null,
+    cant_ventas: Number(row.cant_ventas) || 0,
   }));
 }
 

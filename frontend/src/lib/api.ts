@@ -117,6 +117,10 @@ export interface VentasProducto {
   unidades: number;
   margen: number;
   ingresos: number;
+  // Primera y última venta del período, 'YYYY-MM-DD' o null si nunca vendió.
+  primera_venta: string | null;
+  ultima_venta: string | null;
+  cant_ventas: number;
 }
 
 export async function listVentasPorProducto(params?: DateRangeParams): Promise<VentasProducto[]> {
@@ -134,6 +138,9 @@ export async function listVentasPorProducto(params?: DateRangeParams): Promise<V
         unidades: Number(r.unidades) || 0,
         margen: Number(r.margen) || 0,
         ingresos: Number(r.ingresos) || 0,
+        primera_venta: r.primera_venta ?? null,
+        ultima_venta: r.ultima_venta ?? null,
+        cant_ventas: Number(r.cant_ventas) || 0,
       }))
     : [];
 }
