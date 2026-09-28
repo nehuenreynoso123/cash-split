@@ -281,7 +281,11 @@ export default function FlujoFondosClient() {
       setCajas(built);
       setLoading(false);
     });
-  }, [productos, firstDayOfMonth]);
+    // Sin dependencias: `load` no lee `productos` ni `firstDayOfMonth` — pide
+    // los productos en su propio lote y recibe el rango como argumento. Con
+    // `productos` en las deps, cada setProductos recreaba `load`, disparaba el
+    // efecto de nuevo y la página se quedaba en "Calculando..." para siempre.
+  }, []);
 
   // Carga inicial al montar el componente: aplica el rango por defecto (desde el día 1 del mes actual)
   useEffect(() => { load({ desde: firstDayOfMonth }); }, [load, firstDayOfMonth]);
