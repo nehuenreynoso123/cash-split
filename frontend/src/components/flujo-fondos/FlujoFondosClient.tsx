@@ -40,25 +40,30 @@ function totalDeCategoria(totales: TotalPorCategoria[], categoria: CategoriaGast
 }
 
 function buildCajas(
-  totalCapitalCargado: number,
+  totalInversionMercaderia: number,
   totalInvertido: number,
   gananciaReal: number,
   costoReposicion: number,
   gananciaPorCobrar: number,
   gastosNegocio: number,
-  detalleInversionCargada: { productos: number; rango: string },
+  detalleInversionCargada: {
+    productos: number;
+    rango: string;
+    costoVendido: number;
+    stockCargado: number;
+  },
 ): CajaInfo[] {
   return [
     {
       id: 'liquidez-dinero',
-      titulo: 'Inversión cargada',
-      valor: formatCurrency(totalCapitalCargado),
+      titulo: 'Inversión en mercadería',
+      valor: formatCurrency(totalInversionMercaderia),
       icono: 'inventory_2',
       colorIcono: 'text-amber-500',
       bordeClase: 'border-l-amber-500',
-      descripcion: `Costo de mercadería cargada en ${detalleInversionCargada.rango}.`,
+      descripcion: `Cuánto gastaste en mercadería en ${detalleInversionCargada.rango}.`,
       detalle:
-        'Es la plata que entró a tu rueda en el período: el costo de compra de los productos que cargaste, no de los que ya tenías. Mirá la diferencia contra Total Invertido: ese es el tamaño total de tu rueda, este es el pulso de crecimiento. Ojo: una recarga de un producto que ya existía no queda registrada acá, así que este número cuenta cargas nuevas, no todas las compras.',
+        'Es la plata que salió de tu bolsillo para la mercadería en el período: lo que te costaron los productos que vendiste, más lo que cargaste nuevo y todavía tenés en góndola. Mirá la diferencia contra Total Invertido: ese es el stock que tenés hoy, este es el flujo de plata. La parte vendida usa el costo congelado en cada venta, así que cambiar el precio de un producto después no reescribe lo que gastaste antes.',
     },
     {
       id: 'total-invertido',
@@ -254,13 +259,15 @@ export default function FlujoFondosClient() {
       // Ganancia por cobrar: margen de las ventas pendientes (sin fecha de cobro o con fecha futura)
       const gananciaPorCobrar = flujoFondosData.reduce((s, r) => s + (Number(r.ganancia_por_cobrar_total) || 0), 0);
 
-      // Capital cargado en el rango: costo de compra de los productos cuya
-      // fecha de carga cae dentro del período. Se calcula acá y no en el backend
-      // porque la app no registra compras — `productos` es la única fuente de
-      // esa fecha. Solo cuenta cargas nuevas: recargar un producto que ya
-      // existía no deja fecha, así que el número no es el total de compras.
+      // "Cuánta plata gasté en mercadería": lo que costó la mercadería que VENDÍ
+      // en el período (costo congelado en la venta) más lo que sigo teniendo
+      // cargado de cargas nuevas del período. La parte vendida es la que
+      // faltaba: si solo se mira el stock, un producto agotado aporta $0 y el
+      // gasto real desaparece de la pantalla.
       const productosCargados = productosData.filter((p) => fechaEnRango(p.fecha_carga, params?.desde, params?.hasta));
-      const totalCapitalCargado = productosCargados.reduce((s, p) => s + Number(p.precio) * p.stock, 0);
+      const stockCargado = productosCargados.reduce((s, p) => s + Number(p.precio) * p.stock, 0);
+      const costoVendido = flujoFondosData.reduce((s, r) => s + (Number(r.costo_mercaderia_vendida) || 0), 0);
+      const totalInversionMercaderia = costoVendido + stockCargado;
 
       const gastosNegocio = CATEGORIAS_NEGOCIO.reduce(
         (s, cat) => s + totalDeCategoria(gastos.totalesPorCategoria, cat),
@@ -270,13 +277,18 @@ export default function FlujoFondosClient() {
         ? (params.hasta ? `${params.desde} a ${params.hasta}` : `desde ${params.desde}`)
         : 'todo el historial';
       const built = buildCajas(
-        totalCapitalCargado,
+        totalInversionMercaderia,
         totalInvertido,
         gananciaReal,
         costoReposicion,
         gananciaPorCobrar,
         gastosNegocio,
-        { productos: productosCargados.length, rango: rangoTexto },
+        {
+          productos: productosCargados.length,
+          rango: rangoTexto,
+          costoVendido,
+          stockCargado,
+        },
       );
       setCajas(built);
       setLoading(false);
@@ -298,7 +310,9 @@ export default function FlujoFondosClient() {
   // Mismo filtro que usa la card, recalculado sobre `productos` ya cargado, para
   // que el detalle muestre exactamente los productos que componen el total.
   const productosCargadosDesglose = productos.filter((p) => fechaEnRango(p.fecha_carga, rango?.desde, rango?.hasta));
-  const capitalCargadoDesglose = productosCargadosDesglose.reduce((s, p) => s + Number(p.precio) * p.stock, 0);
+  const stockCargadoDesglose = productosCargadosDesglose.reduce((s, p) => s + Number(p.precio) * p.stock, 0);
+  const costoVendidoDesglose = flujoFondosData.reduce((s, r) => s + (Number(r.costo_mercaderia_vendida) || 0), 0);
+  const capitalCargadoDesglose = costoVendidoDesglose + stockCargadoDesglose;
   // Desglose de la Ganancia del Emprendimiento: cada categoría de gasto que se
   // descuenta por separado, más los gastos sin categoría — que NO se descuentan
   // pero cuya existencia hay que mostrar, porque inflan la ganancia de arriba.
@@ -621,15 +635,19 @@ export default function FlujoFondosClient() {
                   </h4>
                   <ul className="divide-y divide-outline-variant/40 border border-outline-variant rounded-xl overflow-hidden">
                     <li className="flex items-center justify-between gap-4 px-4 py-3 bg-surface-container-lowest">
-                      <span className="font-body-base text-on-surface">Productos cargados en el período</span>
-                      <span className="font-data-mono text-on-surface-variant shrink-0">{productosCargadosDesglose.length}</span>
+                      <span className="font-body-base text-on-surface">Costo de mercadería que vendiste en el período</span>
+                      <span className="font-data-mono text-on-surface-variant shrink-0">{formatCurrency(costoVendidoDesglose)}</span>
+                    </li>
+                    <li className="flex items-center justify-between gap-4 px-4 py-3 bg-surface-container-lowest">
+                      <span className="font-body-base text-on-surface">Mercadería cargada y todavía en góndola</span>
+                      <span className="font-data-mono text-on-surface-variant shrink-0">{formatCurrency(stockCargadoDesglose)}</span>
                     </li>
                     <li className="flex items-center justify-between gap-4 px-4 py-3 bg-surface-container-lowest">
                       <span className="font-body-base text-on-surface">Total Invertido (stock actual, todos los períodos)</span>
                       <span className="font-data-mono text-on-surface-variant shrink-0">{formatCurrency(totalInvertidoDesglose)}</span>
                     </li>
                     <li className="flex items-center justify-between gap-4 px-4 py-3 bg-surface-container-low">
-                      <span className="font-label-caps text-label-caps text-secondary uppercase tracking-wider">Inversión cargada en el período</span>
+                      <span className="font-label-caps text-label-caps text-secondary uppercase tracking-wider">Inversión en mercadería</span>
                       <span className="font-data-mono text-primary font-semibold shrink-0">{formatCurrency(capitalCargadoDesglose)}</span>
                     </li>
                   </ul>
@@ -637,11 +655,11 @@ export default function FlujoFondosClient() {
 
                 <div>
                   <h4 className="font-label-caps text-label-caps text-secondary uppercase tracking-wider mb-2">
-                    Qué productos componen el número
+                    Mercadería todavía en góndola
                   </h4>
                   {productosCargadosDesglose.length === 0 ? (
                     <p className="text-body-sm text-on-surface-variant">
-                      No se cargó mercadería en este período.
+                      No cargaste mercadería nueva en este período. El total de arriba es solo el costo de lo que vendiste.
                     </p>
                   ) : (
                     <ul className="divide-y divide-outline-variant/40 border border-outline-variant rounded-xl overflow-hidden max-h-64 overflow-y-auto">
@@ -662,7 +680,7 @@ export default function FlujoFondosClient() {
                     </ul>
                   )}
                   <p className="text-body-sm text-on-surface-variant mt-2">
-                    Solo cuenta cargas nuevas de mercadería. Si recargaste un producto que ya existía, esa compra no queda registrada en la app y no aparece acá.
+                    Un producto con 0 unidades no aparece porque ya no te queda nada de ese: su costo ya está incluido arriba, en la mercadería que vendiste. Recargar un producto que ya existía tampoco queda registrado, así que esas compras no aparecen en ninguna de las dos partes.
                   </p>
                 </div>
               </div>

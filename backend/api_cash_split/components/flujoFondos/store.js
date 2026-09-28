@@ -22,6 +22,14 @@ export async function listFlujoFondos({ desde, hasta } = {}) {
       COALESCE(SUM(v.cantidad), 0) AS unidades_vendidas,
       COALESCE(SUM(v.precio::numeric), 0) AS ingresos_totales,
       COALESCE(SUM(p.precio::numeric * v.cantidad), 0) AS costo_reposicion_total,
+      -- Costo de la mercadería efectivamente vendida en el período, usando el
+      -- costo CONGELADO en la venta (v.precio - v.ganancia) en lugar del precio
+      -- actual del producto. "Cuánto gasté en mercadería" es una pregunta sobre
+      -- el pasado: si se recalculara con p.precio, cambiar el costo de un
+      -- producto reescribiría cuánta plata se gastó en meses ya cerrados. El
+      -- COALESCE cae al cálculo actual solo para ventas antiguas sin ganancia
+      -- congelada, que es el único caso donde no hay dato histórico.
+      COALESCE(SUM(CASE WHEN v.id IS NULL THEN 0 ELSE COALESCE(v.precio::numeric - v.ganancia::numeric, v.precio::numeric - (p.precio::numeric * v.cantidad)) END), 0) AS costo_mercaderia_vendida,
       COALESCE(SUM(v.precio::numeric - (p.precio::numeric * v.cantidad)), 0) AS ganancia_real_total,
       COALESCE(SUM(CASE WHEN v.fecha_cobro IS NULL OR v.fecha_cobro > CURRENT_DATE THEN v.precio::numeric - (p.precio::numeric * v.cantidad) ELSE 0 END), 0) AS ganancia_por_cobrar_total,
       COALESCE(SUM(CASE WHEN v.fecha_cobro IS NULL OR v.fecha_cobro > CURRENT_DATE THEN v.cantidad ELSE 0 END), 0) AS unidades_por_cobrar

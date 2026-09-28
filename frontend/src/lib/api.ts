@@ -241,6 +241,7 @@ export interface TotalCaja {
   unidades_vendidas: number;
   ingresos_totales: number;
   costo_reposicion_total: number;
+  costo_mercaderia_vendida?: number;
   ganancia_real_total: number;
   ganancia_por_cobrar_total?: number;
   unidades_por_cobrar?: number;
@@ -279,6 +280,7 @@ export async function getFlujoFondos(params?: DateRangeParams): Promise<TotalCaj
     costo_invertido_stock: Number(t.costo_invertido_stock),
     ingresos_totales: Number(t.ingresos_totales),
     costo_reposicion_total: Number(t.costo_reposicion_total),
+    costo_mercaderia_vendida: Number(t.costo_mercaderia_vendida ?? t.costo_reposicion_total),
     ganancia_real_total: Number(t.ganancia_real_total),
     ganancia_por_cobrar_total: Number(t.ganancia_por_cobrar_total),
     unidades_por_cobrar: Number(t.unidades_por_cobrar),
