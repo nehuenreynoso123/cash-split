@@ -5,6 +5,16 @@ import { getFlujoFondos, getVentasPorCobrarSemanas, getLiquidezTotal, listLiquid
 import { formatCurrency } from '../../lib/data';
 import { useAuthRedirect } from '../../hooks/useAuthRedirect';
 
+// ¿La fecha de carga del producto cae dentro del rango? Compara los tres
+// componentes del 'YYYY-MM-DD' como enteros: parsear con new Date() metería
+// interpretación de zona horaria y podría dejar fuera un producto del último día.
+function fechaEnRango(fecha: string, desde?: string, hasta?: string): boolean {
+  const f = fecha.slice(0, 10);
+  if (desde && f < desde) return false;
+  if (hasta && f > hasta) return false;
+  return true;
+}
+
 interface CajaInfo {
   id: string;
   titulo: string;
@@ -30,24 +40,25 @@ function totalDeCategoria(totales: TotalPorCategoria[], categoria: CategoriaGast
 }
 
 function buildCajas(
-  liquidezDisponible: number,
+  totalCapitalCargado: number,
   totalInvertido: number,
   gananciaReal: number,
   costoReposicion: number,
   gananciaPorCobrar: number,
   gastosNegocio: number,
+  detalleInversionCargada: { productos: number; rango: string },
 ): CajaInfo[] {
   return [
     {
       id: 'liquidez-dinero',
-      titulo: 'Liquidez Dinero',
-      valor: formatCurrency(liquidezDisponible),
-      icono: 'account_balance_wallet',
-      colorIcono: 'text-green-500',
-      bordeClase: 'border-l-green-500',
-      descripcion: '100% disponible. No tiene stock asignado todavía.',
+      titulo: 'Inversión cargada',
+      valor: formatCurrency(totalCapitalCargado),
+      icono: 'inventory_2',
+      colorIcono: 'text-amber-500',
+      bordeClase: 'border-l-amber-500',
+      descripcion: `Costo de mercadería cargada en ${detalleInversionCargada.rango}.`,
       detalle:
-        'Es el motor en reposo. Te da la velocidad de reaccionar si aparece una oferta de oportunidad del proveedor o absorber un imprevisto sin frenar las compras.',
+        'Es la plata que entró a tu rueda en el período: el costo de compra de los productos que cargaste, no de los que ya tenías. Mirá la diferencia contra Total Invertido: ese es el tamaño total de tu rueda, este es el pulso de crecimiento. Ojo: una recarga de un producto que ya existía no queda registrada acá, así que este número cuenta cargas nuevas, no todas las compras.',
     },
     {
       id: 'total-invertido',
@@ -202,9 +213,9 @@ export default function FlujoFondosClient() {
   const now = new Date();
   const firstDayOfMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
 
-  useEffect(() => {
-    listProductos().then(setProductos).catch(() => {});
-  }, []);
+  // Rango aplicado, para que el detalle de la card use el mismo filtro que la
+  // consulta y no se desincronice al limpiar o cambiar fechas.
+  const [rango, setRango] = useState<DateRangeParams | undefined>({ desde: firstDayOfMonth });
 
   // Weekly pending sales only depend on fecha_cobro, so they load once on
   // mount and must NOT reset when the date-range filter is applied.
@@ -217,36 +228,60 @@ export default function FlujoFondosClient() {
   const load = useCallback((params?: DateRangeParams) => {
     const requestId = ++requestIdRef.current;
     setLoading(true);
+    setRango(params);
     Promise.all([
       getFlujoFondos(params).catch(() => [] as TotalCaja[]),
       getLiquidezTotal(params).catch(() => 0),
       listLiquidez(params).catch(() => [] as Liquidez[]),
+      // productos viene en el mismo lote que el resto: la card de Inversión
+      // cargada depende de él, y si se pidiera aparte la primera carga podría
+      // pintar $0 hasta que llegue la respuesta.
+      listProductos().catch(() => [] as Producto[]),
       // limit 1: de esta respuesta solo se leen los totales por categoría, que
       // el backend calcula sobre el rango de fechas completo e ignorando el
       // límite — las filas de la tabla son un payload que acá no se usa.
       listGastos({ ...params, limit: 1 }).catch(() => ({ totalesPorCategoria: [] } as unknown as Awaited<ReturnType<typeof listGastos>>)),
-    ]).then(([flujoFondosData, netoLiquidez, liquidezItems, gastos]) => {
+    ]).then(([flujoFondosData, netoLiquidez, liquidezItems, productosData, gastos]) => {
       if (requestId !== requestIdRef.current) return;
       setFlujoFondosData(flujoFondosData);
       setNetoLiquidez(netoLiquidez);
       setLiquidezItems(liquidezItems);
       setGastosPorCategoria(gastos.totalesPorCategoria);
+      setProductos(productosData);
       const totalInvertido = flujoFondosData.reduce((s, r) => s + Number(r.costo_invertido_stock), 0);
       const gananciaReal = flujoFondosData.reduce((s, r) => s + Number(r.ganancia_real_total), 0);
       const costoReposicion = flujoFondosData.reduce((s, r) => s + Number(r.costo_reposicion_total), 0);
       // Ganancia por cobrar: margen de las ventas pendientes (sin fecha de cobro o con fecha futura)
       const gananciaPorCobrar = flujoFondosData.reduce((s, r) => s + (Number(r.ganancia_por_cobrar_total) || 0), 0);
 
-      const liquidezDisponible = totalInvertido - costoReposicion + netoLiquidez;
+      // Capital cargado en el rango: costo de compra de los productos cuya
+      // fecha de carga cae dentro del período. Se calcula acá y no en el backend
+      // porque la app no registra compras — `productos` es la única fuente de
+      // esa fecha. Solo cuenta cargas nuevas: recargar un producto que ya
+      // existía no deja fecha, así que el número no es el total de compras.
+      const productosCargados = productosData.filter((p) => fechaEnRango(p.fecha_carga, params?.desde, params?.hasta));
+      const totalCapitalCargado = productosCargados.reduce((s, p) => s + Number(p.precio) * p.stock, 0);
+
       const gastosNegocio = CATEGORIAS_NEGOCIO.reduce(
         (s, cat) => s + totalDeCategoria(gastos.totalesPorCategoria, cat),
         0,
       );
-      const built = buildCajas(liquidezDisponible, totalInvertido, gananciaReal, costoReposicion, gananciaPorCobrar, gastosNegocio);
+      const rangoTexto = params?.desde
+        ? (params.hasta ? `${params.desde} a ${params.hasta}` : `desde ${params.desde}`)
+        : 'todo el historial';
+      const built = buildCajas(
+        totalCapitalCargado,
+        totalInvertido,
+        gananciaReal,
+        costoReposicion,
+        gananciaPorCobrar,
+        gastosNegocio,
+        { productos: productosCargados.length, rango: rangoTexto },
+      );
       setCajas(built);
       setLoading(false);
     });
-  }, []);
+  }, [productos, firstDayOfMonth]);
 
   // Carga inicial al montar el componente: aplica el rango por defecto (desde el día 1 del mes actual)
   useEffect(() => { load({ desde: firstDayOfMonth }); }, [load, firstDayOfMonth]);
@@ -256,7 +291,10 @@ export default function FlujoFondosClient() {
   const costoReposicionDesglose = flujoFondosData.reduce((s, r) => s + Number(r.costo_reposicion_total), 0);
   const gananciaRealDesglose = flujoFondosData.reduce((s, r) => s + Number(r.ganancia_real_total), 0);
   const gananciaMasInvertidoDesglose = totalInvertidoDesglose + gananciaRealDesglose;
-  const liquidezDisponibleDesglose = totalInvertidoDesglose - costoReposicionDesglose + netoLiquidez;
+  // Mismo filtro que usa la card, recalculado sobre `productos` ya cargado, para
+  // que el detalle muestre exactamente los productos que componen el total.
+  const productosCargadosDesglose = productos.filter((p) => fechaEnRango(p.fecha_carga, rango?.desde, rango?.hasta));
+  const capitalCargadoDesglose = productosCargadosDesglose.reduce((s, p) => s + Number(p.precio) * p.stock, 0);
   // Desglose de la Ganancia del Emprendimiento: cada categoría de gasto que se
   // descuenta por separado, más los gastos sin categoría — que NO se descuentan
   // pero cuya existencia hay que mostrar, porque inflan la ganancia de arriba.
@@ -579,51 +617,49 @@ export default function FlujoFondosClient() {
                   </h4>
                   <ul className="divide-y divide-outline-variant/40 border border-outline-variant rounded-xl overflow-hidden">
                     <li className="flex items-center justify-between gap-4 px-4 py-3 bg-surface-container-lowest">
-                      <span className="font-body-base text-on-surface">Total Invertido</span>
-                      <span className="font-data-mono text-on-surface-variant shrink-0">+{formatCurrency(totalInvertidoDesglose)}</span>
+                      <span className="font-body-base text-on-surface">Productos cargados en el período</span>
+                      <span className="font-data-mono text-on-surface-variant shrink-0">{productosCargadosDesglose.length}</span>
                     </li>
                     <li className="flex items-center justify-between gap-4 px-4 py-3 bg-surface-container-lowest">
-                      <span className="font-body-base text-on-surface">Caja Reposición Base</span>
-                      <span className="font-data-mono text-on-surface-variant shrink-0">−{formatCurrency(costoReposicionDesglose)}</span>
-                    </li>
-                    <li className="flex items-center justify-between gap-4 px-4 py-3 bg-surface-container-lowest">
-                      <span className="font-body-base text-on-surface">Liquidez neta (movimientos)</span>
-                      <span className="font-data-mono text-on-surface-variant shrink-0">
-                        {netoLiquidez >= 0 ? '+' : '−'}{formatCurrency(Math.abs(netoLiquidez))}
-                      </span>
+                      <span className="font-body-base text-on-surface">Total Invertido (stock actual, todos los períodos)</span>
+                      <span className="font-data-mono text-on-surface-variant shrink-0">{formatCurrency(totalInvertidoDesglose)}</span>
                     </li>
                     <li className="flex items-center justify-between gap-4 px-4 py-3 bg-surface-container-low">
-                      <span className="font-label-caps text-label-caps text-secondary uppercase tracking-wider">Liquidez Dinero</span>
-                      <span className="font-data-mono text-primary font-semibold shrink-0">{formatCurrency(liquidezDisponibleDesglose)}</span>
+                      <span className="font-label-caps text-label-caps text-secondary uppercase tracking-wider">Inversión cargada en el período</span>
+                      <span className="font-data-mono text-primary font-semibold shrink-0">{formatCurrency(capitalCargadoDesglose)}</span>
                     </li>
                   </ul>
                 </div>
 
                 <div>
                   <h4 className="font-label-caps text-label-caps text-secondary uppercase tracking-wider mb-2">
-                    Movimientos de liquidez
+                    Qué productos componen el número
                   </h4>
-                  {liquidezItems.length === 0 ? (
+                  {productosCargadosDesglose.length === 0 ? (
                     <p className="text-body-sm text-on-surface-variant">
-                      No hay movimientos en el período.
+                      No se cargó mercadería en este período.
                     </p>
                   ) : (
                     <ul className="divide-y divide-outline-variant/40 border border-outline-variant rounded-xl overflow-hidden max-h-64 overflow-y-auto">
-                      {liquidezItems.map((item) => (
+                      {productosCargadosDesglose.map((p) => (
                         <li
-                          key={item.id}
+                          key={p.id}
                           className="flex items-center justify-between gap-4 px-4 py-3 bg-surface-container-lowest hover:bg-surface-container-low transition-colors"
                         >
                           <span className="font-body-base text-on-surface truncate">
-                            {item.descripcion}
+                            {p.nombre}
+                            <span className="text-body-sm text-on-surface-variant/70 ml-2">
+                              {p.stock} u × {formatCurrency(Number(p.precio))}
+                            </span>
                           </span>
-                          <span className={`font-data-mono shrink-0 ${item.tipo === 'ingreso' ? 'text-green-600' : 'text-error'}`}>
-                            {item.tipo === 'ingreso' ? '+' : '−'}{formatCurrency(item.monto)}
-                          </span>
+                          <span className="font-data-mono shrink-0">{formatCurrency(Number(p.precio) * p.stock)}</span>
                         </li>
                       ))}
                     </ul>
                   )}
+                  <p className="text-body-sm text-on-surface-variant mt-2">
+                    Solo cuenta cargas nuevas de mercadería. Si recargaste un producto que ya existía, esa compra no queda registrada en la app y no aparece acá.
+                  </p>
                 </div>
               </div>
             )}
