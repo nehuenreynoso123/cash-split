@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { listGastos, createGasto, CATEGORIAS_GASTO, type Gasto, type CategoriaGasto, type CategoriaGastoInput, type TotalPorCategoria } from '../../lib/api';
+import { listGastos, createGasto, deleteGasto, CATEGORIAS_GASTO, type Gasto, type CategoriaGasto, type CategoriaGastoInput, type TotalPorCategoria } from '../../lib/api';
 import { formatCurrency } from '../../lib/data';
 import GastoModal from './GastoModal';
 import Pagination from '../ui/Pagination';
@@ -49,11 +49,22 @@ export default function GastosClient() {
   const [totales, setTotales] = useState<TotalPorCategoria[]>([]);
   const [refreshKey, setRefreshKey] = useState(0);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [deletingId, setDeletingId] = useState<number | null>(null);
   const selectAllRef = useRef<HTMLInputElement>(null);
   const pageSize = 15;
 
+  // Bloquea todos los botones de eliminar mientras un borrado está en vuelo
+  // (mismo idioma que LiberacionPlataClient y SaleHistory): sin esto, un doble
+  // click dispara dos DELETE contra el mismo id.
+  const busy = deletingId !== null;
+
   const load = () => {
     setLoading(true);
+    // El error se limpia al arrancar el load, no al terminar. `error` reemplaza
+    // toda la tabla en el render, así que un error viejo que nunca se limpiara
+    // dejaría la vista vacía para siempre aunque las consultas volvieran a
+    // funcionar.
+    setError('');
     const params: { desde?: string; hasta?: string; categoria?: CategoriaGastoInput; limit: number; offset: number } = {
       limit: pageSize,
       offset: (currentPage - 1) * pageSize,
@@ -78,6 +89,37 @@ export default function GastosClient() {
 
   const handleNew = () => { setEditItem(null); setModalOpen(true); };
   const handleEdit = (item: Gasto) => { setEditItem(item); setModalOpen(true); };
+
+  // Acción destructiva: se pide confirmación nombrando el gasto concreto, no un
+  // "¿eliminar?" genérico — el monto y la descripción son lo que el usuario
+  // necesita para confirmar que apretó el botón correcto.
+  const handleDelete = async (item: Gasto) => {
+    if (!window.confirm(`¿Eliminar el gasto "${item.descripcion}" por ${formatCurrency(item.monto)}?`)) return;
+    setDeletingId(item.id);
+    try {
+      await deleteGasto(item.id);
+      // El id borrado no puede seguir en la selección o la barra de seleccionadas
+      // contaría un gasto que ya no existe.
+      setSelectedIds((prev) => {
+        if (!prev.has(item.id)) return prev;
+        const next = new Set(prev);
+        next.delete(item.id);
+        return next;
+      });
+      // Edge case de paginación: si este era el único gasto de la última página,
+      // el refetch dejaría currentPage apuntando más allá del final — la tabla
+      // volvería vacía mientras `total` sigue siendo > 0, y la paginación
+      // mostraría una página que ya no existe. Retroceder antes de refetchear hace
+      // que ese único reload caiga en una página real.
+      if (items.length === 1 && currentPage > 1) setCurrentPage((p) => p - 1);
+      else setRefreshKey((k) => k + 1);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al eliminar');
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
   const handleSaved = () => {
     const wasCreate = editItem === null; // read BEFORE clearing
     setModalOpen(false);
@@ -306,6 +348,14 @@ export default function GastosClient() {
                     <td className="px-6 py-4 text-right">
                       <button className="p-2 text-on-surface-variant hover:text-secondary hover:bg-secondary/5 rounded-lg transition-all" onClick={() => handleEdit(item)}>
                         <span className="material-symbols-outlined">edit_square</span>
+                      </button>
+                      <button
+                        className="p-2 text-on-surface-variant hover:text-error hover:bg-error/5 rounded-lg transition-all ml-1 disabled:opacity-40 disabled:hover:text-on-surface-variant disabled:hover:bg-transparent"
+                        title="Eliminar gasto"
+                        disabled={busy}
+                        onClick={() => handleDelete(item)}
+                      >
+                        <span className="material-symbols-outlined">delete</span>
                       </button>
                     </td>
                   </tr>

@@ -398,6 +398,13 @@ export async function updateGasto(data: { id: number; descripcion: string; monto
   return request<void>('PUT', '/gastos', data);
 }
 
+// El id viaja en el path (DELETE /gastos/:id), no en el body: es lo que declara
+// la ruta en cajaGastosOperativos/network.js y lo que hacen deleteDeudor y
+// deleteLiberacion.
+export async function deleteGasto(id: number): Promise<void> {
+  return request<void>('DELETE', `/gastos/${id}`);
+}
+
 // ── Deudores ───────────────────────────────────────────────────
 export interface Deudor {
   id: number;

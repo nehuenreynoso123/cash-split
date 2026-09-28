@@ -8,7 +8,7 @@ const router = express.Router();
 router.post("/gastos", [verifyToken], addGastos);
 router.get("/gastos", [verifyToken], listGastos);
 router.put("/gastos", [verifyToken], editCajaGastos);
-router.delete("/gastos", [verifyToken], removeCajaGastos);
+router.delete("/gastos/:id", [verifyToken], removeCajaGastos);
 
 function addGastos(req, resp, next) {
   controller
@@ -18,9 +18,9 @@ function addGastos(req, resp, next) {
 }
 
 function listGastos(req, resp, next) {
-  const { desde, hasta, limit, offset } = req.query;
+  const { desde, hasta, limit, offset, categoria } = req.query;
   controller
-    .getCajaGastos({ desde, hasta, limit, offset })
+    .getCajaGastos({ desde, hasta, limit, offset, categoria })
     .then((data) => response.success(req, resp, data, 200))
     .catch(next);
 }
