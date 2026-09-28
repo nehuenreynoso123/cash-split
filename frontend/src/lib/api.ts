@@ -108,6 +108,36 @@ export async function listProductos(): Promise<Producto[]> {
   return data.map((p) => ({ ...p, precio: Number(p.precio) }));
 }
 
+// Ventas agregadas por producto, para la sección de rotación. `margen` viene
+// del ventas.ganancia congelado en el momento de la venta, no del recálculo con
+// productos.precio que usan dashboard y flujoFondos: el margen histórico tiene
+// que ser el que se ganó en su día.
+export interface VentasProducto {
+  producto_id: number;
+  unidades: number;
+  margen: number;
+  ingresos: number;
+}
+
+export async function listVentasPorProducto(params?: DateRangeParams): Promise<VentasProducto[]> {
+  const query = params
+    ? '?' + new URLSearchParams(
+        Object.entries(params)
+          .filter(([, v]) => v !== undefined && v !== '')
+          .map(([k, v]) => [k, String(v)])
+      ).toString()
+    : '';
+  const data = await request<VentasProducto[]>('GET', '/producto/ventas' + query);
+  return Array.isArray(data)
+    ? data.map((r) => ({
+        producto_id: Number(r.producto_id),
+        unidades: Number(r.unidades) || 0,
+        margen: Number(r.margen) || 0,
+        ingresos: Number(r.ingresos) || 0,
+      }))
+    : [];
+}
+
 export async function createProducto(data: { nombre: string; precio: number; stock: number }): Promise<void> {
   return request<void>('POST', '/producto', data);
 }

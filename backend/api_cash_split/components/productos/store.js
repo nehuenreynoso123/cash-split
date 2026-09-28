@@ -8,6 +8,48 @@ export async function list({ activo } = {}) {
   return list;
 }
 
+// Ventas agregadas por producto, para la sección de rotación.
+//
+// LEFT JOIN desde productos y no desde ventas: la rotación tiene que mostrar
+// también lo que NO vendió (incluido lo agotado, que es justo lo que hay que
+// reponer). Un INNER JOIN los escondería y el ranking mentiría.
+//
+// Usa ventas.ganancia —el costo congelado en el momento de la venta— y no el
+// recálculo con productos.precio que hacen dashboard y flujoFondos: acá el
+// margen histórico tiene que ser el que sespo realmente en su día, no uno que
+// cambia cada vez que se edita el precio de un producto.
+//
+// El rango es opcional: sin fechas devuelve el histórico completo.
+export async function listVentasPorProducto({ desde, hasta } = {}) {
+  const dateConds = [];
+  if (desde) dateConds.push(sql`v.created_at >= ${desde}`);
+  if (hasta) dateConds.push(sql`v.created_at < (${hasta}::date + interval '1 day')`);
+
+  // Mismo patrón que en cajaGastosOperativos: sin condiciones, TRUE.
+  const where = dateConds.length === 0
+    ? sql`TRUE`
+    : dateConds.reduce((acc, cond) => sql`${acc} AND ${cond}`);
+
+  const rows = await sql`
+    SELECT
+      p.id AS producto_id,
+      COALESCE(SUM(v.cantidad), 0) AS unidades,
+      COALESCE(SUM(v.ganancia), 0) AS margen,
+      COALESCE(SUM(v.precio::numeric), 0) AS ingresos
+        FROM productos p
+        LEFT JOIN ventas v ON p.id = v.producto_id AND ${where}
+       WHERE p.activo = true
+       GROUP BY p.id
+  `;
+
+  return rows.map((row) => ({
+    producto_id: Number(row.producto_id),
+    unidades: Number(row.unidades),
+    margen: Number(row.margen),
+    ingresos: Number(row.ingresos),
+  }));
+}
+
 export async function add({ nombre, precio, stock }) {
   // Stamp fecha_agotado with the DB's CURRENT_DATE (same source as every other
   // date here) when the product is created already out of stock.
