@@ -1,13 +1,13 @@
 import { add, remove, list, update } from "./store.js";
 
 export const addCajaGastos = async (body) => {
-  const { descripcion, monto, categoria } = body;
-  await add({ descripcion, monto, categoria });
+  const { descripcion, monto, categoria, tipo } = body;
+  await add({ descripcion, monto, categoria, tipo });
 };
 
 export const editCajaGastos = async (body) => {
-  const { descripcion, monto, categoria, id } = body;
-  await update({ descripcion, monto, categoria, id });
+  const { descripcion, monto, categoria, tipo, id } = body;
+  await update({ descripcion, monto, categoria, tipo, id });
 };
 export const removeCajaGastos = async (id) => {
   await remove({ id });

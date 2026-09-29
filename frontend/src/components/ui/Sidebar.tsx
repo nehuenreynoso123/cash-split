@@ -23,6 +23,7 @@ const navItems: NavItem[] = [
   { id: 'deudores', label: 'Deudores', icon: 'group_remove', href: '/deudores' },
   { id: 'lumix', label: 'Lumix', icon: 'live_tv', href: '/lumix' },
   { id: 'flujo-fondos', label: 'Flujo de Fondos', icon: 'currency_exchange', href: '/flujo-fondos' },
+  { id: 'punto-equilibrio', label: 'Punto de Equilibrio', icon: 'straighten', href: '/punto-equilibrio' },
   { id: 'calculadora', label: 'Calculadora', icon: 'calculate', href: '/calculadora' },
 ];
 

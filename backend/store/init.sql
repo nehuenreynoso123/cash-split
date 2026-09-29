@@ -107,6 +107,14 @@ CREATE TABLE IF NOT EXISTS gastos (
 -- ya existe, para que la tabla se cree igual en bases nuevas y viejas.
 ALTER TABLE gastos ADD COLUMN IF NOT EXISTS categoria VARCHAR(20);
 
+-- Migración: agregar tipo a gastos (si la tabla ya existe). `tipo` separa los
+-- gastos que crecen con la venta ('variable': envíos, comisiones, impuestos)
+-- de los que no ('fijo': alquiler, monotributo, servicios). Es lo que permite
+-- calcular el punto de equilibrio en /punto-equilibrio. La garantía de dominio
+-- (CHECK) vive en store/migrate.js, que corre en cada boot, igual que
+-- gastos_categoria_check.
+ALTER TABLE gastos ADD COLUMN IF NOT EXISTS tipo VARCHAR(10);
+
 CREATE TABLE IF NOT EXISTS liquidez (
     id SERIAL PRIMARY KEY,
     descripcion TEXT NOT NULL,

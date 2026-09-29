@@ -164,6 +164,21 @@ const MIGRATIONS = [
   // frontend/src/lib/api.ts — backend and frontend deploy separately (no shared
   // package), so when you add a category update BOTH.
   "ALTER TABLE gastos ADD CONSTRAINT gastos_categoria_check CHECK (categoria IS NULL OR categoria IN ('personal', 'emprendimiento', 'servicios'))",
+  // gastos.tipo: separa lo que escala con la venta de lo que no. Es la distinción
+  // que hace posible el punto de equilibrio: los gastos variables (envíos,
+  // comisiones, impuestos por venta) se restan como tasa sobre los ingresos,
+  // y los fijos (alquiler, monotributo, servicios) se dividen para saber cuánta
+  // venta los cubre. Sin esta columna el equilibrio no se puede calcular, y
+  // adivinarlo sería mentir en los datos.
+  // NULLABLE, igual que `categoria` y por la misma razón: un gasto cargado antes
+  // de esta columna no se puede clasificar retroactivamente — nada dice si el
+  // envío de marzo era variable o fijo. La UI los muestra como "Sin tipo" y el
+  // punto de equilibrio declara que el número está subestimado mientras queden.
+  "ALTER TABLE gastos ADD COLUMN IF NOT EXISTS tipo VARCHAR(10)",
+  // DROP + ADD: idempotente y permite corregir el dominio más adelante sin
+  // dejar una constraint vieja. Mismo patrón que gastos_categoria_check.
+  "ALTER TABLE gastos DROP CONSTRAINT IF EXISTS gastos_tipo_check",
+  "ALTER TABLE gastos ADD CONSTRAINT gastos_tipo_check CHECK (tipo IS NULL OR tipo IN ('fijo', 'variable'))",
 ];
 
 export async function runMigrations() {

@@ -381,15 +381,36 @@ export type CategoriaGasto = 'personal' | 'emprendimiento' | 'servicios';
 // the backend persists as NULL. Legacy rows come back as null.
 export type CategoriaGastoInput = CategoriaGasto | '';
 
-export interface CategoriaGastoInfo {
-  valor: CategoriaGasto;
+// Genérica para no duplicar la forma: la opción (categoria O tipo) se renderiza
+// igual, lo único que cambia es el dominio del valor.
+export interface OpcionInfo<T extends string> {
+  valor: T;
   label: string;
 }
+
+export type CategoriaGastoInfo = OpcionInfo<CategoriaGasto>;
 
 export const CATEGORIAS_GASTO: CategoriaGastoInfo[] = [
   { valor: 'personal', label: 'Gastos personales' },
   { valor: 'emprendimiento', label: 'Emprendimiento' },
   { valor: 'servicios', label: 'Servicios' },
+];
+
+// `tipo` separa los gastos que CRECEN con la venta de los que no. Sin esta
+// distinción el punto de equilibrio no se puede calcular: los variables se
+// restan como tasa sobre los ingresos, los fijos se dividen para saber cuánta
+// venta los cubre. Guarda el SLUG, no el label, por el mismo motivo que
+// `categoria`. La garantía de dominio (CHECK) vive en backend/store/migrate.js;
+// esta es la copia del frontend y hay que actualizarla junto.
+export type TipoGasto = 'fijo' | 'variable';
+
+export type TipoGastoInput = TipoGasto | '';
+
+// Qué significa cada tipo, en la UI: la definición es el producto, no la
+// etiqueta.
+export const TIPOS_GASTO: OpcionInfo<TipoGasto>[] = [
+  { valor: 'fijo', label: 'Fijo' },
+  { valor: 'variable', label: 'Variable' },
 ];
 
 export interface Gasto {
@@ -398,10 +419,16 @@ export interface Gasto {
   monto: number;
   fecha: string;
   categoria: CategoriaGasto | null;
+  tipo: TipoGasto | null;
 }
 
 export interface TotalPorCategoria {
   categoria: CategoriaGasto | null;
+  totalMonto: number;
+}
+
+export interface TotalPorTipo {
+  tipo: TipoGasto | null;
   totalMonto: number;
 }
 
@@ -410,6 +437,7 @@ export interface GastosResponse {
   total: number;
   totalMonto: number;
   totalesPorCategoria: TotalPorCategoria[];
+  totalesPorTipo: TotalPorTipo[];
 }
 
 export async function listGastos(params?: { desde?: string; hasta?: string; limit?: number; offset?: number; categoria?: CategoriaGastoInput }): Promise<GastosResponse> {
@@ -426,15 +454,99 @@ export async function listGastos(params?: { desde?: string; hasta?: string; limi
     total: Number(data.total) || 0,
     totalMonto: Number(data.totalMonto) || 0,
     totalesPorCategoria: Array.isArray(data.totalesPorCategoria) ? data.totalesPorCategoria : [],
+    totalesPorTipo: Array.isArray(data.totalesPorTipo) ? data.totalesPorTipo : [],
   };
 }
 
-export async function createGasto(data: { descripcion: string; monto: number; categoria?: CategoriaGastoInput }): Promise<void> {
+export async function createGasto(data: { descripcion: string; monto: number; categoria?: CategoriaGastoInput; tipo?: TipoGastoInput }): Promise<void> {
   return request<void>('POST', '/gastos', data);
 }
 
-export async function updateGasto(data: { id: number; descripcion: string; monto: number; categoria?: CategoriaGastoInput }): Promise<void> {
+export async function updateGasto(data: { id: number; descripcion: string; monto: number; categoria?: CategoriaGastoInput; tipo?: TipoGastoInput }): Promise<void> {
   return request<void>('PUT', '/gastos', data);
+}
+
+// ── Punto de equilibrio ────────────────────────────────────────────────
+// Modelo de contribución de un período. El backend hace toda la aritmética
+// (ver backend/api_cash_split/components/puntoEquilibrio/store.js); estos tipos
+// son el contrato de ese payload. Los campos de equilibrio son `number | null`
+// a propósito: cuando la tasa de contribución es <= 0 NO existe punto de
+// equilibrio y el backend devuelve null en vez de Infinity, para que la UI pueda
+// decir "vender más no te salva" en lugar de romper el render.
+export interface PuntoEquilibrioVentas {
+  unidades: number;
+  ingresos: number;
+  costoMercaderia: number;
+  margenBruto: number;
+}
+
+export interface PuntoEquilibrioOperativos {
+  ingresosFacturacion: number;
+  facturas: number;
+  comisiones: number;
+  retenciones: number;
+  envios: number;
+  descuentos: number;
+  total: number;
+  /** Costo operativo como fracción de lo facturado (0..n). Se aplica a los ingresos del período. */
+  tasa: number;
+}
+
+export interface PuntoEquilibrioGastos {
+  fijosNegocio: number;
+  variablesNegocio: number;
+  /** Gastos de categoría negocio SIN tipo: el equilibrio queda subestimado mientras haya. */
+  sinTipoNegocio: number;
+  personal: number;
+  /** Gastos sin categoría (cargados antes de la columna): no se pueden asignar solos. */
+  sinCategoria: number;
+  desglose: { categoria: CategoriaGasto | null; tipo: TipoGasto | null; totalMonto: number }[];
+}
+
+export interface PuntoEquilibrioModelo {
+  costosVariables: number;
+  costosOperativosAplicados: number;
+  margenContribucion: number;
+  tasaContribucion: number;
+  tasaVariable: number;
+  costosFijos: number;
+  umbralPersonal: number;
+  precioUnitarioMedio: number | null;
+  equilibrioAlcanzable: boolean;
+  equilibrioNegocio: number | null;
+  equilibrioPersonal: number | null;
+  unidadesEquilibrioNegocio: number | null;
+  unidadesEquilibrioPersonal: number | null;
+  resultadoNegocio: number;
+  resultadoPersonal: number;
+  cubreNegocio: boolean;
+  cubrePersonal: boolean;
+}
+
+export interface PuntoEquilibrio {
+  periodo: { desde: string | null; hasta: string | null };
+  ventas: PuntoEquilibrioVentas;
+  operativos: PuntoEquilibrioOperativos;
+  gastos: PuntoEquilibrioGastos;
+  modelo: PuntoEquilibrioModelo;
+  avisos: {
+    sinDatosFacturacion: boolean;
+    gastosSinClasificar: number;
+    gastosSinCategoria: number;
+    gastosClasificados: boolean;
+    equilibrioNoAlcanzable: boolean;
+  };
+}
+
+export async function getPuntoEquilibrio(params?: DateRangeParams): Promise<PuntoEquilibrio> {
+  const query = params
+    ? '?' + new URLSearchParams(
+        Object.entries(params)
+          .filter(([, v]) => v !== undefined && v !== '')
+          .map(([k, v]) => [k, String(v)])
+      ).toString()
+    : '';
+  return request<PuntoEquilibrio>('GET', `/punto-equilibrio${query}`);
 }
 
 // El id viaja en el path (DELETE /gastos/:id), no en el body: es lo que declara

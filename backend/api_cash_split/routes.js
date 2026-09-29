@@ -11,6 +11,7 @@ import authNetwork from "./components/auth/network.js";
 import lumixClientesNetwork from "./components/lumixClientes/network.js";
 import settingsNetwork from "./components/settings/network.js";
 import liberacionPlataNetwork from "./components/liberacionPlata/network.js";
+import puntoEquilibrioNetwork from "./components/puntoEquilibrio/network.js";
 
 export default (server) => {
   server.use("/api", statusNetwork);
@@ -26,4 +27,5 @@ export default (server) => {
   server.use("/api", lumixClientesNetwork);
   server.use("/api", settingsNetwork);
   server.use("/api", liberacionPlataNetwork);
+  server.use("/api", puntoEquilibrioNetwork);
 };

@@ -1,0 +1,12 @@
+---
+import AppLayout from '../layouts/AppLayout.astro';
+import PuntoEquilibrioClient from '../components/punto-equilibrio/PuntoEquilibrioClient';
+---
+
+<AppLayout
+  currentPage="punto-equilibrio"
+  pageTitle="Punto de Equilibrio"
+  pageSubtitle="Cuánta plata necesitás facturar para que el negocio se sostenga"
+>
+  <PuntoEquilibrioClient client:load />
+</AppLayout>

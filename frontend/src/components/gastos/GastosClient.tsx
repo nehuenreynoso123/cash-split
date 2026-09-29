@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { listGastos, createGasto, deleteGasto, CATEGORIAS_GASTO, type Gasto, type CategoriaGasto, type CategoriaGastoInput, type TotalPorCategoria } from '../../lib/api';
+import { listGastos, createGasto, deleteGasto, CATEGORIAS_GASTO, TIPOS_GASTO, type Gasto, type CategoriaGasto, type CategoriaGastoInput, type TipoGasto, type TotalPorCategoria } from '../../lib/api';
 import { formatCurrency } from '../../lib/data';
 import GastoModal from './GastoModal';
 import Pagination from '../ui/Pagination';
@@ -22,6 +22,30 @@ const SIN_CATEGORIA = { clases: 'bg-surface-container text-on-surface-variant', 
 function CategoriaBadge({ categoria }: { categoria: CategoriaGasto | null }) {
   const estilo = categoria ? BADGE_CATEGORIA[categoria] : SIN_CATEGORIA;
   const label = categoria ? CATEGORIAS_GASTO.find((c) => c.valor === categoria)?.label ?? categoria : 'Sin categoría';
+  return (
+    <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-label-caps font-semibold ${estilo.clases}`}>
+      <span className="material-symbols-outlined text-sm">{estilo.icono}</span>
+      {label}
+    </span>
+  );
+}
+
+// Estilo del tipo. 'Fijo' y 'Variable' se distinguen por icono además de color:
+// el color solo no alcanza para leer una tabla, y la diferencia (¿escala con la
+// venta o no?) es justo la que hay que ver de un vistazo.
+const BADGE_TIPO: Record<TipoGasto, { clases: string; icono: string }> = {
+  fijo: { clases: 'bg-purple-100 text-purple-700', icono: 'lock' },
+  variable: { clases: 'bg-orange-100 text-orange-700', icono: 'trending_up' },
+};
+
+// Sin tipo NO es un tercer tipo: es la ausencia de clasificación (gastos
+// cargados antes de que la columna existieran, o nunca marcados). Mismo
+// tratamiento que "Sin categoría" — tokens neutros, no un color inventado.
+const SIN_TIPO = { clases: 'bg-surface-container text-on-surface-variant', icono: 'help' };
+
+function TipoBadge({ tipo }: { tipo: TipoGasto | null }) {
+  const estilo = tipo ? BADGE_TIPO[tipo] : SIN_TIPO;
+  const label = tipo ? TIPOS_GASTO.find((t) => t.valor === tipo)?.label ?? tipo : 'Sin tipo';
   return (
     <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-label-caps font-semibold ${estilo.clases}`}>
       <span className="material-symbols-outlined text-sm">{estilo.icono}</span>
@@ -316,7 +340,7 @@ export default function GastosClient() {
                     onChange={toggleSelectAll}
                   />
                 </th>
-                {['Descripción', 'Categoría', 'Monto', 'Fecha', 'Acciones'].map((h) => (
+                {['Descripción', 'Categoría', 'Tipo', 'Monto', 'Fecha', 'Acciones'].map((h) => (
                   <th key={h} className={`px-6 py-4 font-label-caps text-label-caps text-on-surface-variant uppercase ${h === 'Monto' || h === 'Acciones' ? 'text-right' : ''}`}>{h}</th>
                 ))}
               </tr>
@@ -341,6 +365,7 @@ export default function GastosClient() {
                     </td>
                     <td className="px-6 py-4 font-semibold text-primary">{item.descripcion}</td>
                     <td className="px-6 py-4"><CategoriaBadge categoria={item.categoria} /></td>
+                    <td className="px-6 py-4"><TipoBadge tipo={item.tipo} /></td>
                     <td className="px-6 py-4 text-right font-data-mono text-error">{formatCurrency(Number(item.monto))}</td>
                     <td className="px-6 py-4 text-on-surface-variant">
                       {new Date(item.fecha).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' })}
