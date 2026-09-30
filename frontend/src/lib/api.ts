@@ -549,6 +549,96 @@ export async function getPuntoEquilibrio(params?: DateRangeParams): Promise<Punt
   return request<PuntoEquilibrio>('GET', `/punto-equilibrio${query}`);
 }
 
+// ── Comparativa mensual ───────────────────────────────────────────
+// Una fila por mes, de la más reciente a la más antigua. Toda la aritmética la
+// hace el backend (backend/api_cash_split/components/comparativaMensual/store.js);
+// estos tipos son el contrato de ese payload.
+//
+// REGLA DE DISEÑO que la forma del payload respeta: un FLUJO y un STOCK nunca
+// se suman. Acá todo lo de `filas` es flujo (se mide en un período) y el capital
+// VIVE FUERA, en `capital`, con su propia fecha. `variacionPorcentual` es
+// `number | null` porque cuando el mes anterior fue 0 el porcentaje no existe:
+// la app devuelve null en vez de Infinity o 0, para que la UI pueda dizer
+// "sin base de comparación" en lugar de mostrar un 0% que miente.
+export interface ComparativaVariacion {
+  /** Diferencia contra el mes anterior, o null si ese mes no tiene anterior. */
+  absoluta: number | null;
+  /** (actual − anterior) / |anterior|, o null si el anterior fue 0 o no existe. */
+  porcentual: number | null;
+}
+
+export interface ComparativaFila {
+  /** 'YYYY-MM'. */
+  mes: string;
+  /** El mes no tiene movimientos: la app lo informa igual, en blanco, en vez de recortarlo. */
+  sinDatos: boolean;
+  unidades: number;
+  ingresos: number;
+  costoMercaderia: number;
+  margenBruto: number;
+  gastosNegocio: number;
+  gastosFijos: number;
+  gastosVariables: number;
+  /** Gastos del negocio sin tipo + gastos sin categoría. Se INFORMAN, no se imputan a nada. */
+  gastosSinClasificar: number;
+  cantidadGastosSinClasificar: number;
+  /** Categoría 'personal': se informa aparte y NO resta de gananciaNegocio. */
+  gastosPersonales: number;
+  gananciaNegocio: number;
+  /** Piso de gananciaNegocio si todo lo sin clasificar resultara ser del negocio. */
+  gananciaNegocioPeorCaso: number;
+  /**
+   * Comisiones + envíos + retenciones + descuentos de ventas_facturacion. NO
+   * están dentro de `ventas.ganancia` (que es sólo precio − costo de catálogo),
+   * pero tampoco se restan acá: facturación cubre un subconjunto distinto de
+   * ventas (73 ventas vs 49 facturas en septiembre) y no hay llave para
+   * cruzarlas. Se informan aparte para que la decisión sea visible.
+   */
+  costosVentaFacturacion: number;
+  facturas: number;
+  variacion: {
+    ingresos: ComparativaVariacion;
+    costoMercaderia: ComparativaVariacion;
+    margenBruto: ComparativaVariacion;
+    gastosNegocio: ComparativaVariacion;
+    gastosSinClasificar: ComparativaVariacion;
+    gastosPersonales: ComparativaVariacion;
+    gananciaNegocio: ComparativaVariacion;
+  };
+}
+
+/** Un ÚNICO número, el de hoy. Un stock no tiene eje temporal. */
+export interface ComparativaCapital {
+  fecha: string;
+  plata: number;
+  mercaderia: number;
+  total: number;
+  /** Siempre false hasta que existan capital_snapshots. No se puede inventar el pasado. */
+  historicoDisponible: boolean;
+  motivoHistorico: string;
+}
+
+export interface ComparativaMensual {
+  ventana: { meses: number; desde: string; hasta: string };
+  generadoEn: string;
+  filas: ComparativaFila[];
+  capital: ComparativaCapital;
+  avisos: {
+    mesesPedidos: number;
+    mesesConDatos: number;
+    hayMesesSinDatos: boolean;
+    primerMesConDatos: string | null;
+    gastosSinClasificarTotal: number;
+    gastosSinClasificarCantidad: number;
+    gastosClasificados: boolean;
+  };
+}
+
+export async function getComparativaMensual(params?: { meses?: number }): Promise<ComparativaMensual> {
+  const query = params?.meses ? '?' + new URLSearchParams({ meses: String(params.meses) }).toString() : '';
+  return request<ComparativaMensual>('GET', `/comparativa-mensual${query}`);
+}
+
 // El id viaja en el path (DELETE /gastos/:id), no en el body: es lo que declara
 // la ruta en cajaGastosOperativos/network.js y lo que hacen deleteDeudor y
 // deleteLiberacion.
