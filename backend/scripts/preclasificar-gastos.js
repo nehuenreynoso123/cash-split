@@ -33,10 +33,18 @@ const REGLAS = [
   { cat: 'personal', tipo: null, confianza: 'alta', nota: 'consumo personal',
     patrones: [/carrefour/, /\bcomida\b/, /^comida/, /pizza/, /hamburgues/, /empanad/, /^chino/, /verduleria/, /^coto/,
                /carbon/, /carbon$/, /parrilla/, /^asado/, /^cancha/, /futbol/, /quinta/, /chipa/,
-               /yt music/, /youtube/, /gamepass/, /^xbox/, /almendra juegos/, /modulo ian/, /redragon/] },
+               /yt music/, /youtube/, /gamepass/, /^xbox/, /almendra juegos/, /modulo ian/,
+               // Anclado al inicio: "redragon" a secas es un periférico gaming
+               // personal, pero "devolucion redragon arrow" es la devolución de
+               // mercadería y tiene que caer en la regla de negocio. Sin el ancla
+               // ^ el patrón personal ganaba por orden y esa fila se quedaba sin
+               // tipo de negocio.
+               /^redragon/] },
   { cat: 'personal', tipo: null, confianza: 'media', nota: 'combustible / uso diario',
     patrones: [/nafta/, /^nadta/, /mas nafta/] },
-  { cat: 'personal', tipo: null, confianza: 'media', nota: 'póliza personal',
+  // El seguro del auto es del negocio: póliza mensual recurrente. Decisión del
+  // usuario, no inferencia — antes caía en el bucket de personal.
+  { cat: 'servicios', tipo: 'fijo', confianza: 'alta', nota: 'póliza mensual del vehículo',
     patrones: [/seguro auto/] },
   { cat: 'personal', tipo: null, confianza: 'baja', nota: 'arreglo doméstico vs herramienta de trabajo',
     patrones: [/lavarropa/, /valvula/] },
@@ -49,8 +57,10 @@ const REGLAS = [
   { cat: 'emprendimiento', tipo: 'variable', confianza: 'alta', nota: 'retención proporcional a la venta',
     patrones: [/percepcion/] },
   // Envíos/embalaje/logística: escala con la cantidad de envíos. VARIABLE.
+  // "Eco Flex 07/09 - 12/09" y "ecoflex" son el mismo concepto escrito de dos
+  // formas; el patrón toleraba sólo la pegada y dejaba la fila sin tipo.
   { cat: 'emprendimiento', tipo: 'variable', confianza: 'media', nota: 'logística, escala con los envíos',
-    patrones: [/ecoflex/, /embalaje/, /devolucion/, /^envio/, /paseyenvio/] },
+    patrones: [/eco ?flex/, /embalaje/, /devolucion/, /^envio/, /paseyenvio/] },
   { cat: 'emprendimiento', tipo: null, confianza: 'baja', nota: 'plataforma, definí el tipo',
     patrones: [/uso de ml/, /^adela/, /^creditos/] },
   // Impuestos: NO se puede clasificar sin saber cuál es cada uno.
