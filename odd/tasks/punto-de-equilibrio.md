@@ -139,8 +139,10 @@ existen **no cambia**: `tipo` es una columna aditiva.
 - [x] T5 — Página `punto-equilibrio.astro` + `PuntoEquilibrioClient` + `Sidebar`
 - [x] T6 — `GastoModal` campo tipo + badge en `GastosClient`
 - [x] T7 — Verificación: `tsc --noEmit`, `build`, aritmética a mano
-- [ ] T8 — Verificación contra la base real (levantar Postgres + `GET /punto-equilibrio`
-      autenticado). **Pendiente**: Docker no está corriendo en esta máquina.
+- [ ] T8 — Verificación contra la base real. **Pendiente por decisión del usuario:**
+      la base es Neon remota (AWS us-east-1) y verificar implica correr la
+      migración, que es un DDL real sobre datos del emprendimiento. Se decidió
+      no mutarla. Ver "Cómo cerrar T8" abajo.
 
 ## Progreso
 
@@ -183,4 +185,35 @@ de ejemplo y `gastos` variando):
 
 Lo que falta es lo único que no se puede simular: leer los números reales de la
 base y verlos en pantalla. Eso es T8.
+
+## Cómo cerrar T8
+
+No hace falta Docker. `DATABASE_URL` en `backend/.env` apunta a Neon, así que
+basta con arrancar el backend. El orden, en dos partes separadas a propósito:
+
+**1. Antes de migrar, mirar los números sin escribir nada.** Es la verificación
+que importa, y no toca la base. Sobre `ventas` y `ventas_facturacion` del
+período:
+
+```sql
+SELECT SUM(v.precio) AS ingresos,
+       SUM(v.precio - v.ganancia) AS costo_mercaderia,
+       SUM(v.cantidad) AS unidades
+FROM ventas v WHERE v.created_at >= date_trunc('month', now());
+```
+
+Si `costo_mercaderia` se acerca o supera `ingresos`, el margen de contribución da
+negativo y el hallazgo del doc se confirma con datos reales. Eso también
+verifica la aritmética que hoy está comprobada sólo con valores inventados.
+
+**2. Recién después, la migración.** `npm start` en `backend/` corre
+`runMigrations()` en el arranque y aplica `gastos.tipo` + `gastos_tipo_check`.
+Es aditivo y nullable, pero es DDL sobre la base del emprendimiento: por eso
+queda como decisión tuya y no se hizo sola. Después, `GET /api/punto-equilibrio`
+con token, y recién ahí los números en la pantalla dejan de ser un modelo.
+
+Ojo con el orden de una cosa: hasta que los gastos tengan `tipo`, la pantalla va
+a mostrar el aviso "gastos sin clasificar" y el equilibrio va a estar
+subestimado. Es el comportamiento correcto, no un bug — pero conviene saberlo
+antes de mirar la pantalla y pensar que el número está mal.
 
