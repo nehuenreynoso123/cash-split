@@ -22,16 +22,35 @@ export async function listFlujoFondos({ desde, hasta } = {}) {
       COALESCE(SUM(v.cantidad), 0) AS unidades_vendidas,
       COALESCE(SUM(v.precio::numeric), 0) AS ingresos_totales,
       COALESCE(SUM(p.precio::numeric * v.cantidad), 0) AS costo_reposicion_total,
-      -- Costo de la mercadería efectivamente vendida en el período, usando el
-      -- costo CONGELADO en la venta (v.precio - v.ganancia) en lugar del precio
-      -- actual del producto. "Cuánto gasté en mercadería" es una pregunta sobre
-      -- el pasado: si se recalculara con p.precio, cambiar el costo de un
-      -- producto reescribiría cuánta plata se gastó en meses ya cerrados. El
-      -- COALESCE cae al cálculo actual solo para ventas antiguas sin ganancia
-      -- congelada, que es el único caso donde no hay dato histórico.
-      COALESCE(SUM(CASE WHEN v.id IS NULL THEN 0 ELSE COALESCE(v.precio::numeric - v.ganancia::numeric, v.precio::numeric - (p.precio::numeric * v.cantidad)) END), 0) AS costo_mercaderia_vendida,
-      COALESCE(SUM(v.precio::numeric - (p.precio::numeric * v.cantidad)), 0) AS ganancia_real_total,
-      COALESCE(SUM(CASE WHEN v.fecha_cobro IS NULL OR v.fecha_cobro > CURRENT_DATE THEN v.precio::numeric - (p.precio::numeric * v.cantidad) ELSE 0 END), 0) AS ganancia_por_cobrar_total,
+      -- Costo y ganancia CONGELADOS en la venta, no recalculados con p.precio.
+      --
+      -- "Cuánto gané en septiembre" es una pregunta sobre el pasado: si se
+      -- recalculara con el precio actual del producto, editar un costo
+      -- reescribiría meses ya cerrados y cualquier comparación mes a mes
+      -- quedaría falseada sin aviso.
+      --
+      -- ventas.precio y ventas.ganancia son TOTALES DE LÍNEA (no unitarios):
+      -- ver ventas/store.js add() → ganancia = precio - (producto.precio * cantidad).
+      -- Por lo tanto costo + ganancia = precio siempre, en ambas ramas.
+      --
+      -- La rama se decide por el VALOR, no por NULL: la columna es
+      -- NOT NULL DEFAULT 0 (init.sql), así que una venta anterior a la columna
+      -- tiene ganancia = 0 y un COALESCE sobre NULL nunca cae al fallback.
+      -- Con COALESCE, esas ventas deflactaban a costo = precio (el 100% de la
+      -- venta) y el margen de esos meses quedaba destruido sin error visible.
+      -- ganancia > 0 → hay costo congelado. ganancia = 0 → no lo hay, y la
+      -- única referencia disponible es el costo actual por cantidad.
+      COALESCE(SUM(CASE WHEN v.id IS NULL THEN 0
+                        WHEN v.ganancia::numeric > 0 THEN v.precio::numeric - v.ganancia::numeric
+                        ELSE p.precio::numeric * v.cantidad END), 0) AS costo_mercaderia_vendida,
+      COALESCE(SUM(CASE WHEN v.id IS NULL THEN 0
+                        WHEN v.ganancia::numeric > 0 THEN v.ganancia::numeric
+                        ELSE v.precio::numeric - (p.precio::numeric * v.cantidad) END), 0) AS ganancia_real_total,
+      COALESCE(SUM(CASE WHEN v.id IS NULL THEN 0
+                        WHEN v.fecha_cobro IS NULL OR v.fecha_cobro > CURRENT_DATE
+                          THEN CASE WHEN v.ganancia::numeric > 0 THEN v.ganancia::numeric
+                                    ELSE v.precio::numeric - (p.precio::numeric * v.cantidad) END
+                        ELSE 0 END), 0) AS ganancia_por_cobrar_total,
       COALESCE(SUM(CASE WHEN v.fecha_cobro IS NULL OR v.fecha_cobro > CURRENT_DATE THEN v.cantidad ELSE 0 END), 0) AS unidades_por_cobrar
     FROM productos p
     ${joinFilter}
