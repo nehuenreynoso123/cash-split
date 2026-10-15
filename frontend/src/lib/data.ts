@@ -58,6 +58,10 @@ export const defaultMetrics: DashboardMetrics = {
   retornoInversion: 18.5,
 };
 
+// Impuesto aplicado sobre las ventas (4%). Single source of truth shared by the
+// sale form and the sale history so both always show the same rate.
+export const TAX_RATE = 0.04;
+
 export function formatCurrency(value: number): string {
   return new Intl.NumberFormat('es-AR', {
     style: 'currency',

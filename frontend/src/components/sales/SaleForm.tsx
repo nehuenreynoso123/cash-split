@@ -1,5 +1,5 @@
 import { useState, useEffect, type FormEvent } from 'react';
-import { formatCurrency } from '../../lib/data';
+import { formatCurrency, TAX_RATE } from '../../lib/data';
 import { listProductos, createFactura, type Producto } from '../../lib/api';
 import { useAuthRedirect } from '../../hooks/useAuthRedirect';
 import { useSaleLines, emptySaleLine } from '../../hooks/useSaleLines';
@@ -29,6 +29,10 @@ export default function SaleForm({ onSaleComplete }: SaleFormProps) {
     getStockError,
     canSubmit,
   } = useSaleLines([emptySaleLine()], products);
+
+  // Impuesto de la venta en curso (4% del total), mostrado en vivo mientras se
+  // cargan los productos. El Total Venta no se modifica.
+  const taxes = grandTotal * TAX_RATE;
 
   useEffect(() => {
     listProductos()
@@ -233,11 +237,19 @@ export default function SaleForm({ onSaleComplete }: SaleFormProps) {
         </button>
 
         {/* ── Grand total ─────────────────────────────────── */}
-        <div className="p-6 bg-surface-container rounded-xl flex justify-between items-center">
-          <span className="font-headline-md text-headline-md text-primary">Total Venta</span>
-          <span className="font-data-mono text-display-lg text-secondary">
-            {formatCurrency(grandTotal)}
-          </span>
+        <div className="p-6 bg-surface-container rounded-xl space-y-3">
+          <div className="flex justify-between items-center">
+            <span className="font-label-caps text-on-surface-variant uppercase">Impuesto (4%)</span>
+            <span className="font-data-mono text-body-base text-on-surface-variant">
+              {formatCurrency(taxes)}
+            </span>
+          </div>
+          <div className="flex justify-between items-center">
+            <span className="font-headline-md text-headline-md text-primary">Total Venta</span>
+            <span className="font-data-mono text-display-lg text-secondary">
+              {formatCurrency(grandTotal)}
+            </span>
+          </div>
         </div>
 
         {/* ── Submit ──────────────────────────────────────── */}

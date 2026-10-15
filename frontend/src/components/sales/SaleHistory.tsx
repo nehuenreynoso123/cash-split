@@ -2,11 +2,11 @@ import { useState, useEffect, Fragment } from 'react';
 import Badge from '../ui/Badge';
 import Pagination from '../ui/Pagination';
 import EditVentaModal from './EditVentaModal';
-import { formatCurrency } from '../../lib/data';
+import { formatCurrency, TAX_RATE } from '../../lib/data';
 import { listVentasGrouped, deleteVentaFactura, type VentaFactura } from '../../lib/api';
 import { useAuthRedirect } from '../../hooks/useAuthRedirect';
 
-const COLUMNS = ['Fecha', 'Productos', 'Cant.', 'Total', 'Ganancia', 'Margen', 'Estado', 'Acciones'];
+const COLUMNS = ['Fecha', 'Productos', 'Cant.', 'Total', 'Impuestos (4%)', 'Ganancia', 'Margen', 'Estado', 'Acciones'];
 
 export default function SaleHistory() {
   useAuthRedirect();
@@ -87,7 +87,7 @@ export default function SaleHistory() {
                 <th
                   key={h}
                   className={`px-6 py-4 font-label-caps text-on-surface-variant uppercase tracking-wider ${
-                    h === 'Cant.' || h === 'Total' || h === 'Ganancia' || h === 'Margen' || h === 'Acciones' ? 'text-right' : h === 'Estado' ? 'text-center' : ''
+                    h === 'Cant.' || h === 'Total' || h === 'Impuestos (4%)' || h === 'Ganancia' || h === 'Margen' || h === 'Acciones' ? 'text-right' : h === 'Estado' ? 'text-center' : ''
                   }`}
                 >
                   {h}
@@ -114,6 +114,7 @@ export default function SaleHistory() {
                 const productCount = sale.productos?.length ?? 0;
                 // Markup over cost (costo = precio - ganancia), per business definition: ganancia / costo * 100
                 const margin = sale.ganancia != null && sale.precio - sale.ganancia > 0 ? (sale.ganancia / (sale.precio - sale.ganancia)) * 100 : null;
+                const taxes = sale.precio * TAX_RATE;
 
                 return (
                   <Fragment key={sale.factura_id}>
@@ -149,6 +150,9 @@ export default function SaleHistory() {
                       <td className="px-6 py-4 text-right font-data-mono">{sale.cantidad}</td>
                       <td className="px-6 py-4 text-right font-data-mono text-primary font-semibold">
                         {formatCurrency(sale.precio)}
+                      </td>
+                      <td className="px-6 py-4 text-right font-data-mono text-on-surface-variant">
+                        {formatCurrency(taxes)}
                       </td>
                       <td className="px-6 py-4 text-right font-data-mono text-green-600 font-semibold">
                         {sale.ganancia != null ? formatCurrency(sale.ganancia) : '—'}
