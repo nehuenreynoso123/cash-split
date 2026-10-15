@@ -130,15 +130,19 @@ del usuario:
 - `seguro auto` = **servicios / fijo**. Precedente: toda categoría `servicios` es **fijo**.
 - `monotributo` = **fijo**; `percepciones` = **variable**.
 
-**Estado: 103 de 116 clasificados. Quedan 13 sin resolver, 751.181,22:**
+**Estado: 107 de 116 clasificados. Quedan 9 sin resolver, 263.262:**
 
 | Grupo | Registros | Monto | Por qué sigue abierto |
 | --- | --- | --- | --- |
-| `impuestos` (4 filas) | 48, 80, 94, 95 | 487.919,22 | No se sabe cuál impuesto es: cuota fija vs % sobre venta |
+| `impuestos` (4 filas) | 48, 80, 94, 95 | 487.919,22 | **RESUELTO** — el usuario confirmó que son variables por naturaleza |
 | `lavarropa` (3 filas) | 14, 18, 26 | 97.262 | Arreglo doméstico vs herramienta de trabajo |
-| Plataformas (6 filas) | 8, 17, 19, 29, 67, 96 | 166.000 | Probablemente ya liquidadas en `ventas_facturacion` → contarlas dos veces |
+| Plataformas (5 filas) | 8, 17, 19, 29, 67 | 106.000 | Probablemente ya liquidadas en `ventas_facturacion` → contarlas dos veces |
+| `pago euge` (1 fila) | 96 | 60.000 | Sin regla; ya está como `emprendimiento` pero sin tipo |
 
-**Regla para T6/T7: los 13 pendientes se muestran como línea explícita "sin
+**Reparto actual del negocio:** fijos 733.068 (monotributo 414.268 + servicios 318.800),
+variables 984.358, personales 2.036.321.
+
+**Regla para T6/T7: los pendientes se muestran como línea explícita "sin
 clasificar". Nunca se incluyen ni se excluyen en silencio.** Es la misma lección del
 Dashboard roto: un número sin decir qué le falta es un número engañoso.
 
